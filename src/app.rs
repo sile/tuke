@@ -100,6 +100,10 @@ impl App {
                     .args(&["send-keys", "-t", ".0", &key_str])
                     .output()
                     .or_fail()?;
+                // Command::new("tmux")
+                //    .args(&["select-pane", "-t", ".0"])
+                //    .output()
+                //    .or_fail()?;
             }
         }
         Ok(())
