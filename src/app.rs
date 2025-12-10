@@ -96,19 +96,48 @@ impl Button {
     pub fn render(&self, frame: &mut tuinix::TerminalFrame) -> orfail::Result<()> {
         let mut button_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.size);
 
-        if self.label.len() <= self.size.cols {
-            let padding = (self.size.cols - self.label.len()) / 2;
-            write!(
-                button_frame,
-                "{:padding$}{}",
-                "",
-                self.label,
-                padding = padding
-            )
-            .or_fail()?;
-        } else {
-            write!(button_frame, "{}", self.label).or_fail()?;
+        // Write border chars
+        let width = self.size.cols;
+        let height = self.size.rows;
+
+        // Top border
+        write!(button_frame, "┌").or_fail()?;
+        for _ in 1..width - 1 {
+            write!(button_frame, "─").or_fail()?;
         }
+        write!(button_frame, "┐").or_fail()?;
+
+        // Middle rows with left/right borders
+        for row in 1..height - 1 {
+            write!(button_frame, "│").or_fail()?;
+            if row == (height - 1) / 2 {
+                // Center row - write label
+                if self.label.len() <= width - 2 {
+                    let padding = (width - 2 - self.label.len()) / 2;
+                    write!(
+                        button_frame,
+                        "{:padding$}{}{:padding$}",
+                        "",
+                        self.label,
+                        "",
+                        padding = padding
+                    )
+                    .or_fail()?;
+                } else {
+                    write!(button_frame, "{}", &self.label[..width - 2]).or_fail()?;
+                }
+            } else {
+                write!(button_frame, "{:width$}", "", width = width - 2).or_fail()?;
+            }
+            write!(button_frame, "│").or_fail()?;
+        }
+
+        // Bottom border
+        write!(button_frame, "└").or_fail()?;
+        for _ in 1..width - 1 {
+            write!(button_frame, "─").or_fail()?;
+        }
+        write!(button_frame, "┘").or_fail()?;
 
         frame.draw(self.position, &button_frame);
 
