@@ -139,7 +139,7 @@ impl Button {
         for _ in 1..width - 1 {
             write!(button_frame, "─").or_fail()?;
         }
-        write!(button_frame, "┐").or_fail()?;
+        writeln!(button_frame, "┐").or_fail()?;
 
         // Middle rows with left/right borders
         for row in 1..height - 1 {
@@ -163,7 +163,7 @@ impl Button {
             } else {
                 write!(button_frame, "{:width$}", "", width = width - 2).or_fail()?;
             }
-            write!(button_frame, "│").or_fail()?;
+            writeln!(button_frame, "│").or_fail()?;
         }
 
         // Bottom border
@@ -171,7 +171,7 @@ impl Button {
         for _ in 1..width - 1 {
             write!(button_frame, "─").or_fail()?;
         }
-        write!(button_frame, "┘").or_fail()?;
+        writeln!(button_frame, "┘").or_fail()?;
 
         frame.draw(self.position, &button_frame);
 
