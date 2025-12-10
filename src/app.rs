@@ -97,7 +97,7 @@ impl App {
             Action::SendKey { key } => {
                 let key_str = self.key_input_to_string(key);
                 Command::new("tmux")
-                    .args(&["send-keys", "-t", ".", &key_str])
+                    .args(&["send-keys", "-t", ".0", &key_str])
                     .output()
                     .or_fail()?;
             }
