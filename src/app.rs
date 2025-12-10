@@ -63,3 +63,16 @@ impl App {
         Ok(())
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Button {
+    pub label: String,
+    pub action: Action,
+    pub size: tuinix::TerminalSize,
+    pub position: tuinix::TerminalPosition,
+}
+
+#[derive(Debug, Clone)]
+pub enum Action {
+    SendKey { key: tuinix::KeyInput },
+}
