@@ -68,8 +68,30 @@ impl App {
 pub struct Button {
     pub label: String,
     pub action: Action,
-    pub size: tuinix::TerminalSize,
     pub position: tuinix::TerminalPosition,
+    pub size: tuinix::TerminalSize,
+}
+
+impl Button {
+    pub fn normal_key(
+        label: &str,
+        ch: char,
+        position: tuinix::TerminalPosition,
+        size: tuinix::TerminalSize,
+    ) -> Self {
+        Self {
+            label: label.to_string(),
+            action: Action::SendKey {
+                key: tuinix::KeyInput {
+                    ctrl: false,
+                    alt: false,
+                    code: tuinix::KeyCode::Char(ch),
+                },
+            },
+            position,
+            size,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
