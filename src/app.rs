@@ -14,10 +14,37 @@ impl App {
         let mut terminal = tuinix::Terminal::new().or_fail()?;
         terminal.enable_mouse_input().or_fail()?;
 
+        let buttons = vec![
+            Button::normal_key(
+                "A",
+                'a',
+                tuinix::TerminalPosition { col: 0, row: 5 },
+                tuinix::TerminalSize { cols: 5, rows: 3 },
+            ),
+            Button::normal_key(
+                "S",
+                's',
+                tuinix::TerminalPosition { col: 6, row: 5 },
+                tuinix::TerminalSize { cols: 5, rows: 3 },
+            ),
+            Button::normal_key(
+                "D",
+                'd',
+                tuinix::TerminalPosition { col: 12, row: 5 },
+                tuinix::TerminalSize { cols: 5, rows: 3 },
+            ),
+            Button::normal_key(
+                "F",
+                'f',
+                tuinix::TerminalPosition { col: 18, row: 5 },
+                tuinix::TerminalSize { cols: 5, rows: 3 },
+            ),
+        ];
+
         Ok(Self {
             terminal,
             last_mouse_input: None,
-            buttons: Vec::new(),
+            buttons,
         })
     }
 
