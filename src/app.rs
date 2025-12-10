@@ -92,6 +92,28 @@ impl Button {
             size,
         }
     }
+
+    pub fn render(&self, frame: &mut tuinix::TerminalFrame) -> orfail::Result<()> {
+        let mut button_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.size);
+
+        if self.label.len() <= self.size.cols {
+            let padding = (self.size.cols - self.label.len()) / 2;
+            write!(
+                button_frame,
+                "{:padding$}{}",
+                "",
+                self.label,
+                padding = padding
+            )
+            .or_fail()?;
+        } else {
+            write!(button_frame, "{}", self.label).or_fail()?;
+        }
+
+        frame.draw(self.position, &button_frame);
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
