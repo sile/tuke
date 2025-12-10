@@ -6,6 +6,7 @@ use orfail::OrFail;
 pub struct App {
     terminal: tuinix::Terminal,
     last_mouse_input: Option<tuinix::MouseInput>,
+    buttons: Vec<Button>,
 }
 
 impl App {
@@ -16,6 +17,7 @@ impl App {
         Ok(Self {
             terminal,
             last_mouse_input: None,
+            buttons: Vec::new(),
         })
     }
 
@@ -58,6 +60,11 @@ impl App {
         }
 
         writeln!(frame, "\nPress 'q' to quit").or_fail()?;
+
+        for button in &self.buttons {
+            button.render(&mut frame).or_fail()?;
+        }
+
         self.terminal.draw(frame).or_fail()?;
 
         Ok(())
