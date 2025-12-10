@@ -152,7 +152,7 @@ impl Button {
 
         // Apply style based on pressed state
         let style = if self.is_pressed {
-            tuinix::TerminalStyle::new().reverse()
+            tuinix::TerminalStyle::new().bold()
         } else {
             tuinix::TerminalStyle::new()
         };
