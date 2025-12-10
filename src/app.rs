@@ -86,13 +86,11 @@ impl App {
             .or_fail()?;
 
             // Find which button was clicked using TerminalRegion
-            if let Some(button) = self.buttons.iter().find(|btn| {
-                let region = tuinix::TerminalRegion {
-                    position: btn.position,
-                    size: btn.size,
-                };
-                region.contains(mouse_input.position)
-            }) {
+            if let Some(button) = self
+                .buttons
+                .iter()
+                .find(|btn| btn.region.contains(mouse_input.position))
+            {
                 writeln!(frame, "Pressed Button: {}", button.label).or_fail()?;
             }
         }
@@ -113,8 +111,7 @@ impl App {
 pub struct Button {
     pub label: String,
     pub action: Action,
-    pub position: tuinix::TerminalPosition,
-    pub size: tuinix::TerminalSize,
+    pub region: tuinix::TerminalRegion,
 }
 
 impl Button {
@@ -133,17 +130,16 @@ impl Button {
                     code: tuinix::KeyCode::Char(ch),
                 },
             },
-            position,
-            size,
+            region: tuinix::TerminalRegion { position, size },
         }
     }
 
     pub fn render(&self, frame: &mut tuinix::TerminalFrame) -> orfail::Result<()> {
-        let mut button_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.size);
+        let mut button_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
 
         // Write border chars
-        let width = self.size.cols;
-        let height = self.size.rows;
+        let width = self.region.size.cols;
+        let height = self.region.size.rows;
 
         // Top border
         write!(button_frame, "┌").or_fail()?;
@@ -184,7 +180,7 @@ impl Button {
         }
         writeln!(button_frame, "┘").or_fail()?;
 
-        frame.draw(self.position, &button_frame);
+        frame.draw(self.region.position, &button_frame);
 
         Ok(())
     }
