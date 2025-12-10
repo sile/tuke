@@ -61,6 +61,7 @@ impl App {
                     }
                     tuinix::TerminalInput::Mouse(mouse_input) => {
                         self.last_mouse_input = Some(mouse_input);
+                        self.update_button_states(&mouse_input);
                         self.render().or_fail()?;
                     }
                 },
@@ -71,6 +72,12 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn update_button_states(&mut self, mouse_input: &tuinix::MouseInput) {
+        for button in &mut self.buttons {
+            button.is_pressed = button.region.contains(mouse_input.position);
+        }
     }
 
     fn render(&mut self) -> orfail::Result<()> {
@@ -112,6 +119,7 @@ pub struct Button {
     pub label: String,
     pub action: Action,
     pub region: tuinix::TerminalRegion,
+    pub is_pressed: bool,
 }
 
 impl Button {
@@ -131,6 +139,7 @@ impl Button {
                 },
             },
             region: tuinix::TerminalRegion { position, size },
+            is_pressed: false,
         }
     }
 
@@ -141,7 +150,16 @@ impl Button {
         let width = self.region.size.cols;
         let height = self.region.size.rows;
 
+        // Apply style based on pressed state
+        let style = if self.is_pressed {
+            tuinix::TerminalStyle::new().reverse()
+        } else {
+            tuinix::TerminalStyle::new()
+        };
+        let reset_style = tuinix::TerminalStyle::RESET;
+
         // Top border
+        write!(button_frame, "{}", style).or_fail()?;
         write!(button_frame, "┌").or_fail()?;
         for _ in 1..width - 1 {
             write!(button_frame, "─").or_fail()?;
@@ -179,6 +197,7 @@ impl Button {
             write!(button_frame, "─").or_fail()?;
         }
         writeln!(button_frame, "┘").or_fail()?;
+        write!(button_frame, "{}", reset_style).or_fail()?;
 
         frame.draw(self.region.position, &button_frame);
 
