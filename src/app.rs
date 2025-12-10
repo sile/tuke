@@ -84,6 +84,17 @@ impl App {
                 mouse_input.position.col, mouse_input.position.row
             )
             .or_fail()?;
+
+            // Find which button was clicked using TerminalRegion
+            if let Some(button) = self.buttons.iter().find(|btn| {
+                let region = tuinix::TerminalRegion {
+                    position: btn.position,
+                    size: btn.size,
+                };
+                region.contains(mouse_input.position)
+            }) {
+                writeln!(frame, "Pressed Button: {}", button.label).or_fail()?;
+            }
         }
 
         writeln!(frame, "\nPress 'q' to quit").or_fail()?;
