@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::process::Command;
 
 use orfail::OrFail;
 
@@ -36,8 +37,8 @@ impl App {
             Button::normal_key(
                 "F",
                 'f',
-                tuinix::TerminalPosition { col: 18, row: 5 },
-                tuinix::TerminalSize { cols: 5, rows: 3 },
+                tuinix::TerminalPosition { col: 18, row: 6 },
+                tuinix::TerminalSize { cols: 7, rows: 4 },
             ),
         ];
 
@@ -62,6 +63,17 @@ impl App {
                     tuinix::TerminalInput::Mouse(mouse_input) => {
                         self.last_mouse_input = Some(mouse_input);
                         self.update_button_states(&mouse_input);
+
+                        // Find the pressed button and execute the action
+                        if mouse_input.event == tuinix::MouseEvent::LeftRelease
+                            && let Some(button) = self
+                                .buttons
+                                .iter()
+                                .find(|btn| btn.region.contains(mouse_input.position))
+                        {
+                            self.execute_action(&button.action).or_fail()?;
+                        }
+
                         self.render().or_fail()?;
                     }
                 },
@@ -78,6 +90,52 @@ impl App {
         for button in &mut self.buttons {
             button.is_pressed = button.region.contains(mouse_input.position);
         }
+    }
+
+    fn execute_action(&self, action: &Action) -> orfail::Result<()> {
+        match action {
+            Action::SendKey { key } => {
+                let key_str = self.key_input_to_string(key);
+                Command::new("tmux")
+                    .args(&["send-keys", "-t", ".", &key_str])
+                    .output()
+                    .or_fail()?;
+            }
+        }
+        Ok(())
+    }
+
+    fn key_input_to_string(&self, key: &tuinix::KeyInput) -> String {
+        let mut result = String::new();
+
+        if key.ctrl {
+            result.push_str("C-");
+        }
+        if key.alt {
+            result.push_str("M-");
+        }
+
+        match key.code {
+            tuinix::KeyCode::Char(ch) => {
+                result.push(ch);
+            }
+            tuinix::KeyCode::Enter => result.push_str("Enter"),
+            tuinix::KeyCode::Tab => result.push_str("Tab"),
+            tuinix::KeyCode::Backspace => result.push_str("BSpace"),
+            tuinix::KeyCode::Delete => result.push_str("Delete"),
+            tuinix::KeyCode::Escape => result.push_str("Escape"),
+            tuinix::KeyCode::Up => result.push_str("Up"),
+            tuinix::KeyCode::Down => result.push_str("Down"),
+            tuinix::KeyCode::Left => result.push_str("Left"),
+            tuinix::KeyCode::Right => result.push_str("Right"),
+            tuinix::KeyCode::PageUp => result.push_str("PageUp"),
+            tuinix::KeyCode::PageDown => result.push_str("PageDown"),
+            tuinix::KeyCode::Home => result.push_str("Home"),
+            tuinix::KeyCode::End => result.push_str("End"),
+            _ => {}
+        }
+
+        result
     }
 
     fn render(&mut self) -> orfail::Result<()> {
@@ -207,5 +265,6 @@ impl Button {
 
 #[derive(Debug, Clone)]
 pub enum Action {
+    // Send the key to the previous pane using `tmux send-keys` command
     SendKey { key: tuinix::KeyInput },
 }
