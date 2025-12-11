@@ -1,26 +1,22 @@
 use std::path::{Path, PathBuf};
 
-pub fn load_file<P: AsRef<Path>, F, T>(path: P, f: F) -> Result<T, LoadError>
+pub fn load_file<P: AsRef<Path>, T>(path: P) -> Result<T, LoadError>
 where
-    F: for<'text, 'raw> FnOnce(
-        nojson::RawJsonValue<'text, 'raw>,
-    ) -> Result<T, nojson::JsonParseError>,
+    T: for<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>, Error = nojson::JsonParseError>,
 {
     let text = std::fs::read_to_string(&path).map_err(|e| LoadError::Io {
         path: path.as_ref().to_path_buf(),
         error: e,
     })?;
-    load_str(&path.as_ref().display().to_string(), &text, f)
+    load_str(&path.as_ref().display().to_string(), &text)
 }
 
-pub fn load_str<F, T>(name: &str, text: &str, f: F) -> Result<T, LoadError>
+pub fn load_str<T>(name: &str, text: &str) -> Result<T, LoadError>
 where
-    F: for<'text, 'raw> FnOnce(
-        nojson::RawJsonValue<'text, 'raw>,
-    ) -> Result<T, nojson::JsonParseError>,
+    T: for<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>, Error = nojson::JsonParseError>,
 {
     let value = nojson::RawJson::parse_jsonc(text)
-        .and_then(|(json, _)| f(json.value()))
+        .and_then(|(json, _)| T::try_from(json.value()))
         .map_err(|error| LoadError::json(name, text, error))?;
     Ok(value)
 }
