@@ -271,4 +271,7 @@ impl Button {
 pub enum Action {
     // Send the key to the previous pane using `tmux send-keys` command
     SendKey { key: tuinix::KeyInput },
+    // SendKeys
+    // SelectPane
+    // SelectLayer{ctrl|alt|shift|custom}
 }
