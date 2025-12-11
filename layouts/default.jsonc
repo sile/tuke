@@ -8,13 +8,20 @@
       "bottom": 2,
     },
   },
+  "layers": [
+    "L0",
+  ],
   "keys": [
     {
-      "layer": "default",
       "label": "a",
       "action": {"send-key": "a"},
-      "position": {"x": 0, "y": 5},
       "size": {"width": 5, "height": 3},
+      "position": {"x": 0, "y": 0},
+      "layers": ["L0"],
+    },
+    {
+      "label": "s",
+      "action": {"send-key": "s"},
     },
   ],
 }
