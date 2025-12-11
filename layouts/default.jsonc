@@ -1,0 +1,13 @@
+{
+  "align": {
+    "vertical": "bottom",
+    "horizontal": "right",
+  },
+  "padding": {
+    "bottom": 2,
+  },
+  "layers": {
+    "default": {
+    },
+  },
+}
