@@ -29,7 +29,7 @@ fn main() -> noargs::Result<()> {
         .map(|path| tuke::config::Config::load_from_file(path))
         .transpose()?
         .unwrap_or_default();
-    let app = tuke::app::App::new()?;
+    let app = tuke::app::App::new(config)?;
     app.run()?;
     Ok(())
 }

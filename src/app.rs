@@ -3,15 +3,18 @@ use std::process::Command;
 
 use orfail::OrFail;
 
+use crate::config::Config;
+
 #[derive(Debug)]
 pub struct App {
     terminal: tuinix::Terminal,
+    config: Config,
     last_mouse_input: Option<tuinix::MouseInput>,
     buttons: Vec<Button>,
 }
 
 impl App {
-    pub fn new() -> orfail::Result<Self> {
+    pub fn new(config: Config) -> orfail::Result<Self> {
         let mut terminal = tuinix::Terminal::new().or_fail()?;
         terminal.enable_mouse_input().or_fail()?;
 
@@ -44,6 +47,7 @@ impl App {
 
         Ok(Self {
             terminal,
+            config,
             last_mouse_input: None,
             buttons,
         })
