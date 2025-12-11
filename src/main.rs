@@ -25,6 +25,10 @@ fn main() -> noargs::Result<()> {
         return Ok(());
     }
 
+    let config = config_file_path
+        .map(|path| tuke::config::Config::load_from_file(path))
+        .transpose()?
+        .unwrap_or_default();
     let app = tuke::app::App::new()?;
     app.run()?;
     Ok(())
