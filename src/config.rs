@@ -40,6 +40,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 #[derive(Debug, Clone)]
 pub struct Key {
     pub action: Action,
+    pub region: tuinix::TerminalRegion,
 }
 
 impl Key {
@@ -48,7 +49,16 @@ impl Key {
         _last_key: Option<&Key>,
     ) -> Result<Self, nojson::JsonParseError> {
         let action = value.to_member("action")?.required()?.try_into()?;
-        Ok(Self { action })
+
+        // TODO: optional
+        let size = value.to_member("size")?.required()?.map(parse_size)?;
+        let position = value
+            .to_member("position")?
+            .required()?
+            .map(parse_position)?;
+        let region = tuinix::TerminalRegion { position, size };
+
+        Ok(Self { action, region })
     }
 }
 
@@ -85,4 +95,23 @@ fn parse_key_code(
     } else {
         Err(value.invalid("unknown key code"))
     }
+}
+
+fn parse_size(
+    value: nojson::RawJsonValue<'_, '_>,
+) -> Result<tuinix::TerminalSize, nojson::JsonParseError> {
+    let width = value.to_member("width")?.required()?.try_into()?;
+    let height = value.to_member("height")?.required()?.try_into()?;
+    Ok(tuinix::TerminalSize {
+        rows: height,
+        cols: width,
+    })
+}
+
+fn parse_position(
+    value: nojson::RawJsonValue<'_, '_>,
+) -> Result<tuinix::TerminalPosition, nojson::JsonParseError> {
+    let x = value.to_member("x")?.required()?.try_into()?;
+    let y = value.to_member("y")?.required()?.try_into()?;
+    Ok(tuinix::TerminalPosition { row: y, col: x })
 }
