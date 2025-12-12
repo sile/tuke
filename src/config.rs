@@ -81,6 +81,7 @@ impl Key {
 #[derive(Debug, Clone)]
 pub enum Action {
     SendLabel,
+    FocusNextPane,
     ExecuteCommand { command: PathBuf, args: Vec<String> },
 }
 
@@ -91,6 +92,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
         let ty = value.to_member("type")?.required()?;
         match ty.to_unquoted_string_str()?.as_ref() {
             "send-label" => Ok(Self::SendLabel),
+            "focus-next-pane" => Ok(Self::FocusNextPane),
             "execute-command" => {
                 let command = value.to_member("command")?.required()?.try_into()?;
                 let args = value
