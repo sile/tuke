@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use orfail::OrFail;
 
@@ -81,8 +81,7 @@ impl Key {
 #[derive(Debug, Clone)]
 pub enum Action {
     SendLabel,
-    // SendKey { code: tuinix::KeyCode },
-    // Command { name:PathBuf, args:Vec<String>}
+    ExecuteCommand { command: PathBuf, args: Vec<String> },
 }
 
 impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
@@ -92,6 +91,14 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
         let ty = value.to_member("type")?.required()?;
         match ty.to_unquoted_string_str()?.as_ref() {
             "send-label" => Ok(Self::SendLabel),
+            "execute-command" => {
+                let command = value.to_member("command")?.required()?.try_into()?;
+                let args = value
+                    .to_member("args")?
+                    .map(Vec::try_from)?
+                    .unwrap_or_default();
+                Ok(Self::ExecuteCommand { command, args })
+            }
             _ => Err(ty.invalid("unknown action type")),
         }
     }
