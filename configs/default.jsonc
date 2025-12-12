@@ -13,11 +13,12 @@
   ],
   "keys": [
     {
-      "action": {"type": "send-key", "code": "a"},
+      "label": "a",
+      "action": {"type": "send-label"},
       "size": {"width": 5, "height": 3},
       "position": {"x": 0, "y": 0},
       "layer": "L0",
     },
-    {"action": {"type": "send-key", "code": "s"}},
+    {"label": "s", "action": {"type": "send-label"}},
   ],
 }

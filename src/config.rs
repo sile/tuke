@@ -39,6 +39,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 
 #[derive(Debug, Clone)]
 pub struct Key {
+    pub label: String,
     pub action: Action,
     pub region: tuinix::TerminalRegion,
 }
@@ -48,6 +49,7 @@ impl Key {
         value: nojson::RawJsonValue<'_, '_>,
         last_key: Option<&Key>,
     ) -> Result<Self, nojson::JsonParseError> {
+        let label = value.to_member("label")?.required()?.try_into()?;
         let action = value.to_member("action")?.required()?.try_into()?;
 
         let size_member = value.to_member("size")?;
@@ -68,13 +70,19 @@ impl Key {
 
         let region = tuinix::TerminalRegion { position, size };
 
-        Ok(Self { action, region })
+        Ok(Self {
+            label,
+            action,
+            region,
+        })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    SendKey { code: tuinix::KeyCode },
+    SendLabel,
+    // SendKey { code: tuinix::KeyCode },
+    // Command { name:PathBuf, args:Vec<String>}
 }
 
 impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
@@ -83,15 +91,13 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         let ty = value.to_member("type")?.required()?;
         match ty.to_unquoted_string_str()?.as_ref() {
-            "send-key" => {
-                let code = parse_key_code(value.to_member("code")?.required()?)?;
-                Ok(Self::SendKey { code })
-            }
+            "send-label" => Ok(Self::SendLabel),
             _ => Err(ty.invalid("unknown action type")),
         }
     }
 }
 
+/*
 fn parse_key_code(
     value: nojson::RawJsonValue<'_, '_>,
 ) -> Result<tuinix::KeyCode, nojson::JsonParseError> {
@@ -106,6 +112,7 @@ fn parse_key_code(
         Err(value.invalid("unknown key code"))
     }
 }
+*/
 
 fn parse_size(
     value: nojson::RawJsonValue<'_, '_>,
