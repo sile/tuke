@@ -18,6 +18,6 @@
       "position": {"x": 0, "y": 0},
       "layer": "L0",
     },
-    {"action": {"send-key": "s"}},
+    {"action": {"type": "send-key", "code": "s"}},
   ],
 }
