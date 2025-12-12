@@ -46,16 +46,26 @@ pub struct Key {
 impl Key {
     fn parse(
         value: nojson::RawJsonValue<'_, '_>,
-        _last_key: Option<&Key>,
+        last_key: Option<&Key>,
     ) -> Result<Self, nojson::JsonParseError> {
         let action = value.to_member("action")?.required()?.try_into()?;
 
-        // TODO: optional
-        let size = value.to_member("size")?.required()?.map(parse_size)?;
-        let position = value
-            .to_member("position")?
-            .required()?
-            .map(parse_position)?;
+        let size_member = value.to_member("size")?;
+        let size = if let Some(last) = last_key {
+            size_member.map(parse_size)?.unwrap_or(last.region.size)
+        } else {
+            size_member.required()?.map(parse_size)?
+        };
+
+        let position_member = value.to_member("position")?;
+        let position = if let Some(last) = last_key {
+            position_member
+                .map(parse_position)?
+                .unwrap_or(last.region.top_right())
+        } else {
+            position_member.required()?.map(parse_position)?
+        };
+
         let region = tuinix::TerminalRegion { position, size };
 
         Ok(Self { action, region })
