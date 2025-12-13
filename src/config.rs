@@ -172,11 +172,15 @@ fn parse_position(
 
 #[derive(Debug, Clone)]
 pub struct KeyState {
-    key: Key,
+    pub key: Key,
+    pub is_pressed: bool,
 }
 
 impl KeyState {
     pub fn new(key: Key) -> Self {
-        Self { key }
+        Self {
+            key,
+            is_pressed: false,
+        }
     }
 }
