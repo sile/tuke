@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use orfail::OrFail;
 
@@ -82,7 +82,6 @@ impl Key {
 pub enum Action {
     SendLabel,
     FocusNextPane,
-    ExecuteCommand { command: PathBuf, args: Vec<String> },
 }
 
 impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
@@ -93,35 +92,10 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
         match ty.to_unquoted_string_str()?.as_ref() {
             "send-label" => Ok(Self::SendLabel),
             "focus-next-pane" => Ok(Self::FocusNextPane),
-            "execute-command" => {
-                let command = value.to_member("command")?.required()?.try_into()?;
-                let args = value
-                    .to_member("args")?
-                    .map(Vec::try_from)?
-                    .unwrap_or_default();
-                Ok(Self::ExecuteCommand { command, args })
-            }
             _ => Err(ty.invalid("unknown action type")),
         }
     }
 }
-
-/*
-fn parse_key_code(
-    value: nojson::RawJsonValue<'_, '_>,
-) -> Result<tuinix::KeyCode, nojson::JsonParseError> {
-    let code = value.to_unquoted_string_str()?;
-    if code.len() == 1
-        && let Some(c) = code.chars().next()
-        && c.is_ascii()
-        && !c.is_ascii_control()
-    {
-        Ok(tuinix::KeyCode::Char(c))
-    } else {
-        Err(value.invalid("unknown key code"))
-    }
-}
-*/
 
 fn parse_size(
     value: nojson::RawJsonValue<'_, '_>,
