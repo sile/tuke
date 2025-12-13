@@ -141,8 +141,18 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
 fn parse_size(
     value: nojson::RawJsonValue<'_, '_>,
 ) -> Result<tuinix::TerminalSize, nojson::JsonParseError> {
-    let width = value.to_member("width")?.required()?.try_into()?;
-    let height = value.to_member("height")?.required()?.try_into()?;
+    let width_value = value.to_member("width")?.required()?;
+    let width = width_value.try_into()?;
+    if width < 7 {
+        return Err(width_value.invalid("width must be at least 7"));
+    }
+
+    let height_value = value.to_member("height")?.required()?;
+    let height = height_value.try_into()?;
+    if height < 3 {
+        return Err(height_value.invalid("height must be at least 3"));
+    }
+
     Ok(tuinix::TerminalSize {
         rows: height,
         cols: width,
