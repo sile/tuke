@@ -75,6 +75,7 @@ impl Key {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
     Char(char),
+    Quit,
     Shift,
     Ctrl,
     Alt,
@@ -93,6 +94,7 @@ impl std::fmt::Display for KeyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Char(c) => write!(f, "{c}"),
+            Self::Quit => write!(f, "Quit"),
             Self::Shift => write!(f, "Shift"),
             Self::Ctrl => write!(f, "Ctrl"),
             Self::Alt => write!(f, "Alt"),
@@ -113,6 +115,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         match value.to_unquoted_string_str()?.as_ref() {
+            "QUIT" => Ok(Self::Quit),
             "SHIFT" => Ok(Self::Shift),
             "CTRL" => Ok(Self::Ctrl),
             "ALT" => Ok(Self::Alt),
