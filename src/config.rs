@@ -72,10 +72,21 @@ impl Key {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
     Char(char),
-    // FocusNextPane,
+    Shift,
+    Ctrl,
+    Alt,
+    Up,
+    Down,
+    Left,
+    Right,
+    Enter,
+    Backspace,
+    Delete,
+    Tab,
+    Backtab, // FocusNextPane, FocusPrevPane
 }
 
 impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
@@ -83,6 +94,18 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         match value.to_unquoted_string_str()?.as_ref() {
+            "SHIFT" => Ok(Self::Shift),
+            "CTRL" => Ok(Self::Ctrl),
+            "ALT" => Ok(Self::Alt),
+            "UP" => Ok(Self::Up),
+            "DOWN" => Ok(Self::Down),
+            "LEFT" => Ok(Self::Left),
+            "RIGHT" => Ok(Self::Right),
+            "ENTER" => Ok(Self::Enter),
+            "BACKSPACE" => Ok(Self::Backspace),
+            "DELETE" => Ok(Self::Delete),
+            "TAB" => Ok(Self::Tab),
+            "BACKTAB" => Ok(Self::Backtab),
             "SPACE" => Ok(Self::Char(' ')),
             s => {
                 if let Some(c) = s.chars().next()
