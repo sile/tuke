@@ -14,7 +14,7 @@
   "keys": [
     {
       "code": "a",
-      "size": {"width": 5, "height": 3},
+      "size": {"width": 7, "height": 3},
       "position": {"x": 0, "y": 0},
       "layer": "L0",
     },
