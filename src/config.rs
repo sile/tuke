@@ -39,8 +39,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 
 #[derive(Debug, Clone)]
 pub struct Key {
-    pub label: String,
-    pub action: Action,
+    pub code: KeyCode,
     pub region: tuinix::TerminalRegion,
 }
 
@@ -49,8 +48,7 @@ impl Key {
         value: nojson::RawJsonValue<'_, '_>,
         last_key: Option<&Key>,
     ) -> Result<Self, nojson::JsonParseError> {
-        let label = value.to_member("label")?.required()?.try_into()?;
-        let action = value.to_member("action")?.required()?.try_into()?;
+        let code = value.to_member("code")?.required()?.try_into()?;
 
         let size_member = value.to_member("size")?;
         let size = if let Some(last) = last_key {
@@ -70,29 +68,32 @@ impl Key {
 
         let region = tuinix::TerminalRegion { position, size };
 
-        Ok(Self {
-            label,
-            action,
-            region,
-        })
+        Ok(Self { code, region })
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Action {
-    SendLabel,
-    FocusNextPane,
+pub enum KeyCode {
+    Char(char),
+    // FocusNextPane,
 }
 
-impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Action {
+impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
     type Error = nojson::JsonParseError;
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
-        let ty = value.to_member("type")?.required()?;
-        match ty.to_unquoted_string_str()?.as_ref() {
-            "send-label" => Ok(Self::SendLabel),
-            "focus-next-pane" => Ok(Self::FocusNextPane),
-            _ => Err(ty.invalid("unknown action type")),
+        match value.to_unquoted_string_str()?.as_ref() {
+            "SPACE" => Ok(Self::Char(' ')),
+            s => {
+                if let Some(c) = s.chars().next()
+                    && s.len() == 1
+                    && matches!(c, 'a'..='z' | '0'..='9' | '!'..='~')
+                {
+                    Ok(Self::Char(c))
+                } else {
+                    Err(value.invalid("unknown key code"))
+                }
+            }
         }
     }
 }
