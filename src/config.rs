@@ -89,6 +89,26 @@ pub enum KeyCode {
     Backtab, // FocusNextPane, FocusPrevPane
 }
 
+impl std::fmt::Display for KeyCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Char(c) => write!(f, "{c}"),
+            Self::Shift => write!(f, "Shift"),
+            Self::Ctrl => write!(f, "Ctrl"),
+            Self::Alt => write!(f, "Alt"),
+            Self::Up => write!(f, "↑"),
+            Self::Down => write!(f, "↓"),
+            Self::Left => write!(f, "←"),
+            Self::Right => write!(f, "→"),
+            Self::Enter => write!(f, "⏎"),
+            Self::Backspace => write!(f, "⌫"),
+            Self::Delete => write!(f, "⌦"),
+            Self::Tab => write!(f, "⇥"),
+            Self::Backtab => write!(f, "⇤"),
+        }
+    }
+}
+
 impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
     type Error = nojson::JsonParseError;
 
@@ -106,11 +126,10 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
             "DELETE" => Ok(Self::Delete),
             "TAB" => Ok(Self::Tab),
             "BACKTAB" => Ok(Self::Backtab),
-            "SPACE" => Ok(Self::Char(' ')),
             s => {
                 if let Some(c) = s.chars().next()
                     && s.len() == 1
-                    && matches!(c, 'a'..='z' | '0'..='9' | '!'..='~')
+                    && matches!(c, 'a'..='z' | '0'..='9' | '!'..='~' | ' ')
                 {
                     Ok(Self::Char(c))
                 } else {
