@@ -86,7 +86,7 @@ pub enum KeyCode {
     Backspace,
     Delete,
     Tab,
-    Backtab, // FocusNextPane, FocusPrevPane
+    // FocusNextPane, FocusPrevPane
 }
 
 impl std::fmt::Display for KeyCode {
@@ -100,11 +100,10 @@ impl std::fmt::Display for KeyCode {
             Self::Down => write!(f, "↓"),
             Self::Left => write!(f, "←"),
             Self::Right => write!(f, "→"),
-            Self::Enter => write!(f, "⏎"),
-            Self::Backspace => write!(f, "⌫"),
-            Self::Delete => write!(f, "⌦"),
-            Self::Tab => write!(f, "⇥"),
-            Self::Backtab => write!(f, "⇤"),
+            Self::Enter => write!(f, "Enter"),
+            Self::Backspace => write!(f, "Back"),
+            Self::Delete => write!(f, "Del"),
+            Self::Tab => write!(f, "Tab"),
         }
     }
 }
@@ -125,7 +124,6 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
             "BACKSPACE" => Ok(Self::Backspace),
             "DELETE" => Ok(Self::Delete),
             "TAB" => Ok(Self::Tab),
-            "BACKTAB" => Ok(Self::Backtab),
             s => {
                 if let Some(c) = s.chars().next()
                     && s.len() == 1
