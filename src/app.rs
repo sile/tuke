@@ -135,8 +135,6 @@ impl App {
             }
         }
 
-        writeln!(frame, "\nPress 'q' to quit").or_fail()?;
-
         for key_state in &self.keys {
             self.render_key(&mut frame, key_state).or_fail()?;
         }
