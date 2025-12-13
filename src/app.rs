@@ -11,6 +11,7 @@ pub struct App {
     config: Config,
     last_mouse_input: Option<tuinix::MouseInput>,
     buttons: Vec<Button>,
+    exit: bool,
 }
 
 impl App {
@@ -50,41 +51,49 @@ impl App {
             config,
             last_mouse_input: None,
             buttons,
+            exit: false,
         })
     }
 
     pub fn run(mut self) -> orfail::Result<()> {
         self.render().or_fail()?;
 
-        loop {
+        while !self.exit {
             match self.terminal.poll_event(&[], &[], None).or_fail()? {
-                Some(tuinix::TerminalEvent::Input(input)) => match input {
-                    tuinix::TerminalInput::Key(key_input) => {
-                        if let tuinix::KeyCode::Char('q') = key_input.code {
-                            break;
-                        }
-                    }
-                    tuinix::TerminalInput::Mouse(mouse_input) => {
-                        self.last_mouse_input = Some(mouse_input);
-                        self.update_button_states(&mouse_input);
-
-                        // Find the pressed button and execute the action
-                        if mouse_input.event == tuinix::MouseEvent::LeftRelease
-                            && let Some(button) = self
-                                .buttons
-                                .iter()
-                                .find(|btn| btn.region.contains(mouse_input.position))
-                        {
-                            self.execute_action(&button.action).or_fail()?;
-                        }
-
-                        self.render().or_fail()?;
-                    }
-                },
+                Some(tuinix::TerminalEvent::Input(input)) => {
+                    self.handle_input(input).or_fail()?;
+                    self.render().or_fail()?;
+                }
                 Some(tuinix::TerminalEvent::Resize(_)) => {
                     self.render().or_fail()?;
                 }
                 _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_input(&mut self, input: tuinix::TerminalInput) -> orfail::Result<()> {
+        match input {
+            tuinix::TerminalInput::Key(key_input) => {
+                self.exit = match key_input.code {
+                    tuinix::KeyCode::Char('q') => true,
+                    tuinix::KeyCode::Char('c') if key_input.ctrl => true,
+                    _ => false,
+                };
+            }
+            tuinix::TerminalInput::Mouse(mouse_input) => {
+                self.last_mouse_input = Some(mouse_input);
+                self.update_button_states(&mouse_input);
+
+                if mouse_input.event == tuinix::MouseEvent::LeftRelease
+                    && let Some(button) = self
+                        .buttons
+                        .iter()
+                        .find(|btn| btn.region.contains(mouse_input.position))
+                {
+                    self.execute_action(&button.action).or_fail()?;
+                }
             }
         }
         Ok(())
