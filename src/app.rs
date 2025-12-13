@@ -3,7 +3,7 @@ use std::process::Command;
 
 use orfail::OrFail;
 
-use crate::config::Config;
+use crate::config::{Config, KeyState};
 
 #[derive(Debug)]
 pub struct App {
@@ -11,6 +11,7 @@ pub struct App {
     config: Config,
     last_mouse_input: Option<tuinix::MouseInput>,
     buttons: Vec<Button>,
+    keys: Vec<KeyState>,
     exit: bool,
 }
 
@@ -46,11 +47,17 @@ impl App {
             ),
         ];
 
+        let keys = config
+            .keys
+            .iter()
+            .map(|k| KeyState::new(k.clone()))
+            .collect();
         Ok(Self {
             terminal,
             config,
             last_mouse_input: None,
             buttons,
+            keys,
             exit: false,
         })
     }

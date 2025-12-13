@@ -169,3 +169,14 @@ fn parse_position(
     let y = value.to_member("y")?.required()?.try_into()?;
     Ok(tuinix::TerminalPosition { row: y, col: x })
 }
+
+#[derive(Debug, Clone)]
+pub struct KeyState {
+    key: Key,
+}
+
+impl KeyState {
+    pub fn new(key: Key) -> Self {
+        Self { key }
+    }
+}
