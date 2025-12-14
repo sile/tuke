@@ -100,6 +100,15 @@ impl App {
         }
     }
 
+    fn tmux_command(&self, command: &str, args: &[&str]) -> orfail::Result<()> {
+        Command::new("tmux")
+            .arg(command)
+            .args(args)
+            .output()
+            .or_fail()?;
+        Ok(())
+    }
+
     fn handle_special_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
         self.reset_pressed_keys();
 
@@ -107,8 +116,13 @@ impl App {
             KeyCode::Quit => {
                 self.exit = true;
             }
+            KeyCode::DisplayPanes => {
+                self.tmux_command("display-panes", &[]).or_fail()?;
+            }
             _ => {}
         }
+        self.keys[i].press = KeyPressState::Pressed;
+
         Ok(())
     }
 
@@ -160,15 +174,11 @@ impl App {
         }
         key_string.push_str(&self.keys[i].key.code.to_string());
 
-        Command::new("tmux")
-            .args(&[
-                "send-keys",
-                "-t",
-                &format!(".{}", self.pane_index),
-                &key_string,
-            ])
-            .output()
-            .or_fail()?;
+        self.tmux_command(
+            "send-keys",
+            &["-t", &format!(".{}", self.pane_index), &key_string],
+        )
+        .or_fail()?;
 
         Ok(())
     }
