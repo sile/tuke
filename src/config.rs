@@ -218,8 +218,8 @@ impl KeyState {
         let style = match self.press {
             KeyPressState::Neutral => style,
             KeyPressState::Pressed => style.bold(),
-            KeyPressState::Activated => style.reverse().bold(),
-            KeyPressState::OneshotActivated => style.reverse(),
+            KeyPressState::Activated => style.italic().reverse(),
+            KeyPressState::OneshotActivated => style.italic(),
         };
         let reset_style = tuinix::TerminalStyle::RESET;
 
