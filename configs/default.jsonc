@@ -19,5 +19,7 @@
       "layer": "L0",
     },
     {"code": "s"},
+    {"code": "ENTER"},
+    {"code": "CTRL"},
   ],
 }

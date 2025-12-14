@@ -185,4 +185,58 @@ impl KeyState {
             is_pressed: false,
         }
     }
+
+    pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
+        use std::fmt::Write;
+
+        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.key.region.size);
+
+        let width = self.key.region.size.cols;
+        let height = self.key.region.size.rows;
+
+        let style = if self.is_pressed {
+            tuinix::TerminalStyle::new().bold()
+        } else {
+            tuinix::TerminalStyle::new()
+        };
+        let reset_style = tuinix::TerminalStyle::RESET;
+
+        // Top border
+        write!(frame, "{}", style).or_fail()?;
+        write!(frame, "┌").or_fail()?;
+        for _ in 1..width - 1 {
+            write!(frame, "─").or_fail()?;
+        }
+        writeln!(frame, "┐").or_fail()?;
+
+        // Middle rows with left/right borders
+        for row in 1..height - 1 {
+            write!(frame, "│").or_fail()?;
+            if row == (height - 1) / 2 {
+                let label = self.key.code.to_string();
+                let padding = (width - 2 - label.len()) / 2;
+                write!(
+                    frame,
+                    "{:padding$}{label}{:padding$}",
+                    "",
+                    "",
+                    padding = padding
+                )
+                .or_fail()?;
+            } else {
+                write!(frame, "{:width$}", "", width = width - 2).or_fail()?;
+            }
+            writeln!(frame, "│").or_fail()?;
+        }
+
+        // Bottom border
+        write!(frame, "└").or_fail()?;
+        for _ in 1..width - 1 {
+            write!(frame, "─").or_fail()?;
+        }
+        writeln!(frame, "┘").or_fail()?;
+        write!(frame, "{}", reset_style).or_fail()?;
+
+        Ok(frame)
+    }
 }
