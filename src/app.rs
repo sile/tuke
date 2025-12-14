@@ -9,7 +9,6 @@ pub struct App {
     terminal: tuinix::Terminal,
     #[expect(dead_code)]
     config: Config,
-    last_mouse_input: Option<tuinix::MouseInput>,
     keys: Vec<KeyState>,
     exit: bool,
 }
@@ -28,7 +27,6 @@ impl App {
         Ok(Self {
             terminal,
             config,
-            last_mouse_input: None,
             keys,
             exit: false,
         })
@@ -62,7 +60,6 @@ impl App {
                 };
             }
             tuinix::TerminalInput::Mouse(mouse_input) => {
-                self.last_mouse_input = Some(mouse_input);
                 self.update_key_states(&mouse_input);
 
                 if mouse_input.event == tuinix::MouseEvent::LeftRelease {
