@@ -92,7 +92,9 @@ pub enum KeyCode {
 
     // Control Key Codes
     Quit,
-    // FocusNextPane, FocusPrevPane
+    // DisplayPanes,
+    // Pane{0..9}
+    // Layer{0..9}
 }
 
 impl KeyCode {
