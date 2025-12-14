@@ -96,12 +96,16 @@ impl App {
 
     fn handle_normal_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
         for key in &mut self.keys {
-            /*
-                        if key.is_modifier_active {
-                            continue;
-                        }
-            */
-            key.press = KeyPressState::Neutral;
+            match key.press {
+                KeyPressState::Neutral => {}
+                KeyPressState::Pressed => {
+                    key.press = KeyPressState::Neutral;
+                }
+                KeyPressState::Activated => {}
+                KeyPressState::OneshotActivated => {
+                    key.press = KeyPressState::Pressed;
+                }
+            }
         }
         self.keys[i].press = KeyPressState::Pressed;
 
@@ -131,21 +135,24 @@ impl App {
     }
 
     fn is_ctrl_pressed(&self) -> bool {
-        self.keys
-            .iter()
-            .any(|k| k.key.code == KeyCode::Ctrl && k.press == KeyPressState::Pressed)
+        self.keys.iter().any(|k| {
+            k.key.code == KeyCode::Ctrl
+                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
+        })
     }
 
     fn is_alt_pressed(&self) -> bool {
-        self.keys
-            .iter()
-            .any(|k| k.key.code == KeyCode::Alt && k.press == KeyPressState::Pressed)
+        self.keys.iter().any(|k| {
+            k.key.code == KeyCode::Alt
+                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
+        })
     }
 
     fn is_shift_pressed(&self) -> bool {
-        self.keys
-            .iter()
-            .any(|k| k.key.code == KeyCode::Shift && k.press == KeyPressState::Pressed)
+        self.keys.iter().any(|k| {
+            k.key.code == KeyCode::Shift
+                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
+        })
     }
 
     fn render(&mut self) -> orfail::Result<()> {

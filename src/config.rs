@@ -187,8 +187,8 @@ fn parse_position(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyPressState {
     Neutral,
-    ModifierActivated,
-    ModifierOneshotActivated,
+    Activated,
+    OneshotActivated,
     Pressed,
 }
 
@@ -218,8 +218,8 @@ impl KeyState {
         let style = match self.press {
             KeyPressState::Neutral => style,
             KeyPressState::Pressed => style.bold(),
-            KeyPressState::ModifierActivated => style.reverse().bold(),
-            KeyPressState::ModifierOneshotActivated => style.reverse(),
+            KeyPressState::Activated => style.reverse().bold(),
+            KeyPressState::OneshotActivated => style.reverse(),
         };
         let reset_style = tuinix::TerminalStyle::RESET;
 
