@@ -2,7 +2,7 @@ use std::process::Command;
 
 use orfail::OrFail;
 
-use crate::config::{Config, KeyState};
+use crate::config::{Config, Key, KeyState};
 
 #[derive(Debug)]
 pub struct App {
@@ -10,6 +10,7 @@ pub struct App {
     #[expect(dead_code)]
     config: Config,
     keys: Vec<KeyState>,
+    pane_index: usize,
     exit: bool,
 }
 
@@ -28,6 +29,7 @@ impl App {
             terminal,
             config,
             keys,
+            pane_index: 0,
             exit: false,
         })
     }
@@ -60,56 +62,80 @@ impl App {
                 };
             }
             tuinix::TerminalInput::Mouse(mouse_input) => {
-                self.update_key_states(&mouse_input);
-
-                if mouse_input.event == tuinix::MouseEvent::LeftRelease {
-                    if let Some(key_state) = self
-                        .keys
-                        .iter()
-                        .find(|ks| ks.key.region.contains(mouse_input.position))
-                    {
-                        self.execute_key_press(&key_state.key).or_fail()?;
-                    }
-                }
+                self.handle_mouse_input(mouse_input).or_fail()?;
             }
         }
         Ok(())
     }
 
-    fn update_key_states(&mut self, mouse_input: &tuinix::MouseInput) {
-        for key_state in &mut self.keys {
-            key_state.is_pressed = key_state.key.region.contains(mouse_input.position);
+    fn handle_mouse_input(&mut self, mouse_input: tuinix::MouseInput) -> orfail::Result<()> {
+        if mouse_input.event != tuinix::MouseEvent::LeftRelease {
+            return Ok(());
         }
-    }
 
-    fn execute_key_press(&self, key: &crate::config::Key) -> orfail::Result<()> {
-        let key_str = self.key_code_to_string(&key.code);
-        Command::new("tmux")
-            .args(&["send-keys", "-t", ".0", &key_str])
-            .output()
-            .or_fail()?;
+        let Some(pressed_index) = self
+            .keys
+            .iter()
+            .position(|ks| ks.key.region.contains(mouse_input.position))
+        else {
+            return Ok(());
+        };
+
+        if self.keys[pressed_index].key.code.is_modifier() {
+            self.handle_modifier_key_pressed(pressed_index).or_fail()?;
+        } else {
+            self.handle_normal_key_pressed(pressed_index).or_fail()?;
+        }
+
         Ok(())
     }
 
-    fn key_code_to_string(&self, code: &crate::config::KeyCode) -> String {
-        use crate::config::KeyCode;
-
-        match code {
-            KeyCode::Char(ch) => ch.to_string(),
-            KeyCode::Quit => "q".to_string(),
-            KeyCode::Shift => "Shift".to_string(),
-            KeyCode::Ctrl => "Ctrl".to_string(),
-            KeyCode::Alt => "Alt".to_string(),
-            KeyCode::Up => "Up".to_string(),
-            KeyCode::Down => "Down".to_string(),
-            KeyCode::Left => "Left".to_string(),
-            KeyCode::Right => "Right".to_string(),
-            KeyCode::Enter => "Enter".to_string(),
-            KeyCode::Backspace => "BSpace".to_string(),
-            KeyCode::Delete => "Delete".to_string(),
-            KeyCode::Tab => "Tab".to_string(),
-        }
+    fn handle_modifier_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
+        Ok(())
     }
+
+    fn handle_normal_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
+        for key in &mut self.keys {
+            if key.is_modifier_active {
+                continue;
+            }
+            key.is_pressed = false;
+        }
+        self.keys[i].is_pressed = true;
+
+        Ok(())
+    }
+
+    /* TODO: remove
+        fn handle_key_press(&self, key: &Key) -> orfail::Result<()> {
+            let key_str = self.key_code_to_string(&key.code);
+            Command::new("tmux")
+                .args(&["send-keys", "-t", ".0", &key_str])
+                .output()
+                .or_fail()?;
+            Ok(())
+        }
+
+        fn key_code_to_string(&self, code: &crate::config::KeyCode) -> String {
+            use crate::config::KeyCode;
+
+            match code {
+                KeyCode::Char(ch) => ch.to_string(),
+                KeyCode::Quit => "q".to_string(),
+                KeyCode::Shift => "Shift".to_string(),
+                KeyCode::Ctrl => "Ctrl".to_string(),
+                KeyCode::Alt => "Alt".to_string(),
+                KeyCode::Up => "Up".to_string(),
+                KeyCode::Down => "Down".to_string(),
+                KeyCode::Left => "Left".to_string(),
+                KeyCode::Right => "Right".to_string(),
+                KeyCode::Enter => "Enter".to_string(),
+                KeyCode::Backspace => "BSpace".to_string(),
+                KeyCode::Delete => "Delete".to_string(),
+                KeyCode::Tab => "Tab".to_string(),
+            }
+        }
+    */
 
     fn render(&mut self) -> orfail::Result<()> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.terminal.size());

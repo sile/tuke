@@ -76,8 +76,8 @@ impl Key {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
+    // Normal Key Codes (can be sent via `tmux send-keys`)
     Char(char),
-    Quit,
     Shift,
     Ctrl,
     Alt,
@@ -89,6 +89,9 @@ pub enum KeyCode {
     Backspace,
     Delete,
     Tab,
+
+    // Control Key Codes
+    Quit,
     // FocusNextPane, FocusPrevPane
 }
 
@@ -101,19 +104,22 @@ impl KeyCode {
 impl std::fmt::Display for KeyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            // Normal - tmux compatible notation
             Self::Char(c) => write!(f, "{c}"),
-            Self::Quit => write!(f, "Quit"),
-            Self::Shift => write!(f, "Shift"),
-            Self::Ctrl => write!(f, "Ctrl"),
-            Self::Alt => write!(f, "Alt"),
-            Self::Up => write!(f, "↑"),
-            Self::Down => write!(f, "↓"),
-            Self::Left => write!(f, "←"),
-            Self::Right => write!(f, "→"),
+            Self::Shift => write!(f, "S-"),
+            Self::Ctrl => write!(f, "C-"),
+            Self::Alt => write!(f, "M-"),
+            Self::Up => write!(f, "Up"),
+            Self::Down => write!(f, "Down"),
+            Self::Left => write!(f, "Left"),
+            Self::Right => write!(f, "Right"),
             Self::Enter => write!(f, "Enter"),
-            Self::Backspace => write!(f, "Back"),
-            Self::Delete => write!(f, "Del"),
+            Self::Backspace => write!(f, "BSpace"),
+            Self::Delete => write!(f, "Delete"),
             Self::Tab => write!(f, "Tab"),
+
+            // Control
+            Self::Quit => write!(f, "Quit"),
         }
     }
 }
@@ -154,8 +160,8 @@ fn parse_size(
 ) -> Result<tuinix::TerminalSize, nojson::JsonParseError> {
     let width_value = value.to_member("width")?.required()?;
     let width = width_value.try_into()?;
-    if width < 7 {
-        return Err(width_value.invalid("width must be at least 7"));
+    if width < 8 {
+        return Err(width_value.invalid("width must be at least 8"));
     }
 
     let height_value = value.to_member("height")?.required()?;
