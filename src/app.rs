@@ -2,7 +2,7 @@ use std::process::Command;
 
 use orfail::OrFail;
 
-use crate::config::{Config, Key, KeyState};
+use crate::config::{Config, KeyCode, KeyState};
 
 #[derive(Debug)]
 pub struct App {
@@ -90,7 +90,7 @@ impl App {
         Ok(())
     }
 
-    fn handle_modifier_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
+    fn handle_modifier_key_pressed(&mut self, _i: usize) -> orfail::Result<()> {
         Ok(())
     }
 
@@ -103,39 +103,48 @@ impl App {
         }
         self.keys[i].is_pressed = true;
 
+        let mut key_string = String::new();
+        if self.is_ctrl_pressed() {
+            key_string.push_str("C-");
+        }
+        if self.is_alt_pressed() {
+            key_string.push_str("M-");
+        }
+        if self.is_shift_pressed() {
+            key_string.push_str("S-");
+        }
+        key_string.push_str(&self.keys[i].key.code.to_string());
+
+        Command::new("tmux")
+            .args(&[
+                "send-keys",
+                "-t",
+                &format!(".{}", self.pane_index),
+                &key_string,
+            ])
+            .output()
+            .or_fail()?;
+
         Ok(())
     }
 
-    /* TODO: remove
-        fn handle_key_press(&self, key: &Key) -> orfail::Result<()> {
-            let key_str = self.key_code_to_string(&key.code);
-            Command::new("tmux")
-                .args(&["send-keys", "-t", ".0", &key_str])
-                .output()
-                .or_fail()?;
-            Ok(())
-        }
+    fn is_ctrl_pressed(&self) -> bool {
+        self.keys
+            .iter()
+            .any(|k| k.key.code == KeyCode::Ctrl && k.is_pressed)
+    }
 
-        fn key_code_to_string(&self, code: &crate::config::KeyCode) -> String {
-            use crate::config::KeyCode;
+    fn is_alt_pressed(&self) -> bool {
+        self.keys
+            .iter()
+            .any(|k| k.key.code == KeyCode::Alt && k.is_pressed)
+    }
 
-            match code {
-                KeyCode::Char(ch) => ch.to_string(),
-                KeyCode::Quit => "q".to_string(),
-                KeyCode::Shift => "Shift".to_string(),
-                KeyCode::Ctrl => "Ctrl".to_string(),
-                KeyCode::Alt => "Alt".to_string(),
-                KeyCode::Up => "Up".to_string(),
-                KeyCode::Down => "Down".to_string(),
-                KeyCode::Left => "Left".to_string(),
-                KeyCode::Right => "Right".to_string(),
-                KeyCode::Enter => "Enter".to_string(),
-                KeyCode::Backspace => "BSpace".to_string(),
-                KeyCode::Delete => "Delete".to_string(),
-                KeyCode::Tab => "Tab".to_string(),
-            }
-        }
-    */
+    fn is_shift_pressed(&self) -> bool {
+        self.keys
+            .iter()
+            .any(|k| k.key.code == KeyCode::Shift && k.is_pressed)
+    }
 
     fn render(&mut self) -> orfail::Result<()> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.terminal.size());
