@@ -2,7 +2,7 @@ use std::process::Command;
 
 use orfail::OrFail;
 
-use crate::config::{Config, KeyCode, KeyState};
+use crate::config::{Config, KeyCode, KeyPressState, KeyState};
 
 #[derive(Debug)]
 pub struct App {
@@ -96,12 +96,14 @@ impl App {
 
     fn handle_normal_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
         for key in &mut self.keys {
-            if key.is_modifier_active {
-                continue;
-            }
-            key.is_pressed = false;
+            /*
+                        if key.is_modifier_active {
+                            continue;
+                        }
+            */
+            key.press = KeyPressState::Neutral;
         }
-        self.keys[i].is_pressed = true;
+        self.keys[i].press = KeyPressState::Pressed;
 
         let mut key_string = String::new();
         if self.is_ctrl_pressed() {
@@ -131,19 +133,19 @@ impl App {
     fn is_ctrl_pressed(&self) -> bool {
         self.keys
             .iter()
-            .any(|k| k.key.code == KeyCode::Ctrl && k.is_pressed)
+            .any(|k| k.key.code == KeyCode::Ctrl && k.press == KeyPressState::Pressed)
     }
 
     fn is_alt_pressed(&self) -> bool {
         self.keys
             .iter()
-            .any(|k| k.key.code == KeyCode::Alt && k.is_pressed)
+            .any(|k| k.key.code == KeyCode::Alt && k.press == KeyPressState::Pressed)
     }
 
     fn is_shift_pressed(&self) -> bool {
         self.keys
             .iter()
-            .any(|k| k.key.code == KeyCode::Shift && k.is_pressed)
+            .any(|k| k.key.code == KeyCode::Shift && k.press == KeyPressState::Pressed)
     }
 
     fn render(&mut self) -> orfail::Result<()> {

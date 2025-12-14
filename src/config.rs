@@ -184,27 +184,25 @@ fn parse_position(
     Ok(tuinix::TerminalPosition { row: y, col: x })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyPressState {
+    Neutral,
+    ModifierActivated,
+    ModifierOneshotActivated,
+    Pressed,
+}
+
 #[derive(Debug, Clone)]
 pub struct KeyState {
     pub key: Key,
-
-    // Indicates if this is the last pressed key
-    pub is_pressed: bool,
-
-    // Indicates if ctrl/alt/shift is being held
-    // This flag persists when other keys are pressed,
-    // and is only cleared when the same modifier key is pressed again
-    //
-    // TODO: use a enum to merge is_xxx flags
-    pub is_modifier_active: bool,
+    pub press: KeyPressState,
 }
 
 impl KeyState {
     pub fn new(key: Key) -> Self {
         Self {
             key,
-            is_pressed: false,
-            is_modifier_active: false,
+            press: KeyPressState::Neutral,
         }
     }
 
@@ -216,12 +214,12 @@ impl KeyState {
         let width = self.key.region.size.cols;
         let height = self.key.region.size.rows;
 
-        let style = if self.is_modifier_active {
-            tuinix::TerminalStyle::new().reverse()
-        } else if self.is_pressed {
-            tuinix::TerminalStyle::new().bold()
-        } else {
-            tuinix::TerminalStyle::new()
+        let style = tuinix::TerminalStyle::new();
+        let style = match self.press {
+            KeyPressState::Neutral => style,
+            KeyPressState::Pressed => style.bold(),
+            KeyPressState::ModifierActivated => style.reverse().bold(),
+            KeyPressState::ModifierOneshotActivated => style.reverse(),
         };
         let reset_style = tuinix::TerminalStyle::RESET;
 
