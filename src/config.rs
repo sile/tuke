@@ -214,13 +214,15 @@ impl KeyState {
             write!(frame, "│").or_fail()?;
             if row == (height - 1) / 2 {
                 let label = self.key.code.to_string();
-                let padding = (width - 2 - label.len()) / 2;
+                let padding_left = (width - 2 - label.len()) / 2;
+                let padding_right = width - 2 - padding_left - label.len();
                 write!(
                     frame,
-                    "{:padding$}{label}{:padding$}",
+                    "{:padding_left$}{label}{:padding_right$}",
                     "",
                     "",
-                    padding = padding
+                    padding_left = padding_left,
+                    padding_right = padding_right,
                 )
                 .or_fail()?;
             } else {
