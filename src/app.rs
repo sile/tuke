@@ -81,13 +81,19 @@ impl App {
             return Ok(());
         };
 
-        if self.keys[pressed_index].key.code.is_modifier() {
+        if self.keys[pressed_index].key.code.is_special() {
+            self.handle_special_key_pressed(pressed_index).or_fail()?;
+        } else if self.keys[pressed_index].key.code.is_modifier() {
             self.handle_modifier_key_pressed(pressed_index).or_fail()?;
         } else {
             self.handle_normal_key_pressed(pressed_index).or_fail()?;
         }
 
         Ok(())
+    }
+
+    fn handle_special_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
+        todo!()
     }
 
     fn handle_modifier_key_pressed(&mut self, i: usize) -> orfail::Result<()> {

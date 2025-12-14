@@ -90,9 +90,9 @@ pub enum KeyCode {
     Delete,
     Tab,
 
-    // Control Key Codes
+    // Special Key Codes
     Quit,
-    // DisplayPanes,
+    DisplayPanes,
     // Pane{0..9}
     // Layer{0..9}
 }
@@ -100,6 +100,10 @@ pub enum KeyCode {
 impl KeyCode {
     pub fn is_modifier(self) -> bool {
         matches!(self, Self::Shift | Self::Ctrl | Self::Alt)
+    }
+
+    pub fn is_special(self) -> bool {
+        matches!(self, Self::Quit | Self::DisplayPanes)
     }
 }
 
@@ -120,8 +124,9 @@ impl std::fmt::Display for KeyCode {
             Self::Delete => write!(f, "Delete"),
             Self::Tab => write!(f, "Tab"),
 
-            // Control
+            // Special
             Self::Quit => write!(f, "Quit"),
+            Self::DisplayPanes => write!(f, "Panes"),
         }
     }
 }
@@ -131,18 +136,22 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         match value.to_unquoted_string_str()?.as_ref() {
-            "QUIT" => Ok(Self::Quit),
-            "SHIFT" => Ok(Self::Shift),
-            "CTRL" => Ok(Self::Ctrl),
-            "ALT" => Ok(Self::Alt),
-            "UP" => Ok(Self::Up),
-            "DOWN" => Ok(Self::Down),
-            "LEFT" => Ok(Self::Left),
-            "RIGHT" => Ok(Self::Right),
-            "ENTER" => Ok(Self::Enter),
-            "BACKSPACE" => Ok(Self::Backspace),
-            "DELETE" => Ok(Self::Delete),
-            "TAB" => Ok(Self::Tab),
+            // Special
+            "Quit" => Ok(Self::Quit),
+            "Panes" => Ok(Self::DisplayPanes),
+
+            // Normal
+            "S-" => Ok(Self::Shift),
+            "C-" => Ok(Self::Ctrl),
+            "M-" => Ok(Self::Alt),
+            "Up" => Ok(Self::Up),
+            "Down" => Ok(Self::Down),
+            "Left" => Ok(Self::Left),
+            "Right" => Ok(Self::Right),
+            "Enter" => Ok(Self::Enter),
+            "BSpace" => Ok(Self::Backspace),
+            "Delete" => Ok(Self::Delete),
+            "Tab" => Ok(Self::Tab),
             s => {
                 if let Some(c) = s.chars().next()
                     && s.len() == 1

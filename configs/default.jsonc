@@ -12,14 +12,23 @@
     "L0",
   ],
   "keys": [
+    // Control Row
     {
-      "code": "a",
+      "code": "Panes",
       "size": {"width": 8, "height": 3},
       "position": {"x": 0, "y": 0},
       "layer": "L0",
     },
+
+    // Row 1
+    {
+      "code": "a",
+      "size": {"width": 8, "height": 3},
+      "position": {"x": 0, "y": 4},
+      "layer": "L0",
+    },
     {"code": "s"},
-    {"code": "ENTER"},
-    {"code": "CTRL"},
+    {"code": "Enter"},
+    {"code": "C-"},
   ],
 }
