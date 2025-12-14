@@ -171,8 +171,8 @@ fn parse_size(
 ) -> Result<tuinix::TerminalSize, nojson::JsonParseError> {
     let width_value = value.to_member("width")?.required()?;
     let width = width_value.try_into()?;
-    if width < 8 {
-        return Err(width_value.invalid("width must be at least 8"));
+    if width < 3 {
+        return Err(width_value.invalid("width must be at least 3"));
     }
 
     let height_value = value.to_member("height")?.required()?;

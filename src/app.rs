@@ -92,21 +92,29 @@ impl App {
         Ok(())
     }
 
+    fn reset_pressed_keys(&mut self) {
+        for key in &mut self.keys {
+            if key.press == KeyPressState::Pressed {
+                key.press = KeyPressState::Neutral;
+            }
+        }
+    }
+
     fn handle_special_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
-        todo!()
+        self.reset_pressed_keys();
+
+        match self.keys[i].key.code {
+            KeyCode::Quit => {
+                self.exit = true;
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     fn handle_modifier_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
-        for key in &mut self.keys {
-            match key.press {
-                KeyPressState::Neutral => {}
-                KeyPressState::Pressed => {
-                    key.press = KeyPressState::Neutral;
-                }
-                KeyPressState::Activated => {}
-                KeyPressState::OneshotActivated => {}
-            }
-        }
+        self.reset_pressed_keys();
+
         match self.keys[i].press {
             KeyPressState::Neutral => {
                 self.keys[i].press = KeyPressState::OneshotActivated;
