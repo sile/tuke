@@ -59,9 +59,11 @@ impl Key {
 
         let position_member = value.to_member("position")?;
         let position = if let Some(last) = last_key {
-            position_member
-                .map(parse_position)?
-                .unwrap_or(last.region.top_right())
+            position_member.map(parse_position)?.unwrap_or_else(|| {
+                let mut p = last.region.top_right();
+                p.col += 1;
+                p
+            })
         } else {
             position_member.required()?.map(parse_position)?
         };
