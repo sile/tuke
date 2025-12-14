@@ -92,6 +92,12 @@ pub enum KeyCode {
     // FocusNextPane, FocusPrevPane
 }
 
+impl KeyCode {
+    pub fn is_modifier(self) -> bool {
+        matches!(self, Self::Shift | Self::Ctrl | Self::Alt)
+    }
+}
+
 impl std::fmt::Display for KeyCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -175,7 +181,16 @@ fn parse_position(
 #[derive(Debug, Clone)]
 pub struct KeyState {
     pub key: Key,
+
+    // Indicates if this is the last pressed key
     pub is_pressed: bool,
+
+    // Indicates if ctrl/alt/shift is being held
+    // This flag persists when other keys are pressed,
+    // and is only cleared when the same modifier key is pressed again
+    //
+    // TODO: use a enum to merge is_xxx flags
+    pub is_modifier_active: bool,
 }
 
 impl KeyState {
@@ -183,6 +198,7 @@ impl KeyState {
         Self {
             key,
             is_pressed: false,
+            is_modifier_active: false,
         }
     }
 
@@ -194,7 +210,9 @@ impl KeyState {
         let width = self.key.region.size.cols;
         let height = self.key.region.size.rows;
 
-        let style = if self.is_pressed {
+        let style = if self.is_modifier_active {
+            tuinix::TerminalStyle::new().reverse()
+        } else if self.is_pressed {
             tuinix::TerminalStyle::new().bold()
         } else {
             tuinix::TerminalStyle::new()
