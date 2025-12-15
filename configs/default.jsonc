@@ -2,8 +2,9 @@
   // Control Row
   {
     "key": "Quit",
-    "size": {"width": 8, "height": 3},
+    "size": {"width": 9, "height": 3},
   },
+  "blank",
   "blank",
   "blank",
   "blank",
@@ -14,6 +15,7 @@
   "blank",
   {"key": "Panes"},
   {"key": "Cursor"},
+  "blank",
   "blank",
   "blank",
   "blank",
@@ -79,6 +81,7 @@
   "blank",
   "blank",
   "blank",
+  "blank",
   {"key": "z"},
   {"key": "x"},
   {"key": "c"},
@@ -96,6 +99,8 @@
   {"key": "S-"},
   {"key": "C-"},
   {"key": "M-"},
+  "newline",
+
   {"key": "Enter"},
   {"key": "Tab"},
   {"key": "BSpace"},
