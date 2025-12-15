@@ -132,16 +132,16 @@
 
   // Spacebar and modifiers
   {
-    "key": " ",
-    "size": {"width": 12, "height": 3},
+    "key": "S-",
+    "size": {"width": 16, "height": 3},
   },
-  {"key": "S-"},
+  {"key": " "},
   {"key": "C-"},
   {"key": "M-"},
-  "newline",
-
   {"key": "Enter"},
   {"key": "Tab"},
+  "newline",
+
   {"key": "BSpace"},
   {"key": "Delete"},
   "newline",
