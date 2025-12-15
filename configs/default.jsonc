@@ -21,6 +21,9 @@
       "size": {"width": 8, "height": 3},
       "position": {"x": 8, "y": 0},
     },
+    {"code": "Pane0"},
+    {"code": "Pane1"},
+    {"code": "Pane2"},
 
     // Row 1
     {

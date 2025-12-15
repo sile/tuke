@@ -119,6 +119,11 @@ impl App {
             KeyCode::DisplayPanes => {
                 self.tmux_command("display-panes", &[]).or_fail()?;
             }
+            KeyCode::SelectPane { index } => {
+                self.pane_index = index;
+                self.tmux_command("select-pane", &["-t", &format!(".{index}")])
+                    .or_fail()?;
+            }
             _ => {}
         }
         self.keys[i].press = KeyPressState::Pressed;
