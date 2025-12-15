@@ -107,6 +107,7 @@ pub enum KeyCode {
     DisplayPanes,
     SelectPane { index: usize },
     ShowCursor,
+    // todo: copy-mode, paaste
 }
 
 impl KeyCode {

@@ -41,6 +41,7 @@
   {"key": "0"},
   "newline",
 
+  // todo: add | and \
   // Row 1b (Symbols - Shift+Numbers)
   {"key": "!"},
   {"key": "@"},
