@@ -43,6 +43,45 @@
   {"key": "0"},
   "newline",
 
+  // Row 1b (Symbols - Shift+Numbers)
+  {"key": "!"},
+  {"key": "@"},
+  {"key": "#"},
+  {"key": "$"},
+  {"key": "%"},
+  {"key": "^"},
+  {"key": "&"},
+  {"key": "*"},
+  {"key": "("},
+  {"key": ")"},
+  "newline",
+
+  // Row 1c (Additional Symbols)
+  {"key": "-"},
+  {"key": "="},
+  {"key": "["},
+  {"key": "]"},
+  {"key": ";"},
+  {"key": "'"},
+  {"key": ","},
+  {"key": "."},
+  {"key": "/"},
+  {"key": "`"},
+  "newline",
+
+  // Row 1d (Additional Symbols - Shift)
+  {"key": "_"},
+  {"key": "+"},
+  {"key": "{"},
+  {"key": "}"},
+  {"key": ":"},
+  {"key": "\""},
+  {"key": "<"},
+  {"key": ">"},
+  {"key": "?"},
+  {"key": "~"},
+  "newline",
+
   // Row 2 (QWERT...)
   {"key": "q"},
   {"key": "w"},
