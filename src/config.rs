@@ -28,14 +28,32 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         let mut keys = Vec::new();
+        let mut next_newline_rows = 1;
         let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
         for key_value in value.to_member("keys")?.required()?.to_array()? {
+            if let Ok(s) = key_value.to_unquoted_string_str() {
+                match s.as_ref() {
+                    "blank" => {
+                        position.col += 1;
+                        continue;
+                    }
+                    "newline" => {
+                        position.col = 0;
+                        position.row += next_newline_rows;
+                        next_newline_rows = 1;
+                        continue;
+                    }
+                    _ => return Err(key_value.invalid("unexpected string literal")),
+                }
+            }
+
             let key = Key::parse(key_value, position, last_size)?;
 
             last_size = key.region.size;
             position = key.region.top_right();
             position.col += 1;
+            next_newline_rows = next_newline_rows.max(key.region.size.rows);
 
             keys.push(key);
         }
