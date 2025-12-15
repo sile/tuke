@@ -22,15 +22,95 @@
     {"code": "Pane1"},
     {"code": "Pane2"},
 
-    // Row 1
+    // Row 1 (Numbers)
     {
-      "code": "a",
+      "code": "1",
       "size": {"width": 8, "height": 3},
       "position": {"x": 0, "y": 4},
       "layer": "L0",
     },
+    {"code": "2"},
+    {"code": "3"},
+    {"code": "4"},
+    {"code": "5"},
+    {"code": "6"},
+    {"code": "7"},
+    {"code": "8"},
+    {"code": "9"},
+    {"code": "0"},
+
+    // Row 2 (QWERT...)
+    {
+      "code": "q",
+      "size": {"width": 8, "height": 3},
+      "position": {"x": 0, "y": 8},
+      "layer": "L0",
+    },
+    {"code": "w"},
+    {"code": "e"},
+    {"code": "r"},
+    {"code": "t"},
+    {"code": "y"},
+    {"code": "u"},
+    {"code": "i"},
+    {"code": "o"},
+    {"code": "p"},
+
+    // Row 3 (ASDF...)
+    {
+      "code": "a",
+      "size": {"width": 8, "height": 3},
+      "position": {"x": 0, "y": 12},
+      "layer": "L0",
+    },
     {"code": "s"},
-    {"code": "Enter"},
+    {"code": "d"},
+    {"code": "f"},
+    {"code": "g"},
+    {"code": "h"},
+    {"code": "j"},
+    {"code": "k"},
+    {"code": "l"},
+
+    // Row 4 (ZXCV...)
+    {
+      "code": "z",
+      "size": {"width": 8, "height": 3},
+      "position": {"x": 0, "y": 16},
+      "layer": "L0",
+    },
+    {"code": "x"},
+    {"code": "c"},
+    {"code": "v"},
+    {"code": "b"},
+    {"code": "n"},
+    {"code": "m"},
+
+    // Spacebar and modifiers
+    {
+      "code": " ",
+      "size": {"width": 40, "height": 3},
+      "position": {"x": 0, "y": 20},
+      "layer": "L0",
+    },
+    {"code": "S-"},
     {"code": "C-"},
+    {"code": "M-"},
+    {"code": "Enter"},
+    {"code": "Tab"},
+    {"code": "BSpace"},
+    {"code": "Delete"},
+
+    // Arrow keys
+    {
+      "code": "Up",
+      "size": {"width": 8, "height": 3},
+      "position": {"x": 0, "y": 24},
+      "layer": "L0",
+    },
+    {"code": "Left"},
+    {"code": "Down"},
+    {"code": "Right"},
   ],
 }
+
