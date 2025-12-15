@@ -31,7 +31,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
         let mut next_newline_rows = 1;
         let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
-        for key_value in value.to_member("keys")?.required()?.to_array()? {
+        for key_value in value.to_array()? {
             if let Ok(s) = key_value.to_unquoted_string_str() {
                 match s.as_ref() {
                     "blank" => {
