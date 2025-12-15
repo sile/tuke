@@ -11,6 +11,7 @@
     {"code": "Pane0", "position": {"x": 18, "y": 0}},
     {"code": "Pane1"},
     {"code": "Pane2"},
+    {"code": "Cursor"},
 
     // Row 1 (Numbers)
     {

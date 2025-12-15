@@ -124,6 +124,10 @@ impl App {
                 self.tmux_command("select-pane", &["-t", &format!(".{index}")])
                     .or_fail()?;
             }
+            KeyCode::ShowCursor => {
+                self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
+                    .or_fail()?;
+            }
             _ => {}
         }
         self.keys[i].press = KeyPressState::Pressed;

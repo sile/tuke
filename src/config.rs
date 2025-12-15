@@ -95,8 +95,7 @@ pub enum KeyCode {
     Quit,
     DisplayPanes,
     SelectPane { index: usize },
-    // Pane{0..9}
-    // Layer{0..9}
+    ShowCursor,
 }
 
 impl KeyCode {
@@ -107,7 +106,7 @@ impl KeyCode {
     pub fn is_special(self) -> bool {
         matches!(
             self,
-            Self::Quit | Self::DisplayPanes | Self::SelectPane { .. }
+            Self::Quit | Self::DisplayPanes | Self::SelectPane { .. } | Self::ShowCursor
         )
     }
 }
@@ -133,6 +132,7 @@ impl std::fmt::Display for KeyCode {
             Self::Quit => write!(f, "Quit"),
             Self::DisplayPanes => write!(f, "Panes"),
             Self::SelectPane { index } => write!(f, "Pane{index}"),
+            Self::ShowCursor => write!(f, "Cursor"),
         }
     }
 }
@@ -149,6 +149,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
                 let index = s[4..].parse().map_err(|e| value.invalid(e))?;
                 Ok(Self::SelectPane { index })
             }
+            "Cursor" => Ok(Self::ShowCursor),
 
             // Normal
             "S-" => Ok(Self::Shift),
