@@ -212,7 +212,10 @@ impl App {
     fn render(&mut self) -> orfail::Result<()> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.terminal.size());
 
-        for key_state in &self.keys {
+        for key_state in &mut self.keys {
+            if let KeyCode::SelectPane { index } = key_state.key.code {
+                key_state.selected = index == self.pane_index;
+            };
             frame.draw(
                 key_state.key.region.position,
                 &key_state.to_frame().or_fail()?,

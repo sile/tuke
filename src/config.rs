@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::path::Path;
 
 use orfail::OrFail;
@@ -216,6 +217,7 @@ pub enum KeyPressState {
 pub struct KeyState {
     pub key: Key,
     pub press: KeyPressState,
+    pub selected: bool,
 }
 
 impl KeyState {
@@ -223,12 +225,11 @@ impl KeyState {
         Self {
             key,
             press: KeyPressState::Neutral,
+            selected: false,
         }
     }
 
     pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
-        use std::fmt::Write;
-
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.key.region.size);
 
         let width = self.key.region.size.cols;
@@ -242,6 +243,7 @@ impl KeyState {
             KeyPressState::OneshotActivated => style.italic(),
         };
         let reset_style = tuinix::TerminalStyle::RESET;
+        let style = if self.selected { style.bold() } else { style };
 
         // Top border
         write!(frame, "{}", style).or_fail()?;
