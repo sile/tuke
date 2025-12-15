@@ -4,20 +4,32 @@
     "key": "Quit",
     "size": {"width": 8, "height": 3},
   },
-  {"key": "Panes"},
   "blank",
-
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  {"key": "Panes"},
+  {"key": "Cursor"},
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
   {"key": "Pane0"},
   {"key": "Pane1"},
   {"key": "Pane2"},
-  {"key": "Cursor"},
+  {"key": "Pane3"},
   "newline",
 
   // Row 1 (Numbers)
-  {
-    "key": "1",
-    "size": {"width": 8, "height": 3},
-  },
+  {"key": "1"},
   {"key": "2"},
   {"key": "3"},
   {"key": "4"},
@@ -30,10 +42,7 @@
   "newline",
 
   // Row 2 (QWERT...)
-  {
-    "key": "q",
-    "size": {"width": 8, "height": 3},
-  },
+  {"key": "q"},
   {"key": "w"},
   {"key": "e"},
   {"key": "r"},
@@ -46,10 +55,11 @@
   "newline",
 
   // Row 3 (ASDF...)
-  {
-    "key": "a",
-    "size": {"width": 8, "height": 3},
-  },
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  {"key": "a"},
   {"key": "s"},
   {"key": "d"},
   {"key": "f"},
@@ -61,10 +71,15 @@
   "newline",
 
   // Row 4 (ZXCV...)
-  {
-    "key": "z",
-    "size": {"width": 8, "height": 3},
-  },
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  "blank",
+  {"key": "z"},
   {"key": "x"},
   {"key": "c"},
   {"key": "v"},
