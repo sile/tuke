@@ -73,7 +73,7 @@ impl Key {
         position: tuinix::TerminalPosition,
         last_size: tuinix::TerminalSize,
     ) -> Result<Self, nojson::JsonParseError> {
-        let code = value.to_member("code")?.required()?.try_into()?;
+        let code = value.to_member("key")?.required()?.try_into()?;
 
         let size = value
             .to_member("size")?
