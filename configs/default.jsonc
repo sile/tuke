@@ -26,8 +26,6 @@
   "blank",
   {"key": "Pane0"},
   {"key": "Pane1"},
-  {"key": "Pane2"},
-  {"key": "Pane3"},
   "newline",
 
   // Row 1 (Numbers)
@@ -140,18 +138,4 @@
   {"key": "M-"},
   {"key": "Enter"},
   {"key": "Tab"},
-  "newline",
-
-  {"key": "BSpace"},
-  {"key": "Delete"},
-  "newline",
-
-  // Arrow keys
-  {
-    "key": "Up",
-    "size": {"width": 8, "height": 3},
-  },
-  {"key": "Left"},
-  {"key": "Down"},
-  {"key": "Right"},
 ]
