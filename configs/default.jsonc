@@ -12,16 +12,13 @@
     // Control Row
     {
       "code": "Quit",
-      "size": {"width": 6, "height": 3},
+      "size": {"width": 8, "height": 3},
       "position": {"x": 0, "y": 0},
       "layer": "ALL",
     },
-    {
-      "code": "Panes",
-      "size": {"width": 8, "height": 3},
-      "position": {"x": 8, "y": 0},
-    },
-    {"code": "Pane0"},
+    {"code": "Panes"},
+
+    {"code": "Pane0", "position": {"x": 18, "y": 0}},
     {"code": "Pane1"},
     {"code": "Pane2"},
 
