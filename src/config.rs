@@ -28,10 +28,15 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         let mut keys = Vec::new();
-        let mut last_key = None;
+        let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
+        let mut position = tuinix::TerminalPosition::ZERO;
         for key_value in value.to_member("keys")?.required()?.to_array()? {
-            let key = Key::parse(key_value, last_key.as_ref())?;
-            last_key = Some(key.clone());
+            let key = Key::parse(key_value, position, last_size)?;
+
+            last_size = key.region.size;
+            position = key.region.top_right();
+            position.col += 1;
+
             keys.push(key);
         }
         Ok(Self { keys })
@@ -47,27 +52,15 @@ pub struct Key {
 impl Key {
     fn parse(
         value: nojson::RawJsonValue<'_, '_>,
-        last_key: Option<&Key>,
+        position: tuinix::TerminalPosition,
+        last_size: tuinix::TerminalSize,
     ) -> Result<Self, nojson::JsonParseError> {
         let code = value.to_member("code")?.required()?.try_into()?;
 
-        let size_member = value.to_member("size")?;
-        let size = if let Some(last) = last_key {
-            size_member.map(parse_size)?.unwrap_or(last.region.size)
-        } else {
-            size_member.required()?.map(parse_size)?
-        };
-
-        let position_member = value.to_member("position")?;
-        let position = if let Some(last) = last_key {
-            position_member.map(parse_position)?.unwrap_or_else(|| {
-                let mut p = last.region.top_right();
-                p.col += 1;
-                p
-            })
-        } else {
-            position_member.required()?.map(parse_position)?
-        };
+        let size = value
+            .to_member("size")?
+            .map(parse_size)?
+            .unwrap_or(last_size);
 
         let region = tuinix::TerminalRegion { position, size };
 
@@ -196,14 +189,6 @@ fn parse_size(
         rows: height,
         cols: width,
     })
-}
-
-fn parse_position(
-    value: nojson::RawJsonValue<'_, '_>,
-) -> Result<tuinix::TerminalPosition, nojson::JsonParseError> {
-    let x = value.to_member("x")?.required()?.try_into()?;
-    let y = value.to_member("y")?.required()?.try_into()?;
-    Ok(tuinix::TerminalPosition { row: y, col: x })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
