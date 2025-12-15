@@ -89,7 +89,7 @@
     // Spacebar and modifiers
     {
       "code": " ",
-      "size": {"width": 40, "height": 3},
+      "size": {"width": 12, "height": 3},
       "position": {"x": 0, "y": 20},
       "layer": "L0",
     },
