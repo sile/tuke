@@ -1,14 +1,17 @@
 tuke
 ====
 
+MEMO
+----
+
+PoC / experimental TUI keyboard for tmux
+
 Motivation:
-- only use coding friendly keyboard for termux (don't want to switch frequently)
+- coding friendly keyboard for termux (run on a tumux pane and send keys to other panes)
 - e ink / termux friendly keyboard
 - easily setup / customizable (don't want develop android app)
 
 Limitations by design:
-- fullscreen mode
-- popup window
-- flexible layout (e.g., overlay)
-- switch window
-- show cursor
+- cannot use with tumux popup window
+- keep the same keyboard between tmux windows (sesions?)
+- show cursor on the destination pane
