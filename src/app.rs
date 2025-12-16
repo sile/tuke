@@ -2,24 +2,22 @@ use std::process::Command;
 
 use orfail::OrFail;
 
-use crate::config::{Config, KeyCode, KeyPressState, KeyState};
+use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
 
 #[derive(Debug)]
 pub struct App {
     terminal: tuinix::Terminal,
-    #[expect(dead_code)]
-    config: Config,
     keys: Vec<KeyState>,
     pane_index: usize,
     exit: bool,
 }
 
 impl App {
-    pub fn new(config: Config) -> orfail::Result<Self> {
+    pub fn new(layout: Layout) -> orfail::Result<Self> {
         let mut terminal = tuinix::Terminal::new().or_fail()?;
         terminal.enable_mouse_input().or_fail()?;
 
-        let keys = config
+        let keys = layout
             .keys
             .iter()
             .map(|k| KeyState::new(k.clone()))
@@ -27,7 +25,6 @@ impl App {
 
         Ok(Self {
             terminal,
-            config,
             keys,
             pane_index: 0,
             exit: false,

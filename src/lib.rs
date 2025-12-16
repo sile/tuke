@@ -1,3 +1,3 @@
 pub mod app;
-pub mod config;
 pub mod jsonc;
+pub mod layout;

@@ -4,17 +4,17 @@ use std::path::Path;
 use orfail::OrFail;
 
 #[derive(Debug)]
-pub struct Config {
+pub struct Layout {
     pub keys: Vec<Key>,
 }
 
-impl Config {
+impl Layout {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> orfail::Result<Self> {
         crate::jsonc::load_file(path).or_fail()
     }
 }
 
-impl Default for Config {
+impl Default for Layout {
     fn default() -> Self {
         match crate::jsonc::load_str("default.json", include_str!("../default-layout.jsonc")) {
             Ok(config) => config,
@@ -23,7 +23,7 @@ impl Default for Config {
     }
 }
 
-impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
+impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
     type Error = nojson::JsonParseError;
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
