@@ -179,6 +179,7 @@ impl App {
         }
         self.keys[i].press = KeyPressState::Pressed;
 
+        let mut code = self.keys[i].key.code;
         let mut key_string = String::new();
         if self.is_ctrl_pressed() {
             key_string.push_str("C-");
@@ -187,9 +188,9 @@ impl App {
             key_string.push_str("M-");
         }
         if self.is_shift_pressed() {
-            key_string.push_str("S-");
+            code = self.keys[i].key.shift_code;
         }
-        key_string.push_str(&self.keys[i].key.code.to_string());
+        key_string.push_str(&code.to_string());
 
         self.tmux_command(
             "send-keys",
@@ -221,8 +222,19 @@ impl App {
         })
     }
 
+    fn is_shift_active(&self) -> bool {
+        self.keys.iter().any(|k| {
+            k.key.code == KeyCode::Shift
+                && matches!(
+                    k.press,
+                    KeyPressState::OneshotActivated | KeyPressState::Activated
+                )
+        })
+    }
+
     fn render(&mut self) -> orfail::Result<()> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.terminal.size());
+        let shift = self.is_shift_active();
 
         for key_state in &mut self.keys {
             if let KeyCode::SelectPane { index } = key_state.key.code {
@@ -230,7 +242,7 @@ impl App {
             };
             frame.draw(
                 key_state.key.region.position,
-                &key_state.to_frame().or_fail()?,
+                &key_state.to_frame(shift).or_fail()?,
             );
         }
 

@@ -64,6 +64,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
 #[derive(Debug, Clone)]
 pub struct Key {
     pub code: KeyCode,
+    pub shift_code: KeyCode,
     pub region: tuinix::TerminalRegion,
 }
 
@@ -73,7 +74,9 @@ impl Key {
         position: tuinix::TerminalPosition,
         last_size: tuinix::TerminalSize,
     ) -> Result<Self, nojson::JsonParseError> {
-        let code = value.to_member("key")?.required()?.try_into()?;
+        let code: KeyCode = value.to_member("key")?.required()?.try_into()?;
+
+        let shift_code = code.default_shift_code();
 
         let size = value
             .to_member("size")?
@@ -82,7 +85,11 @@ impl Key {
 
         let region = tuinix::TerminalRegion { position, size };
 
-        Ok(Self { code, region })
+        Ok(Self {
+            code,
+            shift_code,
+            region,
+        })
     }
 }
 
@@ -126,6 +133,13 @@ impl KeyCode {
                 | Self::CopyMode
                 | Self::Paste
         )
+    }
+
+    pub fn default_shift_code(self) -> Self {
+        match self {
+            Self::Char(c) => Self::Char(c.to_ascii_uppercase()),
+            other => other,
+        }
     }
 }
 
@@ -244,7 +258,7 @@ impl KeyState {
         }
     }
 
-    pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
+    pub fn to_frame(&self, shift: bool) -> orfail::Result<tuinix::TerminalFrame> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.key.region.size);
 
         let width = self.key.region.size.cols;
@@ -272,7 +286,11 @@ impl KeyState {
         for row in 1..height - 1 {
             write!(frame, "│").or_fail()?;
             if row == (height - 1) / 2 {
-                let label = self.key.code.to_string();
+                let label = if shift {
+                    self.key.shift_code.to_string()
+                } else {
+                    self.key.code.to_string()
+                };
                 let padding_left = (width - 2 - label.len()) / 2;
                 let padding_right = width - 2 - padding_left - label.len();
                 write!(
