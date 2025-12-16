@@ -26,7 +26,7 @@
   {"key": "Pane1"},
   "newline",
 
-  // Row 1 (Numbers)
+  // Numbers Row
   {"key": "1"},
   {"key": "2"},
   {"key": "3"},
@@ -39,8 +39,20 @@
   {"key": "0"},
   "newline",
 
-  // todo: add | and \
-  // Row 1b (Symbols - Shift+Numbers)
+  // Symbols Row1 (with shift alternatives)
+  {"key": "-", "shift": "_"},
+  {"key": "=", "shift": "+"},
+  {"key": "[", "shift": "{"},
+  {"key": "]", "shift": "}"},
+  {"key": ";", "shift": ":"},
+  {"key": "'", "shift": "\""},
+  {"key": ",", "shift": "<"},
+  {"key": ".", "shift": ">"},
+  {"key": "/", "shift": "?"},
+  {"key": "`", "shift": "~"},
+  "newline",
+
+  // Symbols Row2 (with shift alternatives)
   {"key": "!"},
   {"key": "@"},
   {"key": "#"},
@@ -51,35 +63,10 @@
   {"key": "*"},
   {"key": "("},
   {"key": ")"},
+  {"key": "\\", "shift": "|"},
   "newline",
 
-  // Row 1c (Additional Symbols)
-  {"key": "-"},
-  {"key": "="},
-  {"key": "["},
-  {"key": "]"},
-  {"key": ";"},
-  {"key": "'"},
-  {"key": ","},
-  {"key": "."},
-  {"key": "/"},
-  {"key": "`"},
-  "newline",
-
-  // Row 1d (Additional Symbols - Shift)
-  {"key": "_"},
-  {"key": "+"},
-  {"key": "{"},
-  {"key": "}"},
-  {"key": ":"},
-  {"key": "\""},
-  {"key": "<"},
-  {"key": ">"},
-  {"key": "?"},
-  {"key": "~"},
-  "newline",
-
-  // Row 2 (QWERT...)
+  // QWERT... Row
   {"key": "q"},
   {"key": "w"},
   {"key": "e"},
@@ -92,7 +79,7 @@
   {"key": "p"},
   "newline",
 
-  // Row 3 (ASDF...)
+  // ASDF... Row
   "blank",
   "blank",
   "blank",
@@ -108,7 +95,7 @@
   {"key": "l"},
   "newline",
 
-  // Row 4 (ZXCV...)
+  // ZXCV... Row
   "blank",
   "blank",
   "blank",
