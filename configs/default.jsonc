@@ -1,13 +1,13 @@
 [
-  // Control Row
+  // tmux control Row
   {"key": "Panes", "size": {"width": 12, "height": 3}},
   {"key": "Paste"},
   {"key": "Copy"},
   {"blank": 9},
 
   {"key": "Cursor"},
+  {"key": "Pane0"},
   {"key": "Pane1"},
-  {"key": "Pane2"},
   {"newline": 1},
 
   // Symbols Row
@@ -76,16 +76,20 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  {"newline": 2},
+  {"newline": 1},
 
-  // Spacebar and modifiers
-  {
-    "key": "S-",
-    "size": {"width": 16, "height": 3}
-  },
+  // Spacebar and control keys Rows
+  {"key": "Tab", "size": {"width": 18, "height": 3}},
+  {"blank": 36},
+  {"key": "Left", "size": {"width": 9, "height": 3}},
+  {"key": "Up", "size": {"width": 9, "height": 3}},
+  {"key": "Down", "size": {"width": 9, "height": 3}},
+  {"key": "Right", "size": {"width": 9, "height": 3}},
+  {"newline": 1},
+
+  {"key": "M-", "size": {"width": 18, "height": 3}},
+  {"key": "S-"},
   {"key": " "},
   {"key": "C-"},
-  {"key": "M-"},
   {"key": "Enter"},
-  {"key": "Tab"}
 ]
