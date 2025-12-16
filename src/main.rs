@@ -15,7 +15,7 @@ fn main() -> noargs::Result<()> {
     let layout_file_path: Option<PathBuf> = noargs::opt("layout-file")
         .short('c')
         .ty("PATH")
-        .doc("Path of layouturation JSONC file")
+        .doc("Path of layout JSONC file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
 

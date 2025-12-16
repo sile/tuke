@@ -1,7 +1,9 @@
 [package]
 name = "tuke"
+description = "TUI keyboard for tmux"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
 noargs = "0.4.1"
