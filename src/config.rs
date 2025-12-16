@@ -76,7 +76,11 @@ impl Key {
     ) -> Result<Self, nojson::JsonParseError> {
         let code: KeyCode = value.to_member("key")?.required()?.try_into()?;
 
-        let shift_code = code.default_shift_code();
+        let shift_code = if let Some(shift) = value.to_member("shift")?.get() {
+            shift.try_into()?
+        } else {
+            code.default_shift_code()
+        };
 
         let size = value
             .to_member("size")?
