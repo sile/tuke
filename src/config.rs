@@ -107,7 +107,8 @@ pub enum KeyCode {
     DisplayPanes,
     SelectPane { index: usize },
     ShowCursor,
-    // todo: copy-mode, paaste
+    CopyMode,
+    Paste,
 }
 
 impl KeyCode {
@@ -118,7 +119,12 @@ impl KeyCode {
     pub fn is_special(self) -> bool {
         matches!(
             self,
-            Self::Quit | Self::DisplayPanes | Self::SelectPane { .. } | Self::ShowCursor
+            Self::Quit
+                | Self::DisplayPanes
+                | Self::SelectPane { .. }
+                | Self::ShowCursor
+                | Self::CopyMode
+                | Self::Paste
         )
     }
 }
@@ -145,6 +151,8 @@ impl std::fmt::Display for KeyCode {
             Self::DisplayPanes => write!(f, "Panes"),
             Self::SelectPane { index } => write!(f, "Pane{index}"),
             Self::ShowCursor => write!(f, "Cursor"),
+            Self::CopyMode => write!(f, "Copy"),
+            Self::Paste => write!(f, "Paste"),
         }
     }
 }
@@ -162,6 +170,8 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
                 Ok(Self::SelectPane { index })
             }
             "Cursor" => Ok(Self::ShowCursor),
+            "Copy" => Ok(Self::CopyMode),
+            "Paste" => Ok(Self::Paste),
 
             // Normal
             "S-" => Ok(Self::Shift),

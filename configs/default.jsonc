@@ -1,10 +1,8 @@
 [
   // Control Row
-  {
-    "key": "Quit",
-    "size": {"width": 9, "height": 3},
-  },
-  {"key": "Panes"},
+  {"key": "Panes", "size": {"width": 9, "height": 3}},
+  {"key": "Paste"},
+  {"key": "Copy"},
   "blank",
   "blank",
   "blank",

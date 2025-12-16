@@ -128,6 +128,14 @@ impl App {
                 self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
                     .or_fail()?;
             }
+            KeyCode::CopyMode => {
+                self.tmux_command("copy-mode", &["-t", &format!(".{}", self.pane_index)])
+                    .or_fail()?;
+            }
+            KeyCode::Paste => {
+                self.tmux_command("paste-buffer", &["-t", &format!(".{}", self.pane_index)])
+                    .or_fail()?;
+            }
             _ => {}
         }
         self.keys[i].press = KeyPressState::Pressed;
