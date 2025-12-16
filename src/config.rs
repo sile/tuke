@@ -16,7 +16,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        match crate::jsonc::load_str("default.json", include_str!("../configs/default.jsonc")) {
+        match crate::jsonc::load_str("default.json", include_str!("../default-layout.jsonc")) {
             Ok(config) => config,
             Err(e) => panic!("[BUG] {e}"),
         }
