@@ -13,7 +13,7 @@ fn main() -> noargs::Result<()> {
     noargs::HELP_FLAG.take_help(&mut args);
 
     let layout_file_path: Option<PathBuf> = noargs::opt("layout-file")
-        .short('c')
+        .short('l')
         .ty("PATH")
         .doc("Path of layout JSONC file")
         .take(&mut args)
