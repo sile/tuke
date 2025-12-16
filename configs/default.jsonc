@@ -3,28 +3,12 @@
   {"key": "Panes", "size": {"width": 9, "height": 3}},
   {"key": "Paste"},
   {"key": "Copy"},
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
+  {"blank": 9},
   {"key": "Cursor"},
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
+  {"blank": 9},
   {"key": "Pane0"},
   {"key": "Pane1"},
-  "newline",
+  {"newline": 2},
 
   // Symbols Row 1
   {"key": "{", "shift": "["},
@@ -37,7 +21,7 @@
   {"key": ".", "shift": ">"},
   {"key": "/", "shift": "?"},
   {"key": "`", "shift": "~"},
-  "newline",
+  {"newline": 1},
 
   // Symbols Row 2
   {"key": "!", "shift": "1"},
@@ -50,7 +34,7 @@
   {"key": "*", "shift": "8"},
   {"key": "'", "shift": "\""},
   {"key": "|", "shift": "\\"},
-  "newline",
+  {"newline": 2},
 
   // QWERT... Row
   {"key": "q"},
@@ -63,13 +47,10 @@
   {"key": "i"},
   {"key": "o"},
   {"key": "p"},
-  "newline",
+  {"newline": 1},
 
   // ASDF... Row
-  "blank",
-  "blank",
-  "blank",
-  "blank",
+  {"blank": 4},
   {"key": "a"},
   {"key": "s"},
   {"key": "d"},
@@ -79,18 +60,10 @@
   {"key": "j"},
   {"key": "k"},
   {"key": "l"},
-  "newline",
+  {"newline": 1},
 
   // ZXCV... Row
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
-  "blank",
+  {"blank": 9},
   {"key": "z"},
   {"key": "x"},
   {"key": "c"},
@@ -98,16 +71,16 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  "newline",
+  {"newline": 2},
 
   // Spacebar and modifiers
   {
     "key": "S-",
-    "size": {"width": 16, "height": 3},
+    "size": {"width": 16, "height": 3}
   },
   {"key": " "},
   {"key": "C-"},
   {"key": "M-"},
   {"key": "Enter"},
-  {"key": "Tab"},
+  {"key": "Tab"}
 ]

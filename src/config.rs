@@ -32,20 +32,17 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Config {
         let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
         for key_value in value.to_array()? {
-            if let Ok(s) = key_value.to_unquoted_string_str() {
-                match s.as_ref() {
-                    "blank" => {
-                        position.col += 1;
-                        continue;
-                    }
-                    "newline" => {
-                        position.col = 0;
-                        position.row += next_newline_rows;
-                        next_newline_rows = 1;
-                        continue;
-                    }
-                    _ => return Err(key_value.invalid("unexpected string literal")),
-                }
+            if let Some(blank_count) = key_value.to_member("blank")?.get() {
+                let count: std::num::NonZeroUsize = blank_count.try_into()?;
+                position.col += count.get();
+                continue;
+            }
+            if let Some(newline_count) = key_value.to_member("newline")?.get() {
+                let count: std::num::NonZeroUsize = newline_count.try_into()?;
+                position.col = 0;
+                position.row += next_newline_rows - 1 + count.get();
+                next_newline_rows = 1;
+                continue;
             }
 
             let key = Key::parse(key_value, position, last_size)?;
