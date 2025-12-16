@@ -1,16 +1,21 @@
 [
   // Control Row
-  {"key": "Panes", "size": {"width": 9, "height": 3}},
+  {"key": "Panes", "size": {"width": 12, "height": 3}},
   {"key": "Paste"},
   {"key": "Copy"},
   {"blank": 9},
-  {"key": "Cursor"},
-  {"blank": 9},
-  {"key": "Pane0"},
-  {"key": "Pane1"},
-  {"newline": 2},
 
-  // Symbols Row 1
+  {"key": "Cursor"},
+  {"key": "Pane1"},
+  {"key": "Pane2"},
+  {"newline": 1},
+
+  // Symbols Row
+  {"blank": 81},
+  {"key": "~", "shift": "@", "size": {"width": 9, "height": 3}},
+  {"newline": 1},
+
+  // Symbols Row
   {"key": "{", "shift": "["},
   {"key": "}", "shift": "]"},
   {"key": "(", "shift": ")"},
@@ -20,20 +25,20 @@
   {"key": ",", "shift": "<"},
   {"key": ".", "shift": ">"},
   {"key": "/", "shift": "?"},
-  {"key": "`", "shift": "~"},
+  {"key": "\"", "shift": "\\"},
   {"newline": 1},
 
-  // Symbols Row 2
+  // Symbols Row
   {"key": "!", "shift": "1"},
-  {"key": "@", "shift": "2"},
+  {"key": "|", "shift": "2"},
   {"key": "#", "shift": "3"},
   {"key": "$", "shift": "4"},
   {"key": "%", "shift": "5"},
   {"key": "^", "shift": "6"},
   {"key": "&", "shift": "7"},
   {"key": "*", "shift": "8"},
-  {"key": "'", "shift": "\""},
-  {"key": "|", "shift": "\\"},
+  {"key": "'", "shift": "9"},
+  {"key": "`", "shift": "0"},
   {"newline": 2},
 
   // QWERT... Row
