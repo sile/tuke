@@ -12,11 +12,10 @@ fn main() -> noargs::Result<()> {
     }
     noargs::HELP_FLAG.take_help(&mut args);
 
-    let config_file_path: Option<PathBuf> = noargs::opt("config-file")
+    let layout_file_path: Option<PathBuf> = noargs::opt("layout-file")
         .short('c')
         .ty("PATH")
-        .env("TUKE_CONFIG_FILE")
-        .doc("Path of configuration JSONC file")
+        .doc("Path of layouturation JSONC file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
 
@@ -25,11 +24,11 @@ fn main() -> noargs::Result<()> {
         return Ok(());
     }
 
-    let config = config_file_path
+    let layout = layout_file_path
         .map(|path| tuke::config::Config::load_from_file(path))
         .transpose()?
         .unwrap_or_default();
-    let app = tuke::app::App::new(config)?;
+    let app = tuke::app::App::new(layout)?;
     app.run()?;
     Ok(())
 }
