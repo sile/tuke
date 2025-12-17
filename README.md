@@ -5,7 +5,7 @@ A proof of concept of **TU**I **KE**yboard for tmux.
 
 ![tuke.jpg](tuke.jpg)
 
-How to run
+How to Run
 ----------
 
 ```console
@@ -20,13 +20,12 @@ $ tuke
 Features
 --------
 
-- Software keyboard assumed to be running in a tmux pane
-- Pressed keys are sent to other panes using `$ tmux send-keys` command
+- Software keyboard designed to run in a tmux pane
+- Pressed keys are sent to other panes using the `$ tmux send-keys` command
 - Configurable key layout (see: [default-layout.jsonc](default-layout.jsonc))
 
 Limitations
 -----------
 
-- Cannot use tmux full features (such as pop-up window)
-- Cannot always show the cursor on the pane that the keys to be sent
-
+- Cannot use full tmux features (such as pop-up windows)
+- Cannot always display the cursor in the pane where keys are being sent
