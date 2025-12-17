@@ -5,8 +5,11 @@ A proof of concept of **TU**I **KE**yboard for tmux.
 
 ![tuke.jpg](tuke.jpg)
 
+How to run
+----------
+
 ```console
-$ cargu run
+$ cargo run
 
 // or
 
@@ -14,13 +17,16 @@ $ cargo install --path .
 $ tuke
 ```
 
-Motivation:
-- coding friendly keyboard for termux (run on a tumux pane and send keys to other panes)
-- e ink / termux friendly keyboard
-- easily setup / customizable (don't want develop android app)
-- flexible layout (jsonc)
+Features
+--------
 
-Limitations by design:
-- cannot use with tumux popup window
-- keep the same keyboard between tmux windows (sesions?)
-- show cursor on the destination pane
+- Software keyboard assumed to be running in a tmux pane
+- Pressed keys are sent to other panes using `$ tmux send-keys` command
+- Configurable key layout (see: [default-layout.jsonc](default-layout.jsonc))
+
+Limitations
+-----------
+
+- Cannot use tmux full features (such as pop-up window)
+- Cannot always show the cursor on the pane that the keys to be sent
+
