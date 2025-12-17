@@ -1,10 +1,9 @@
 tuke
 ====
 
-MEMO
-----
+A proof of concept of TUI keyboard for tmux.
 
-PoC / experimental TUI keyboard for tmux
+![tuke.jpg](tuke.jpg)
 
 Motivation:
 - coding friendly keyboard for termux (run on a tumux pane and send keys to other panes)
