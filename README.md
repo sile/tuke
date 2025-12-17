@@ -1,9 +1,18 @@
 tuke
 ====
 
-A proof of concept of TUI keyboard for tmux.
+A proof of concept of **TU**I **KE**yboard for tmux.
 
 ![tuke.jpg](tuke.jpg)
+
+```console
+$ cargu run
+
+// or
+
+$ cargo install --path .
+$ tuke
+```
 
 Motivation:
 - coding friendly keyboard for termux (run on a tumux pane and send keys to other panes)
