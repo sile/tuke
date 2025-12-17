@@ -1,13 +1,13 @@
 [
   // tmux control Row
-  {"key": "Panes", "size": {"width": 12, "height": 3}},
-  {"key": "Paste"},
-  {"key": "Copy"},
+  {"key": "Panes", "size": {"width": 12, "height": 3}}, // `$ tmux display-panes`
+  {"key": "Paste"}, // `$ tmux paste` (if "size" is omitted, the value of the previous entry is used)
+  {"key": "Copy"}, // `$ tmux copy-mode`
   {"blank": 9},
 
-  {"key": "Cursor"},
-  {"key": "Pane0"},
-  {"key": "Pane1"},
+  {"key": "Cursor"}, // `$ tmux select-pane -t .{TARGET_PANE}`
+  {"key": "Pane0"}, // `$ tmux select-pane -t .0` (and set TARGET_PANE to 0)
+  {"key": "Pane1"}, // `$ tmux select-pane -t .1` (and set TARGET_PANE to 1)
   {"newline": 1},
 
   // Symbols Row
@@ -82,14 +82,14 @@
   {"key": "Tab", "size": {"width": 18, "height": 3}},
   {"blank": 36},
   {"key": "Left", "size": {"width": 9, "height": 3}},
-  {"key": "Up", "size": {"width": 9, "height": 3}},
-  {"key": "Down", "size": {"width": 9, "height": 3}},
-  {"key": "Right", "size": {"width": 9, "height": 3}},
+  {"key": "Up"},
+  {"key": "Down"},
+  {"key": "Right"},
   {"newline": 1},
 
-  {"key": "M-", "size": {"width": 18, "height": 3}},
-  {"key": "S-"},
+  {"key": "M-", "size": {"width": 18, "height": 3}}, // Alt
+  {"key": "S-"}, // Shift
   {"key": " "},
-  {"key": "C-"},
+  {"key": "C-"}, // Ctrl
   {"key": "Enter"},
 ]
