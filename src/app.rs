@@ -187,7 +187,11 @@ impl App {
         if self.is_shift_pressed() {
             code = self.keys[i].key.shift_code;
         }
-        key_string.push_str(&code.to_string());
+
+        // Escape semicolons for tmux
+        let code_str = code.to_string();
+        let escaped_code = code_str.replace(';', "\\;");
+        key_string.push_str(&escaped_code);
 
         self.tmux_command(
             "send-keys",
