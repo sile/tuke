@@ -96,8 +96,10 @@
   {"newline": 1},
 
   {"blank": 22},
-  {"key": "Left", "size": {"width": 12, "height": 3}},
+  {"key": "Left", "size": {"width": 11, "height": 3}},
+  {"blank": 2},
   {"key": "Up"},
   {"key": "Down"},
+  {"blank": 2},
   {"key": "Right"},
 ]
