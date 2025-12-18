@@ -1,16 +1,15 @@
 [
   // tmux control Row
-  {"key": "Panes", "size": {"width": 12, "height": 3}}, // `$ tmux display-panes`
-  {"key": "Paste"}, // `$ tmux paste` (if "size" is omitted, the value of the previous entry is used)
-  {"key": "Copy"}, // `$ tmux copy-mode`
-  {"blank": 18},
+  {"key": "Paste", "size": {"width": 18, "height": 3}}, // `$ tmux paste`
+  {"key": "Copy"}, // `$ tmux copy-mode` (if "size" is omitted, the value of the previous entry is used)
+  {"blank": 11},
 
-  {"key": "Pane0"}, // `$ tmux select-pane -t .0` (and set TARGET_PANE to 0)
+  {"key": "Pane0", "size": {"width": 18, "height": 3}}, // `$ tmux select-pane -t .0` (and set TARGET_PANE to 0)
   {"key": "Pane1"}, // `$ tmux select-pane -t .1` (and set TARGET_PANE to 1)
   {"newline": 1},
 
   // Symbols Row
-  {"blank": 81},
+  {"blank": 83},
   {"key": "~", "shift": "@", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
@@ -20,6 +19,7 @@
   {"key": "(", "shift": "<"},
   {"key": ")", "shift": ">"},
   {"key": "=", "shift": "#"},
+  {"blank": 2},
   {"key": "+", "shift": "*"},
   {"key": ":", "shift": "%"},
   {"key": ";", "shift": "^"},
@@ -33,6 +33,7 @@
   {"key": "_", "shift": "3"},
   {"key": "-", "shift": "4"},
   {"key": ",", "shift": "5"},
+  {"blank": 2},
   {"key": ".", "shift": "6"},
   {"key": "&", "shift": "7"},
   {"key": "\"", "shift": "8"},
@@ -46,6 +47,7 @@
   {"key": "e"},
   {"key": "r"},
   {"key": "t"},
+  {"blank": 2},
   {"key": "y"},
   {"key": "u"},
   {"key": "i"},
@@ -60,6 +62,7 @@
   {"key": "d"},
   {"key": "f"},
   {"key": "g"},
+  {"blank": 2},
   {"key": "h"},
   {"key": "j"},
   {"key": "k"},
@@ -72,6 +75,7 @@
   {"key": "x"},
   {"key": "c"},
   {"key": "v"},
+  {"blank": 2},
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
@@ -80,18 +84,19 @@
   // Spacebar and control keys Rows
   {"key": "Tab", "size": {"width": 18, "height": 3}},
   {"key": "S-"}, // Shift
-  {"blank": 18},
+  {"blank": 20},
   {"key": "BSpace"},
   {"key": "Delete"},
   {"newline": 1},
 
   {"key": "M-", "size": {"width": 22, "height": 3}}, // Alt
-  {"key": " ", "size": {"width": 24, "height": 3}},
+  {"key": " ", "size": {"width": 26, "height": 3}},
   {"key": "C-", "size": {"width": 22, "height": 3}}, // Ctrl
   {"key": "Enter"},
   {"newline": 1},
 
-  {"key": "Left", "size": {"width": 9, "height": 3}},
+  {"blank": 22},
+  {"key": "Left", "size": {"width": 12, "height": 3}},
   {"key": "Up"},
   {"key": "Down"},
   {"key": "Right"},
