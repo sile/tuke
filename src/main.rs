@@ -26,7 +26,7 @@ fn main() -> noargs::Result<()> {
             .ty("SECONDS")
             .env("TUKE_CURSOR_REFRESH_INTERVAL")
             .doc("Interval to refresh cursor visibility in the active pane")
-            .default("1.0")
+            .default("0.8")
             .take(&mut args)
             .then(|a| a.value().parse().map(Duration::from_secs_f64))?,
     };
