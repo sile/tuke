@@ -84,19 +84,18 @@
   // Spacebar and control keys Rows
   {"key": "Tab", "size": {"width": 18, "height": 3}},
   {"key": "S-"}, // Shift
-  {"blank": 20},
-  {"key": "BSpace"},
+  {"key": "C-", "size": {"width": 20, "height": 5}}, // Ctrl
+  {"key": "BSpace", "size": {"width": 18, "height": 3}},
   {"key": "Delete"},
   {"newline": 1},
 
-  {"key": "M-", "size": {"width": 22, "height": 3}}, // Alt
-  {"key": " ", "size": {"width": 26, "height": 3}},
-  {"key": "C-", "size": {"width": 22, "height": 3}}, // Ctrl
-  {"key": "Enter"},
+  {"key": "M-", "size": {"width": 26, "height": 3}}, // Alt
+  {"key": " ", "size": {"width": 40, "height": 3}},
+  {"key": "Enter", "size": {"width": 26, "height": 3}},
   {"newline": 1},
 
-  {"blank": 22},
-  {"key": "Left", "size": {"width": 11, "height": 3}},
+  {"blank": 20},
+  {"key": "Left", "size": {"width": 12, "height": 3}},
   {"blank": 2},
   {"key": "Up"},
   {"key": "Down"},
