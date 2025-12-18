@@ -1,19 +1,34 @@
 use std::process::Command;
+use std::time::Duration;
 
 use orfail::OrFail;
 
 use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
 
 #[derive(Debug)]
+pub struct AppOptions {
+    pub show_cursor_interval: Duration,
+}
+
+impl Default for AppOptions {
+    fn default() -> Self {
+        Self {
+            show_cursor_interval: Duration::from_millis(1000),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct App {
     terminal: tuinix::Terminal,
+    options: AppOptions,
     keys: Vec<KeyState>,
     pane_index: usize,
     exit: bool,
 }
 
 impl App {
-    pub fn new(layout: Layout) -> orfail::Result<Self> {
+    pub fn new(layout: Layout, options: AppOptions) -> orfail::Result<Self> {
         let mut terminal = tuinix::Terminal::new().or_fail()?;
         terminal.enable_mouse_input().or_fail()?;
 
@@ -25,6 +40,7 @@ impl App {
 
         Ok(Self {
             terminal,
+            options,
             keys,
             pane_index: 0,
             exit: false,
@@ -34,14 +50,28 @@ impl App {
     pub fn run(mut self) -> orfail::Result<()> {
         self.render().or_fail()?;
 
+        let mut is_last_timeout = false;
         while !self.exit {
-            match self.terminal.poll_event(&[], &[], None).or_fail()? {
+            let timeout = self.options.show_cursor_interval;
+            match self
+                .terminal
+                .poll_event(&[], &[], Some(timeout))
+                .or_fail()?
+            {
                 Some(tuinix::TerminalEvent::Input(input)) => {
                     self.handle_input(input).or_fail()?;
                     self.render().or_fail()?;
+                    is_last_timeout = false;
                 }
                 Some(tuinix::TerminalEvent::Resize(_)) => {
                     self.render().or_fail()?;
+                    is_last_timeout = false;
+                }
+                None if !is_last_timeout => {
+                    // Timeout
+                    self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
+                        .or_fail()?;
+                    is_last_timeout = true;
                 }
                 _ => {}
             }

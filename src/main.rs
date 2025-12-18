@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn main() -> noargs::Result<()> {
     let mut args = noargs::raw_args();
@@ -15,9 +16,21 @@ fn main() -> noargs::Result<()> {
     let layout_file_path: Option<PathBuf> = noargs::opt("layout-file")
         .short('l')
         .ty("PATH")
+        .env("TUKE_LAYOUT_FILE")
         .doc("Path of layout JSONC file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
+
+    let mut options = tuke::app::AppOptions::default();
+    if let Some(v) = noargs::opt("show-cursor-interval")
+        .ty("SECONDS")
+        .env("TUKE_SHOW_CURSOR_INTERVAL")
+        .doc("TODO")
+        .take(&mut args)
+        .present_and_then(|a| a.value().parse())?
+    {
+        options.show_cursor_interval = Duration::from_secs_f64(v);
+    }
 
     if let Some(help) = args.finish()? {
         print!("{help}");
@@ -28,7 +41,7 @@ fn main() -> noargs::Result<()> {
         .map(|path| tuke::layout::Layout::load_from_file(path))
         .transpose()?
         .unwrap_or_default();
-    let app = tuke::app::App::new(layout)?;
+    let app = tuke::app::App::new(layout, options)?;
     app.run()?;
     Ok(())
 }
