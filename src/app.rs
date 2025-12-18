@@ -7,15 +7,7 @@ use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
 
 #[derive(Debug)]
 pub struct AppOptions {
-    pub show_cursor_interval: Duration,
-}
-
-impl Default for AppOptions {
-    fn default() -> Self {
-        Self {
-            show_cursor_interval: Duration::from_millis(1000),
-        }
-    }
+    pub cursor_refresh_interval: Duration,
 }
 
 #[derive(Debug)]
@@ -52,7 +44,7 @@ impl App {
 
         let mut is_last_timeout = false;
         while !self.exit {
-            let timeout = self.options.show_cursor_interval;
+            let timeout = self.options.cursor_refresh_interval;
             match self
                 .terminal
                 .poll_event(&[], &[], Some(timeout))

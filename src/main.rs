@@ -21,16 +21,15 @@ fn main() -> noargs::Result<()> {
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
 
-    let mut options = tuke::app::AppOptions::default();
-    if let Some(v) = noargs::opt("show-cursor-interval")
-        .ty("SECONDS")
-        .env("TUKE_SHOW_CURSOR_INTERVAL")
-        .doc("TODO")
-        .take(&mut args)
-        .present_and_then(|a| a.value().parse())?
-    {
-        options.show_cursor_interval = Duration::from_secs_f64(v);
-    }
+    let options = tuke::app::AppOptions {
+        cursor_refresh_interval: noargs::opt("cursor-refresh-interval")
+            .ty("SECONDS")
+            .env("TUKE_CURSOR_REFRESH_INTERVAL")
+            .doc("Interval to refresh cursor visibility in the active pane")
+            .default("1.0")
+            .take(&mut args)
+            .then(|a| a.value().parse().map(Duration::from_secs_f64))?,
+    };
 
     if let Some(help) = args.finish()? {
         print!("{help}");
