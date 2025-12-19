@@ -17,6 +17,7 @@ pub struct App {
     keys: Vec<KeyState>,
     pane_index: usize,
     exit: bool,
+    offset: tuinix::TerminalPosition,
 }
 
 impl App {
@@ -30,13 +31,18 @@ impl App {
             .map(|k| KeyState::new(k.clone()))
             .collect();
 
-        Ok(Self {
+        let mut app = Self {
             terminal,
             options,
             keys,
             pane_index: 0,
             exit: false,
-        })
+            offset: tuinix::TerminalPosition::default(),
+        };
+
+        app.calculate_offset();
+
+        Ok(app)
     }
 
     pub fn run(mut self) -> orfail::Result<()> {
@@ -56,6 +62,7 @@ impl App {
                     is_last_timeout = false;
                 }
                 Some(tuinix::TerminalEvent::Resize(_)) => {
+                    self.calculate_offset();
                     self.render().or_fail()?;
                     is_last_timeout = false;
                 }
@@ -92,10 +99,15 @@ impl App {
             return Ok(());
         }
 
+        let adjusted_position = tuinix::TerminalPosition::row_col(
+            mouse_input.position.row.saturating_sub(self.offset.row),
+            mouse_input.position.col.saturating_sub(self.offset.col),
+        );
+
         let Some(pressed_index) = self
             .keys
             .iter()
-            .position(|ks| ks.key.region.contains(mouse_input.position))
+            .position(|ks| ks.key.region.contains(adjusted_position))
         else {
             return Ok(());
         };
@@ -255,12 +267,31 @@ impl App {
         })
     }
 
+    fn calculate_offset(&mut self) {
+        let terminal_size = self.terminal.size();
+        let mut actual_frame_size = tuinix::TerminalSize::default();
+
+        for key_state in &self.keys {
+            actual_frame_size.rows = actual_frame_size
+                .rows
+                .max(key_state.key.region.position.row + key_state.key.region.size.rows);
+            actual_frame_size.cols = actual_frame_size
+                .cols
+                .max(key_state.key.region.position.col + key_state.key.region.size.cols);
+        }
+
+        // Calculate centering offset
+        let offset_row = (terminal_size.rows.saturating_sub(actual_frame_size.rows)) / 2;
+        let offset_col = (terminal_size.cols.saturating_sub(actual_frame_size.cols)) / 2;
+
+        self.offset = tuinix::TerminalPosition::row_col(offset_row, offset_col);
+    }
+
     fn render(&mut self) -> orfail::Result<()> {
         let terminal_size = self.terminal.size();
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
         let shift = self.is_shift_active();
 
-        let mut actual_frame_size = tuinix::TerminalSize::default();
         for key_state in &mut self.keys {
             if let KeyCode::SelectPane { index } = key_state.key.code {
                 key_state.selected = index == self.pane_index;
@@ -268,24 +299,10 @@ impl App {
 
             let key_frame = key_state.to_frame(shift).or_fail()?;
             frame.draw(key_state.key.region.position, &key_frame);
-
-            actual_frame_size.rows = actual_frame_size
-                .rows
-                .max(key_state.key.region.position.row + key_frame.size().rows);
-            actual_frame_size.cols = actual_frame_size
-                .cols
-                .max(key_state.key.region.position.col + key_frame.size().cols);
         }
 
-        // Center the frame on the terminal (vertical and horizontal)
-        let offset_row = (terminal_size.rows.saturating_sub(actual_frame_size.rows)) / 2;
-        let offset_col = (terminal_size.cols.saturating_sub(actual_frame_size.cols)) / 2;
-
         let mut centered_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
-        centered_frame.draw(
-            tuinix::TerminalPosition::row_col(offset_row, offset_col),
-            &frame,
-        );
+        centered_frame.draw(self.offset, &frame);
 
         self.terminal.draw(centered_frame).or_fail()?;
 
