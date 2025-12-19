@@ -256,20 +256,39 @@ impl App {
     }
 
     fn render(&mut self) -> orfail::Result<()> {
-        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.terminal.size());
+        let terminal_size = self.terminal.size();
+        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
         let shift = self.is_shift_active();
 
+        let mut actual_frame_size = tuinix::TerminalSize::default();
         for key_state in &mut self.keys {
             if let KeyCode::SelectPane { index } = key_state.key.code {
                 key_state.selected = index == self.pane_index;
             };
-            frame.draw(
-                key_state.key.region.position,
-                &key_state.to_frame(shift).or_fail()?,
-            );
+
+            let key_frame = key_state.to_frame(shift).or_fail()?;
+            frame.draw(key_state.key.region.position, &key_frame);
+
+            actual_frame_size.rows = actual_frame_size
+                .rows
+                .max(key_state.key.region.position.row + key_frame.size().rows);
+            actual_frame_size.cols = actual_frame_size
+                .cols
+                .max(key_state.key.region.position.col + key_frame.size().cols);
         }
 
-        self.terminal.draw(frame).or_fail()?;
+        // Center the frame on the terminal (vertical and horizontal)
+        let offset_row = (terminal_size.rows.saturating_sub(actual_frame_size.rows)) / 2;
+        let offset_col = (terminal_size.cols.saturating_sub(actual_frame_size.cols)) / 2;
+
+        let mut centered_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
+        centered_frame.draw(
+            tuinix::TerminalPosition::row_col(offset_row, offset_col),
+            &frame,
+        );
+
+        self.terminal.draw(centered_frame).or_fail()?;
+
         Ok(())
     }
 }
