@@ -27,7 +27,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         let mut keys = Vec::new();
         let mut next_newline_rows = 1;
-        let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
+        let mut default_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
         let mut base_col = 0;
         for key_value in value.to_array()? {
@@ -51,13 +51,12 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 continue;
             }
             if let Some(default_size_value) = key_value.to_member("default_size")?.get() {
-                last_size = parse_size(default_size_value)?;
+                default_size = parse_size(default_size_value)?;
                 continue;
             }
 
-            let key = Key::parse(key_value, position, last_size)?;
+            let key = Key::parse(key_value, position, default_size)?;
 
-            last_size = key.region.size; // TODO: not to update last_size (and rename last_size with default_size)
             position = key.region.top_right();
             position.col += 1;
             next_newline_rows = next_newline_rows.max(key.region.size.rows);
@@ -79,7 +78,7 @@ impl Key {
     fn parse(
         value: nojson::RawJsonValue<'_, '_>,
         position: tuinix::TerminalPosition,
-        last_size: tuinix::TerminalSize,
+        default_size: tuinix::TerminalSize,
     ) -> Result<Self, nojson::JsonParseError> {
         let code: KeyCode = value.to_member("key")?.required()?.try_into()?;
 
@@ -92,7 +91,7 @@ impl Key {
         let size = value
             .to_member("size")?
             .map(parse_size)?
-            .unwrap_or(last_size);
+            .unwrap_or(default_size);
 
         let region = tuinix::TerminalRegion { position, size };
 
