@@ -42,6 +42,12 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 next_newline_rows = 1;
                 continue;
             }
+            if let Some(position_value) = key_value.to_member("position")?.get() {
+                position.row = position_value.to_member("row")?.required()?.try_into()?;
+                position.col = position_value.to_member("column")?.required()?.try_into()?;
+                next_newline_rows = 1;
+                continue;
+            }
 
             let key = Key::parse(key_value, position, last_size)?;
 
