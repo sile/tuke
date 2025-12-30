@@ -18,6 +18,8 @@
   {"key": "0"},
   {"newline": 1},
 
+  // TODO: page up / down
+
   {"default_size": {"width": 13, "height": 4}},
   {"blank": 7},
   {"key": "Up"},
@@ -53,17 +55,17 @@
   {"newline": 1},
 
   // Symbols Row
-  {"key": "!", "shift": "1"},
-  {"key": "|", "shift": "2"},
-  {"key": "_", "shift": "3"},
-  {"key": "-", "shift": "4"},
-  {"key": ",", "shift": "5"},
+  {"key": "!"},
+  {"key": "|"},
+  {"key": "_"},
+  {"key": "-"},
+  {"key": ","},
   {"blank": 2},
-  {"key": ".", "shift": "6"},
-  {"key": "&", "shift": "7"},
-  {"key": "\"", "shift": "8"},
-  {"key": "'", "shift": "9"},
-  {"key": "`", "shift": "0"},
+  {"key": "."},
+  {"key": "&"},
+  {"key": "\""},
+  {"key": "'"},
+  {"key": "`"},
   {"newline": 2},
 
   // QWERT... Row
