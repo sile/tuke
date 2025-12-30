@@ -176,11 +176,13 @@ impl App {
 
         let mut code = self.keys[i].key.code;
         let mut key_string = String::new();
-        if self.is_ctrl_pressed() {
-            key_string.push_str("C-");
-        }
-        if self.is_alt_pressed() {
-            key_string.push_str("M-");
+        if code.is_char() {
+            if self.is_ctrl_pressed() {
+                key_string.push_str("C-");
+            }
+            if self.is_alt_pressed() {
+                key_string.push_str("M-");
+            }
         }
         if self.is_shift_pressed() {
             code = self.keys[i].key.shift_code;

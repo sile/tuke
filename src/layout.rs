@@ -125,6 +125,10 @@ impl KeyCode {
         matches!(self, Self::Shift | Self::Ctrl | Self::Alt)
     }
 
+    pub fn is_char(self) -> bool {
+        matches!(self, Self::Char(_))
+    }
+
     pub fn default_shift_code(self) -> Self {
         match self {
             Self::Char(c) => Self::Char(c.to_ascii_uppercase()),
