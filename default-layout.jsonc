@@ -1,5 +1,5 @@
 [
-  {"position": {"row": 0, "column": 0}},
+  {"base_position": {"row": 0, "column": 0}},
 
   // tmux control Row
   {"key": "Paste", "size": {"width": 18, "height": 3}}, // `$ tmux paste`

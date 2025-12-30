@@ -29,6 +29,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
         let mut next_newline_rows = 1;
         let mut last_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
+        let mut base_col = 0;
         for key_value in value.to_array()? {
             if let Some(blank_count) = key_value.to_member("blank")?.get() {
                 let count: std::num::NonZeroUsize = blank_count.try_into()?;
@@ -37,14 +38,15 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
             }
             if let Some(newline_count) = key_value.to_member("newline")?.get() {
                 let count: std::num::NonZeroUsize = newline_count.try_into()?;
-                position.col = 0;
+                position.col = base_col;
                 position.row += next_newline_rows - 1 + count.get();
                 next_newline_rows = 1;
                 continue;
             }
-            if let Some(position_value) = key_value.to_member("position")?.get() {
+            if let Some(position_value) = key_value.to_member("base_position")?.get() {
                 position.row = position_value.to_member("row")?.required()?.try_into()?;
                 position.col = position_value.to_member("column")?.required()?.try_into()?;
+                base_col = position.col;
                 next_newline_rows = 1;
                 continue;
             }
