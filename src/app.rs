@@ -112,9 +112,7 @@ impl App {
             return Ok(());
         };
 
-        if self.keys[pressed_index].key.code.is_special() {
-            self.handle_special_key_pressed(pressed_index).or_fail()?;
-        } else if self.keys[pressed_index].key.code.is_modifier() {
+        if self.keys[pressed_index].key.code.is_modifier() {
             self.handle_modifier_key_pressed(pressed_index).or_fail()?;
         } else {
             self.handle_normal_key_pressed(pressed_index).or_fail()?;
@@ -137,40 +135,6 @@ impl App {
             .args(args)
             .output()
             .or_fail()?;
-        Ok(())
-    }
-
-    fn handle_special_key_pressed(&mut self, i: usize) -> orfail::Result<()> {
-        self.reset_pressed_keys();
-
-        match self.keys[i].key.code {
-            KeyCode::Quit => {
-                self.exit = true;
-            }
-            KeyCode::DisplayPanes => {
-                self.tmux_command("display-panes", &[]).or_fail()?;
-            }
-            KeyCode::SelectPane { index } => {
-                self.pane_index = index;
-                self.tmux_command("select-pane", &["-t", &format!(".{index}")])
-                    .or_fail()?;
-            }
-            KeyCode::ShowCursor => {
-                self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
-                    .or_fail()?;
-            }
-            KeyCode::CopyMode => {
-                self.tmux_command("copy-mode", &["-t", &format!(".{}", self.pane_index)])
-                    .or_fail()?;
-            }
-            KeyCode::Paste => {
-                self.tmux_command("paste-buffer", &["-t", &format!(".{}", self.pane_index)])
-                    .or_fail()?;
-            }
-            _ => {}
-        }
-        self.keys[i].press = KeyPressState::Pressed;
-
         Ok(())
     }
 
@@ -293,10 +257,6 @@ impl App {
         let shift = self.is_shift_active();
 
         for key_state in &mut self.keys {
-            if let KeyCode::SelectPane { index } = key_state.key.code {
-                key_state.selected = index == self.pane_index;
-            };
-
             let key_frame = key_state.to_frame(shift).or_fail()?;
             frame.draw(key_state.key.region.position, &key_frame);
         }

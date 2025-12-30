@@ -115,31 +115,11 @@ pub enum KeyCode {
     Backspace,
     Delete,
     Tab,
-
-    // Special Key Codes
-    Quit,
-    DisplayPanes,
-    SelectPane { index: usize },
-    ShowCursor,
-    CopyMode,
-    Paste,
 }
 
 impl KeyCode {
     pub fn is_modifier(self) -> bool {
         matches!(self, Self::Shift | Self::Ctrl | Self::Alt)
-    }
-
-    pub fn is_special(self) -> bool {
-        matches!(
-            self,
-            Self::Quit
-                | Self::DisplayPanes
-                | Self::SelectPane { .. }
-                | Self::ShowCursor
-                | Self::CopyMode
-                | Self::Paste
-        )
     }
 
     pub fn default_shift_code(self) -> Self {
@@ -166,14 +146,6 @@ impl std::fmt::Display for KeyCode {
             Self::Backspace => write!(f, "BSpace"),
             Self::Delete => write!(f, "Delete"),
             Self::Tab => write!(f, "Tab"),
-
-            // Special
-            Self::Quit => write!(f, "Quit"),
-            Self::DisplayPanes => write!(f, "Panes"),
-            Self::SelectPane { index } => write!(f, "Pane{index}"),
-            Self::ShowCursor => write!(f, "Cursor"),
-            Self::CopyMode => write!(f, "Copy"),
-            Self::Paste => write!(f, "Paste"),
         }
     }
 }
@@ -183,18 +155,6 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         match value.to_unquoted_string_str()?.as_ref() {
-            // Special
-            "Quit" => Ok(Self::Quit),
-            "Panes" => Ok(Self::DisplayPanes),
-            s if s.starts_with("Pane") => {
-                let index = s[4..].parse().map_err(|e| value.invalid(e))?;
-                Ok(Self::SelectPane { index })
-            }
-            "Cursor" => Ok(Self::ShowCursor),
-            "Copy" => Ok(Self::CopyMode),
-            "Paste" => Ok(Self::Paste),
-
-            // Normal
             "S-" => Ok(Self::Shift),
             "C-" => Ok(Self::Ctrl),
             "M-" => Ok(Self::Alt),
@@ -253,7 +213,6 @@ pub enum KeyPressState {
 pub struct KeyState {
     pub key: Key,
     pub press: KeyPressState,
-    pub selected: bool,
 }
 
 impl KeyState {
@@ -261,7 +220,6 @@ impl KeyState {
         Self {
             key,
             press: KeyPressState::Neutral,
-            selected: false,
         }
     }
 
@@ -279,7 +237,6 @@ impl KeyState {
             KeyPressState::OneshotActivated => style.italic(),
         };
         let reset_style = tuinix::TerminalStyle::RESET;
-        let style = if self.selected { style.bold() } else { style };
 
         // Top border
         write!(frame, "{}", style).or_fail()?;
