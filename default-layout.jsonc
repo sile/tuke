@@ -125,14 +125,19 @@
   {"newline": 2},
 
   // Spacebar and control keys Rows
-  {"key": "Tab", "size": {"width": 18, "height": 3}},
-  {"key": "S-"}, // Shift
-  {"key": " ", "size": {"width": 20, "height": 5}},
-  {"key": "BSpace", "size": {"width": 18, "height": 3}},
-  {"key": "Delete"},
+  {"default_size": {"width": 30, "height": 5}},
+  {"key": "C-"},
+  {"blank": 1},
+  {"key": " "},
+  {"blank": 1},
+  {"key": "Enter"},
   {"newline": 1},
 
-  {"key": "M-", "size": {"width": 26, "height": 5}}, // Alt
-  {"key": "C-", "size": {"width": 40, "height": 5}},
-  {"key": "Enter", "size": {"width": 26, "height": 5}},
+  {"default_size": {"width": 18, "height": 5}},
+  {"key": "Tab"},
+  {"key": "S-"},
+  {"key": "M-"},
+  {"blank": 2},
+  {"key": "BSpace"},
+  {"key": "Delete"},
 ]
