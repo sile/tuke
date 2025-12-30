@@ -1,4 +1,35 @@
 [
+  // Right Region
+  {"base_position": {"row": 0, "column": 100}},
+  {"key": "1", "size": {"width": 9, "height": 3}},
+  {"key": "2"},
+  {"key": "3"},
+  {"newline": 1},
+  {"key": "4"},
+  {"key": "5"},
+  {"key": "6"},
+  {"newline": 1},
+  {"key": "7"},
+  {"key": "8"},
+  {"key": "9"},
+  {"newline": 1},
+  {"blank": 9},
+  {"key": "0"},
+  {"newline": 1},
+
+  {"blank": 7},
+  {"key": "Up", "size": {"width": 13, "height": 4}},
+
+  {"newline": 1},
+  {"key": "Left"},
+  {"blank": 1},
+  {"key": "Right"},
+
+  {"newline": 1},
+  {"blank": 7},
+  {"key": "Down"},
+
+
   {"base_position": {"row": 0, "column": 0}},
 
   // Symbols Row
@@ -85,13 +116,4 @@
   {"key": "M-", "size": {"width": 26, "height": 3}}, // Alt
   {"key": "C-", "size": {"width": 40, "height": 3}},
   {"key": "Enter", "size": {"width": 26, "height": 3}},
-  {"newline": 1},
-
-  {"blank": 20},
-  {"key": "Left", "size": {"width": 12, "height": 3}},
-  {"blank": 2},
-  {"key": "Up"},
-  {"key": "Down"},
-  {"blank": 2},
-  {"key": "Right"},
 ]
