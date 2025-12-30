@@ -50,7 +50,7 @@
   {"key": "<"},
   {"key": ">"},
   {"key": "#"},
-  {"newline": 1},
+  {"newline": 2},
 
   {"key": "+"},
   {"key": ":"},
@@ -64,7 +64,7 @@
   {"key": "^"},
   {"key": "\\"},
   {"key": "$"},
-  {"newline": 1},
+  {"newline": 2},
 
   {"key": "!"},
   {"key": "|"},
@@ -80,7 +80,7 @@
   {"key": "`"},
 
   // Center Region
-  {"base_position": {"row": 0, "column": 46,}},
+  {"base_position": {"row": 0, "column": 48}},
   {"default_size": {"width": 9, "height": 4}},
 
   // QWERT... Row
