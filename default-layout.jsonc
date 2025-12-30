@@ -1,52 +1,49 @@
 [
   // Right Region
-  {"base_position": {"row": 0, "column": 100}},
-  {"default_size": {"width": 9, "height": 3}},
+  {"base_position": {"row": 0, "column": 142}},
+  {"default_size": {"width": 9, "height": 4}},
+  {"key": "0"},
   {"key": "1"},
   {"key": "2"},
   {"key": "3"},
-  {"newline": 1},
   {"key": "4"},
+  {"newline": 1},
   {"key": "5"},
   {"key": "6"},
-  {"newline": 1},
   {"key": "7"},
   {"key": "8"},
   {"key": "9"},
-  {"newline": 1},
-  {"blank": 9},
-  {"key": "0"},
-  {"newline": 1},
+  {"newline": 2},
 
   // TODO: page up / down
-
+  {"base_position": {"row": 12, "column": 146}},
   {"default_size": {"width": 13, "height": 4}},
   {"blank": 7},
   {"key": "Up"},
 
   {"newline": 1},
   {"key": "Left"},
-  {"blank": 1},
+  {"blank": 5},
   {"key": "Right"},
 
   {"newline": 1},
   {"blank": 7},
   {"key": "Down"},
 
+  // Left Region
   {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 9, "height": 4}},
 
-  // Symbols Row
-  {"blank": 83},
   {"key": "~", "shift": "@", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
-  // Symbols Row
   {"key": "{", "shift": "["},
   {"key": "}", "shift": "]"},
   {"key": "(", "shift": "<"},
   {"key": ")", "shift": ">"},
   {"key": "=", "shift": "#"},
-  {"blank": 2},
+  {"newline": 1},
+
   {"key": "+", "shift": "*"},
   {"key": ":", "shift": "%"},
   {"key": ";", "shift": "^"},
@@ -54,19 +51,21 @@
   {"key": "?", "shift": "$"},
   {"newline": 1},
 
-  // Symbols Row
   {"key": "!"},
   {"key": "|"},
   {"key": "_"},
   {"key": "-"},
   {"key": ","},
-  {"blank": 2},
+  {"newline": 1},
+
   {"key": "."},
   {"key": "&"},
   {"key": "\""},
   {"key": "'"},
   {"key": "`"},
-  {"newline": 2},
+
+  // Center Region
+  {"base_position": {"row": 0, "column": 46,}},
 
   // QWERT... Row
   {"default_size": {"width": 9, "height": 4}},
