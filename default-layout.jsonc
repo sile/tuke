@@ -13,21 +13,19 @@
   {"key": "7"},
   {"key": "8"},
   {"key": "9"},
-  {"newline": 2},
+  {"newline": 1},
 
-  // TODO: page up / down
-  {"base_position": {"row": 11, "column": 146}},
-  {"default_size": {"width": 13, "height": 4}},
-  {"blank": 7},
+  {"default_size": {"width": 15, "height": 5}},
+  {"blank": 15},
   {"key": "Up"},
 
   {"newline": 1},
   {"key": "Left"},
-  {"blank": 5},
+  {"blank": 15},
   {"key": "Right"},
 
   {"newline": 1},
-  {"blank": 7},
+  {"blank": 15},
   {"key": "Down"},
 
   // Left Region
