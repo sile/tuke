@@ -16,7 +16,7 @@
   {"newline": 2},
 
   // TODO: page up / down
-  {"base_position": {"row": 12, "column": 146}},
+  {"base_position": {"row": 11, "column": 146}},
   {"default_size": {"width": 13, "height": 4}},
   {"blank": 7},
   {"key": "Up"},
@@ -32,23 +32,38 @@
 
   // Left Region
   {"base_position": {"row": 0, "column": 0}},
-  {"default_size": {"width": 9, "height": 4}},
+  {"default_size": {"width": 9, "height": 3}},
 
-  {"key": "~", "shift": "@", "size": {"width": 9, "height": 3}},
+  {"key": "~"},
+  {"key": "@"},
   {"newline": 1},
 
-  {"key": "{", "shift": "["},
-  {"key": "}", "shift": "]"},
-  {"key": "(", "shift": "<"},
-  {"key": ")", "shift": ">"},
-  {"key": "=", "shift": "#"},
+  {"key": "{"},
+  {"key": "}"},
+  {"key": "("},
+  {"key": ")"},
+  {"key": "="},
   {"newline": 1},
 
-  {"key": "+", "shift": "*"},
-  {"key": ":", "shift": "%"},
-  {"key": ";", "shift": "^"},
-  {"key": "/", "shift": "\\"},
-  {"key": "?", "shift": "$"},
+  {"key": "["},
+  {"key": "]"},
+  {"key": "<"},
+  {"key": ">"},
+  {"key": "#"},
+  {"newline": 1},
+
+  {"key": "+"},
+  {"key": ":"},
+  {"key": ";"},
+  {"key": "/"},
+  {"key": "?"},
+  {"newline": 1},
+
+  {"key": "*"},
+  {"key": "%"},
+  {"key": "^"},
+  {"key": "\\"},
+  {"key": "$"},
   {"newline": 1},
 
   {"key": "!"},
@@ -66,6 +81,7 @@
 
   // Center Region
   {"base_position": {"row": 0, "column": 46,}},
+  {"default_size": {"width": 9, "height": 4}},
 
   // QWERT... Row
   {"default_size": {"width": 9, "height": 4}},
