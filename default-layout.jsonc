@@ -69,6 +69,7 @@
   {"newline": 2},
 
   // QWERT... Row
+  {"default_size": {"width": 9, "height": 4}},
   {"key": "q"},
   {"key": "w"},
   {"key": "e"},
@@ -116,7 +117,7 @@
   {"key": "Delete"},
   {"newline": 1},
 
-  {"key": "M-", "size": {"width": 26, "height": 3}}, // Alt
-  {"key": "C-", "size": {"width": 40, "height": 3}},
-  {"key": "Enter", "size": {"width": 26, "height": 3}},
+  {"key": "M-", "size": {"width": 26, "height": 5}}, // Alt
+  {"key": "C-", "size": {"width": 40, "height": 5}},
+  {"key": "Enter", "size": {"width": 26, "height": 5}},
 ]
