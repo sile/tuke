@@ -1,7 +1,8 @@
 [
   // Right Region
   {"base_position": {"row": 0, "column": 100}},
-  {"key": "1", "size": {"width": 9, "height": 3}},
+  {"default_size": {"width": 9, "height": 3}},
+  {"key": "1"},
   {"key": "2"},
   {"key": "3"},
   {"newline": 1},
@@ -17,8 +18,9 @@
   {"key": "0"},
   {"newline": 1},
 
+  {"default_size": {"width": 13, "height": 4}},
   {"blank": 7},
-  {"key": "Up", "size": {"width": 13, "height": 4}},
+  {"key": "Up"},
 
   {"newline": 1},
   {"key": "Left"},
@@ -28,7 +30,6 @@
   {"newline": 1},
   {"blank": 7},
   {"key": "Down"},
-
 
   {"base_position": {"row": 0, "column": 0}},
 

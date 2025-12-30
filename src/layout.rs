@@ -50,10 +50,14 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 next_newline_rows = 1;
                 continue;
             }
+            if let Some(default_size_value) = key_value.to_member("default_size")?.get() {
+                last_size = parse_size(default_size_value)?;
+                continue;
+            }
 
             let key = Key::parse(key_value, position, last_size)?;
 
-            last_size = key.region.size;
+            last_size = key.region.size; // TODO: not to update last_size (and rename last_size with default_size)
             position = key.region.top_right();
             position.col += 1;
             next_newline_rows = next_newline_rows.max(key.region.size.rows);
