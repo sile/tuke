@@ -176,7 +176,7 @@ impl App {
 
         let mut code = self.keys[i].key.code;
         let mut key_string = String::new();
-        if code.is_char() {
+        if code.is_modifiable() {
             if self.is_ctrl_pressed() {
                 key_string.push_str("C-");
             }
