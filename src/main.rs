@@ -20,7 +20,6 @@ fn main() -> noargs::Result<()> {
         .doc("Path of layout JSONC file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
-
     let options = tuke::app::AppOptions {
         cursor_refresh_interval: noargs::opt("cursor-refresh-interval")
             .ty("SECONDS")
@@ -29,6 +28,12 @@ fn main() -> noargs::Result<()> {
             .default("0.8")
             .take(&mut args)
             .then(|a| a.value().parse().map(Duration::from_secs_f64))?,
+        log_file_path: noargs::opt("log-file")
+            .ty("PATH")
+            .env("TUKE_LOG_FILE")
+            .doc("Path of key logging JSON Lines file")
+            .take(&mut args)
+            .present_and_then(|a| a.value().parse())?,
     };
 
     if let Some(help) = args.finish()? {

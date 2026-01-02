@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
@@ -8,6 +9,7 @@ use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
 #[derive(Debug)]
 pub struct AppOptions {
     pub cursor_refresh_interval: Duration,
+    pub log_file_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -18,10 +20,23 @@ pub struct App {
     pane_index: usize,
     exit: bool,
     offset: tuinix::TerminalPosition,
+    log_file: Option<std::fs::File>,
 }
 
 impl App {
     pub fn new(layout: Layout, options: AppOptions) -> orfail::Result<Self> {
+        let log_file = options
+            .log_file_path
+            .as_ref()
+            .map(|path| {
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+            })
+            .transpose()
+            .or_fail()?;
+
         let mut terminal = tuinix::Terminal::new().or_fail()?;
         terminal.enable_mouse_input().or_fail()?;
 
@@ -38,6 +53,7 @@ impl App {
             pane_index: 0,
             exit: false,
             offset: tuinix::TerminalPosition::default(),
+            log_file,
         };
 
         app.calculate_offset();
