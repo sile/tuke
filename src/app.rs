@@ -227,10 +227,7 @@ impl App {
             code = self.keys[i].key.shift_code;
         }
 
-        // Escape semicolons for tmux
-        let code_str = code.to_string();
-        let escaped_code = code_str.replace(';', "\\;");
-        key_string.push_str(&escaped_code);
+        key_string.push_str(&code.to_string());
 
         self.tmux_command(
             "send-keys",

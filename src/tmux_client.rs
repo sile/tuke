@@ -34,7 +34,7 @@ impl TmuxClient {
         let mut cmd_string = format!("{}", command);
         for arg in args {
             cmd_string.push(' ');
-            if arg.contains(' ') || arg.contains(';') {
+            if arg.contains([' ', ';', '"', '\'']) {
                 cmd_string.push('"');
                 cmd_string.push_str(&arg.replace('"', "\\\""));
                 cmd_string.push('"');
