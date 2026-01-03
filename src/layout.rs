@@ -6,6 +6,7 @@ use orfail::OrFail;
 #[derive(Debug)]
 pub struct Layout {
     pub keys: Vec<Key>,
+    pub preview: Option<Preview>,
 }
 
 impl Layout {
@@ -26,6 +27,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
         let mut keys = Vec::new();
+        let mut preview = None;
         let mut next_newline_rows = 1;
         let mut default_size = tuinix::TerminalSize { rows: 3, cols: 3 };
         let mut position = tuinix::TerminalPosition::ZERO;
@@ -54,6 +56,14 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 default_size = parse_size(default_size_value)?;
                 continue;
             }
+            if let Some(preview_value) = key_value.to_member("preview")?.get() {
+                let columns = preview_value.to_member("columns")?.required()?.try_into()?;
+                let size = tuinix::TerminalSize::rows_cols(1, columns);
+                let region = tuinix::TerminalRegion { position, size };
+                preview = Some(Preview { region });
+                position = region.top_right();
+                continue;
+            }
 
             let key = Key::parse(key_value, position, default_size)?;
 
@@ -63,8 +73,13 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
 
             keys.push(key);
         }
-        Ok(Self { keys })
+        Ok(Self { keys, preview })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Preview {
+    pub region: tuinix::TerminalRegion,
 }
 
 #[derive(Debug, Clone)]

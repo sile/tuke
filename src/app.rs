@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use orfail::OrFail;
 
-use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
+use crate::layout::{KeyCode, KeyPressState, KeyState, Layout, Preview};
 
 #[derive(Debug)]
 pub struct AppOptions {
@@ -19,6 +19,7 @@ pub struct App {
     terminal: tuinix::Terminal,
     options: AppOptions,
     keys: Vec<KeyState>,
+    preview: Option<Preview>,
     pane_index: usize,
     exit: bool,
     offset: tuinix::TerminalPosition,
@@ -52,6 +53,7 @@ impl App {
             terminal,
             options,
             keys,
+            preview: layout.preview,
             pane_index: 0,
             exit: false,
             offset: tuinix::TerminalPosition::default(),
@@ -297,7 +299,9 @@ impl App {
             let required_rows = self
                 .keys
                 .iter()
-                .map(|k| k.key.region.bottom_left().row + 1)
+                .map(|k| k.key.region)
+                .chain(self.preview.iter().map(|p| p.region))
+                .map(|r| r.bottom_left().row + 1)
                 .max()
                 .unwrap_or_default();
             if terminal_size.rows != required_rows {
