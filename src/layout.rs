@@ -60,7 +60,10 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 let columns = preview_value.to_member("columns")?.required()?.try_into()?;
                 let size = tuinix::TerminalSize::rows_cols(1, columns);
                 let region = tuinix::TerminalRegion { position, size };
-                preview = Some(Preview { region });
+                preview = Some(Preview {
+                    region,
+                    history: Vec::new(),
+                });
                 position = region.top_right();
                 continue;
             }
@@ -77,12 +80,32 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq)]
+struct SentKey {
+    code: KeyCode,
+    ctrl: bool,
+    alt: bool,
+}
+
+#[derive(Debug)]
 pub struct Preview {
     pub region: tuinix::TerminalRegion,
+    history: Vec<SentKey>,
 }
 
 impl Preview {
+    pub fn on_key_sent(&mut self, code: KeyCode, ctrl: bool, alt: bool) {
+        let sent_key = SentKey { code, ctrl, alt };
+        if ctrl || alt {
+            if self.history.last() != Some(&sent_key) {
+                self.history.clear();
+            }
+            self.history.push(sent_key);
+        } else {
+            self.history.push(sent_key);
+        }
+    }
+
     pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
 
@@ -90,7 +113,30 @@ impl Preview {
         let reset = tuinix::TerminalStyle::RESET;
 
         let padding = " ".repeat(self.region.size.cols);
-        write!(frame, "{style}foo{padding}{reset}").or_fail()?;
+        write!(frame, "{style}").or_fail()?;
+
+        if let Some(k) = self.history.last()
+            && (k.ctrl || k.alt)
+        {
+            if k.ctrl {
+                write!(frame, "C-").or_fail()?
+            };
+            if k.alt {
+                write!(frame, "M-").or_fail()?
+            };
+            write!(frame, "{}", k.code).or_fail()?;
+
+            let repeat_count = self.history.len();
+            if repeat_count > 1 {
+                write!(frame, " (x{repeat_count})").or_fail()?;
+            }
+        } else {
+            for k in &self.history {
+                write!(frame, "{}", k.code).or_fail()?;
+            }
+        }
+
+        write!(frame, "{padding}{reset}").or_fail()?;
 
         Ok(frame)
     }

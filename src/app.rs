@@ -215,12 +215,16 @@ impl App {
 
         let mut code = self.keys[i].key.code;
         let mut key_string = String::new();
+        let mut ctrl = false;
+        let mut alt = false;
         if code.is_modifiable() {
             if self.is_ctrl_pressed() {
                 key_string.push_str("C-");
+                ctrl = true;
             }
             if self.is_alt_pressed() {
                 key_string.push_str("M-");
+                alt = true;
             }
         }
         if self.is_shift_pressed() {
@@ -237,6 +241,10 @@ impl App {
             &["-t", &format!(".{}", self.pane_index), &key_string],
         )
         .or_fail()?;
+
+        if let Some(preview) = &mut self.preview {
+            preview.on_key_sent(code, ctrl, alt);
+        }
 
         Ok(())
     }
