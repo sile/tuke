@@ -5,7 +5,7 @@ use std::time::Duration;
 use orfail::OrFail;
 
 use crate::layout::{KeyCode, KeyPressState, KeyState, Layout, Preview};
-use crate::tmux_socket::TmuxSocket;
+use crate::tmux_client::TmuxClient;
 
 #[derive(Debug)]
 pub struct AppOptions {
@@ -24,7 +24,7 @@ pub struct App {
     exit: bool,
     offset: tuinix::TerminalPosition,
     log_file: Option<std::fs::File>,
-    tmux_socket: TmuxSocket,
+    tmux_client: TmuxClient,
 }
 
 impl App {
@@ -50,7 +50,7 @@ impl App {
             .map(|k| KeyState::new(k.clone()))
             .collect();
 
-        let tmux_socket = TmuxSocket::new().or_fail()?;
+        let tmux_client = TmuxClient::new().or_fail()?;
 
         let mut app = Self {
             terminal,
@@ -61,7 +61,7 @@ impl App {
             exit: false,
             offset: tuinix::TerminalPosition::default(),
             log_file,
-            tmux_socket,
+            tmux_client,
         };
 
         app.calculate_offset();
@@ -169,7 +169,7 @@ impl App {
     }
 
     fn tmux_command(&mut self, command: &str, args: &[&str]) -> orfail::Result<()> {
-        self.tmux_socket.send_command(command, args).or_fail()?;
+        self.tmux_client.send_command(command, args).or_fail()?;
         Ok(())
     }
 
