@@ -87,6 +87,12 @@ struct SentKey {
     alt: bool,
 }
 
+impl SentKey {
+    fn is_visible(&self) -> bool {
+        !(self.ctrl || self.alt || !self.code.is_char())
+    }
+}
+
 #[derive(Debug)]
 pub struct Preview {
     pub region: tuinix::TerminalRegion,
@@ -96,12 +102,15 @@ pub struct Preview {
 impl Preview {
     pub fn on_key_sent(&mut self, code: KeyCode, ctrl: bool, alt: bool) {
         let sent_key = SentKey { code, ctrl, alt };
-        if ctrl || alt {
-            if self.history.last() != Some(&sent_key) {
+        if sent_key.is_visible() {
+            if self.history.last().is_some_and(|k| !k.is_visible()) {
                 self.history.clear();
             }
             self.history.push(sent_key);
         } else {
+            if self.history.last() != Some(&sent_key) {
+                self.history.clear();
+            }
             self.history.push(sent_key);
         }
     }
@@ -116,7 +125,7 @@ impl Preview {
         write!(frame, "{style}").or_fail()?;
 
         if let Some(k) = self.history.last()
-            && (k.ctrl || k.alt)
+            && !k.is_visible()
         {
             if k.ctrl {
                 write!(frame, "C-").or_fail()?
@@ -180,7 +189,6 @@ impl Key {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
-    // Normal Key Codes (can be sent via `tmux send-keys`)
     Char(char),
     Shift,
     Ctrl,
@@ -205,6 +213,10 @@ impl KeyCode {
             self,
             Self::Char(_) | Self::Up | Self::Down | Self::Left | Self::Right
         )
+    }
+
+    pub fn is_char(self) -> bool {
+        matches!(self, Self::Char(_))
     }
 
     pub fn default_shift_code(self) -> Self {
