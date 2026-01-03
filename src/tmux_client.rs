@@ -17,7 +17,6 @@ impl TmuxClient {
         // Start tmux in control mode (-C) attached to the default session
         let mut child = Command::new("tmux")
             .arg("-C")
-            .arg("attach-session")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

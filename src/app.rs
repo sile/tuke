@@ -88,7 +88,7 @@ impl App {
                 }
                 None => {
                     // Timeout
-                    self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
+                    self.tmux_command("select-pane", &["-t", &format!("0:.{}", self.pane_index)])
                         .or_fail()?;
                     set_timeout = false;
                 }
@@ -234,7 +234,7 @@ impl App {
 
         self.tmux_command(
             "send-keys",
-            &["-t", &format!(".{}", self.pane_index), &key_string],
+            &["-t", &format!("0:.{}", self.pane_index), &key_string],
         )
         .or_fail()?;
 
@@ -309,8 +309,11 @@ impl App {
                 .max()
                 .unwrap_or_default();
             if terminal_size.rows != required_rows {
-                self.tmux_command("resize-pane", &["-y", &required_rows.to_string()])
-                    .or_fail()?;
+                self.tmux_command(
+                    "resize-pane",
+                    &["-t", "0:0.1", "-y", &required_rows.to_string()],
+                )
+                .or_fail()?;
             }
         }
 
