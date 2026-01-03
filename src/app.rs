@@ -20,7 +20,6 @@ pub struct App {
     options: AppOptions,
     keys: Vec<KeyState>,
     preview: Option<Preview>,
-    pane_index: usize,
     exit: bool,
     offset: tuinix::TerminalPosition,
     log_file: Option<std::fs::File>,
@@ -57,7 +56,6 @@ impl App {
             options,
             keys,
             preview: layout.preview,
-            pane_index: 0,
             exit: false,
             offset: tuinix::TerminalPosition::default(),
             log_file,
@@ -88,7 +86,7 @@ impl App {
                 }
                 None => {
                     // Timeout
-                    self.tmux_command("select-pane", &["-t", &format!("0:.{}", self.pane_index)])
+                    self.tmux_command("select-pane", &["-t", "0:.0"])
                         .or_fail()?;
                     set_timeout = false;
                 }
@@ -229,11 +227,8 @@ impl App {
 
         key_string.push_str(&code.to_string());
 
-        self.tmux_command(
-            "send-keys",
-            &["-t", &format!("0:.{}", self.pane_index), &key_string],
-        )
-        .or_fail()?;
+        self.tmux_command("send-keys", &["-t", "0:.0", &key_string])
+            .or_fail()?;
 
         if let Some(preview) = &mut self.preview {
             preview.on_key_sent(code, ctrl, alt);
