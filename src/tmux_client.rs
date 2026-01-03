@@ -4,7 +4,8 @@ use std::process::{Command, Stdio};
 use orfail::OrFail;
 
 /// Control mode client for tmux communication
-/// Uses tmux -C flag instead of direct Unix socket access
+///
+/// Doc: https://github.com/tmux/tmux/wiki/Control-Mode
 #[derive(Debug)]
 pub struct TmuxClient {
     stdin: std::process::ChildStdin,
