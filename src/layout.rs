@@ -82,6 +82,20 @@ pub struct Preview {
     pub region: tuinix::TerminalRegion,
 }
 
+impl Preview {
+    pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
+        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
+
+        let style = tuinix::TerminalStyle::new().underline();
+        let reset = tuinix::TerminalStyle::RESET;
+
+        let padding = " ".repeat(self.region.size.cols);
+        write!(frame, "{style}foo{padding}{reset}").or_fail()?;
+
+        Ok(frame)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Key {
     pub code: KeyCode,

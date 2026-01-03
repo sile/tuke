@@ -80,8 +80,9 @@
   // Center Region
   {"base_position": {"row": 0, "column": 48}},
   {"default_size": {"width": 9, "height": 4}},
-  
-  {"preview": {"columns": 30}},
+
+  {"blank": 7},
+  {"preview": {"columns": 80}},
   {"newline": 1},
 
   // QWERT... Row

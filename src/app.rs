@@ -318,6 +318,11 @@ impl App {
             frame.draw(key_state.key.region.position, &key_frame);
         }
 
+        if let Some(preview) = &self.preview {
+            let preview_frame = preview.to_frame().or_fail()?;
+            frame.draw(preview.region.position, &preview_frame);
+        }
+
         let mut centered_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
         centered_frame.draw(self.offset, &frame);
 
