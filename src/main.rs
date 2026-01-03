@@ -28,6 +28,11 @@ fn main() -> noargs::Result<()> {
             .default("0.8")
             .take(&mut args)
             .then(|a| a.value().parse().map(Duration::from_secs_f64))?,
+        auto_resize: noargs::flag("auto-resize")
+            .env("TUKE_AUTO_RESIZE")
+            .doc("Automatically resize the tmux pane to fit the keyboard layout")
+            .take(&mut args)
+            .is_present(),
         log_file_path: noargs::opt("log-file")
             .ty("PATH")
             .env("TUKE_LOG_FILE")

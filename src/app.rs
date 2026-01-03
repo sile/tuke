@@ -10,6 +10,7 @@ use crate::layout::{KeyCode, KeyPressState, KeyState, Layout};
 #[derive(Debug)]
 pub struct AppOptions {
     pub cursor_refresh_interval: Duration,
+    pub auto_resize: bool,
     pub log_file_path: Option<PathBuf>,
 }
 
@@ -291,6 +292,20 @@ impl App {
 
     fn render(&mut self) -> orfail::Result<()> {
         let terminal_size = self.terminal.size();
+
+        if self.options.auto_resize {
+            let required_rows = self
+                .keys
+                .iter()
+                .map(|k| k.key.region.bottom_left().row + 1)
+                .max()
+                .unwrap_or_default();
+            if terminal_size.rows != required_rows {
+                self.tmux_command("resize-pane", &["-y", &required_rows.to_string()])
+                    .or_fail()?;
+            }
+        }
+
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
         let shift = self.is_shift_active();
 
