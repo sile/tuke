@@ -117,6 +117,9 @@ impl Preview {
 
     pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
+        if self.history.is_empty() {
+            return Ok(frame);
+        }
 
         if let Some(k) = self.history.last()
             && !k.is_visible()
@@ -143,11 +146,12 @@ impl Preview {
             for k in &self.history {
                 write!(frame, "{}", k.code).or_fail()?;
             }
+            write!(frame, "{} ", tuinix::TerminalStyle::new().reverse()).or_fail()?;
         }
 
         let padding = " ".repeat(self.region.size.cols);
         let reset = tuinix::TerminalStyle::RESET;
-        write!(frame, "{padding}{reset}").or_fail()?;
+        write!(frame, "{reset}{padding}").or_fail()?;
 
         Ok(frame)
     }
