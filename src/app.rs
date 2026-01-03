@@ -68,29 +68,25 @@ impl App {
     pub fn run(mut self) -> orfail::Result<()> {
         self.render().or_fail()?;
 
-        let mut is_last_timeout = false;
+        let mut set_timeout = true;
         while !self.exit {
-            let timeout = self.options.cursor_refresh_interval;
-            match self
-                .terminal
-                .poll_event(&[], &[], Some(timeout))
-                .or_fail()?
-            {
+            let timeout = set_timeout.then_some(self.options.cursor_refresh_interval);
+            match self.terminal.poll_event(&[], &[], timeout).or_fail()? {
                 Some(tuinix::TerminalEvent::Input(input)) => {
                     self.handle_input(input).or_fail()?;
                     self.render().or_fail()?;
-                    is_last_timeout = false;
+                    set_timeout = true;
                 }
                 Some(tuinix::TerminalEvent::Resize(_)) => {
                     self.calculate_offset();
                     self.render().or_fail()?;
-                    is_last_timeout = false;
+                    set_timeout = true;
                 }
-                None if !is_last_timeout => {
+                None => {
                     // Timeout
                     self.tmux_command("select-pane", &["-t", &format!(".{}", self.pane_index)])
                         .or_fail()?;
-                    is_last_timeout = true;
+                    set_timeout = false;
                 }
                 _ => {}
             }
