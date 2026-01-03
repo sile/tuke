@@ -41,6 +41,7 @@ impl App {
             .or_fail()?;
 
         let mut terminal = tuinix::Terminal::new().or_fail()?;
+
         terminal.enable_mouse_input().or_fail()?;
 
         let keys = layout

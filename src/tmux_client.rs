@@ -34,12 +34,12 @@ impl TmuxClient {
         let mut cmd_string = format!("{}", command);
         for arg in args {
             cmd_string.push(' ');
-            if arg.contains([' ', ';', '"', '\'']) {
-                cmd_string.push('"');
-                cmd_string.push_str(&arg.replace('"', "\\\""));
-                cmd_string.push('"');
+            if *arg == "'" {
+                cmd_string.push_str("\"'\"");
             } else {
+                cmd_string.push('\'');
                 cmd_string.push_str(arg);
+                cmd_string.push('\'');
             }
         }
 
