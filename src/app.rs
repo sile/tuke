@@ -329,7 +329,6 @@ impl App {
 
         let mut centered_frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(terminal_size);
         centered_frame.draw(self.offset, &frame);
-
         self.terminal.draw(centered_frame).or_fail()?;
 
         Ok(())

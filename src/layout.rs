@@ -121,8 +121,8 @@ impl Preview {
         if let Some(k) = self.history.last()
             && !k.is_visible()
         {
-            let style = tuinix::TerminalStyle::new().underline().italic();
-            write!(frame, "{style}").or_fail()?;
+            let style = tuinix::TerminalStyle::new().italic().bold();
+            write!(frame, "> {style}").or_fail()?;
 
             if k.ctrl {
                 write!(frame, "C-").or_fail()?
@@ -137,8 +137,8 @@ impl Preview {
                 write!(frame, " (x{repeat_count})").or_fail()?;
             }
         } else {
-            let style = tuinix::TerminalStyle::new().underline();
-            write!(frame, "{style}").or_fail()?;
+            let style = tuinix::TerminalStyle::new().bold();
+            write!(frame, "> {style}").or_fail()?;
 
             for k in &self.history {
                 write!(frame, "{}", k.code).or_fail()?;
