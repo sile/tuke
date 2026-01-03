@@ -117,6 +117,8 @@ impl Preview {
 
     pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
+
+        write!(frame, "> ").or_fail()?;
         if self.history.is_empty() {
             return Ok(frame);
         }
@@ -125,7 +127,7 @@ impl Preview {
             && !k.is_visible()
         {
             let style = tuinix::TerminalStyle::new().italic().bold();
-            write!(frame, "> {style}").or_fail()?;
+            write!(frame, "{style}").or_fail()?;
 
             if k.ctrl {
                 write!(frame, "C-").or_fail()?
@@ -141,7 +143,7 @@ impl Preview {
             }
         } else {
             let style = tuinix::TerminalStyle::new().bold();
-            write!(frame, "> {style}").or_fail()?;
+            write!(frame, "{style}").or_fail()?;
 
             for k in &self.history {
                 write!(frame, "{}", k.code).or_fail()?;
