@@ -118,15 +118,12 @@ impl Preview {
     pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
 
-        let style = tuinix::TerminalStyle::new().underline();
-        let reset = tuinix::TerminalStyle::RESET;
-
-        let padding = " ".repeat(self.region.size.cols);
-        write!(frame, "{style}").or_fail()?;
-
         if let Some(k) = self.history.last()
             && !k.is_visible()
         {
+            let style = tuinix::TerminalStyle::new().underline().italic();
+            write!(frame, "{style}").or_fail()?;
+
             if k.ctrl {
                 write!(frame, "C-").or_fail()?
             };
@@ -140,11 +137,16 @@ impl Preview {
                 write!(frame, " (x{repeat_count})").or_fail()?;
             }
         } else {
+            let style = tuinix::TerminalStyle::new().underline();
+            write!(frame, "{style}").or_fail()?;
+
             for k in &self.history {
                 write!(frame, "{}", k.code).or_fail()?;
             }
         }
 
+        let padding = " ".repeat(self.region.size.cols);
+        let reset = tuinix::TerminalStyle::RESET;
         write!(frame, "{padding}{reset}").or_fail()?;
 
         Ok(frame)
