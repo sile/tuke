@@ -82,7 +82,7 @@
   {"default_size": {"width": 9, "height": 4}},
 
   {"blank": 7},
-  {"preview": {"columns": 80}},
+  {"preview": {"width": 80}},
   {"newline": 1},
 
   // QWERT... Row

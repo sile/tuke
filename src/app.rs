@@ -131,21 +131,23 @@ impl App {
             return Ok(());
         };
 
-        let now = std::time::Instant::now();
         if self.keys[pressed_index].key.code.is_modifier() {
             self.handle_modifier_key_pressed(pressed_index).or_fail()?;
         } else {
             self.handle_normal_key_pressed(pressed_index).or_fail()?;
         }
-        let elapsed = now.elapsed();
 
-        self.log_key_press(self.keys[pressed_index].key.code, elapsed)
+        self.log_key_press(self.keys[pressed_index].key.code, adjusted_position)
             .or_fail()?;
 
         Ok(())
     }
 
-    fn log_key_press(&mut self, key_code: KeyCode, latency: Duration) -> orfail::Result<()> {
+    fn log_key_press(
+        &mut self,
+        key_code: KeyCode,
+        position: tuinix::TerminalPosition,
+    ) -> orfail::Result<()> {
         if let Some(ref mut file) = self.log_file {
             let timestamp = std::time::UNIX_EPOCH.elapsed().or_fail()?.as_secs_f64();
             writeln!(
@@ -153,7 +155,8 @@ impl App {
                 "{}",
                 nojson::object(|f| {
                     f.member("timestamp", timestamp)?;
-                    f.member("latency", latency.as_secs_f32())?;
+                    f.member("row", position.row)?;
+                    f.member("col", position.col)?;
                     f.member("key", key_code.to_string())
                 })
             )

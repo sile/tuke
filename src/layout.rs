@@ -57,8 +57,8 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
                 continue;
             }
             if let Some(preview_value) = key_value.to_member("preview")?.get() {
-                let columns = preview_value.to_member("columns")?.required()?.try_into()?;
-                let size = tuinix::TerminalSize::rows_cols(1, columns);
+                let width = preview_value.to_member("width")?.required()?.try_into()?;
+                let size = tuinix::TerminalSize::rows_cols(1, width);
                 let region = tuinix::TerminalRegion { position, size };
                 preview = Some(Preview {
                     region,
