@@ -119,9 +119,6 @@ impl Preview {
         let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
 
         write!(frame, "> ").or_fail()?;
-        if self.history.is_empty() {
-            return Ok(frame);
-        }
 
         if let Some(k) = self.history.last()
             && !k.is_visible()
@@ -141,7 +138,7 @@ impl Preview {
             if repeat_count > 1 {
                 write!(frame, " (x{repeat_count})").or_fail()?;
             }
-        } else {
+        } else if !self.history.is_empty() {
             let style = tuinix::TerminalStyle::new().bold();
             write!(frame, "{style}").or_fail()?;
 
@@ -151,9 +148,9 @@ impl Preview {
             write!(frame, "{} ", tuinix::TerminalStyle::new().reverse()).or_fail()?;
         }
 
-        let padding = " ".repeat(self.region.size.cols);
+        let padding = " ".repeat(self.region.size.cols.saturating_sub(frame.cursor().col + 1));
         let reset = tuinix::TerminalStyle::RESET;
-        write!(frame, "{reset}{padding}").or_fail()?;
+        write!(frame, "{reset}{padding}<").or_fail()?;
 
         Ok(frame)
     }
