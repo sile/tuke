@@ -17,7 +17,7 @@ impl Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        crate::jsonc::load_str("default.json", include_str!("../default-layout.jsonc"))
+        crate::jsonc::load_str("default.json", include_str!("../layouts/default.jsonc"))
             .expect("bug")
     }
 }
