@@ -1,5 +1,3 @@
-use std::io::Write;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use orfail::OrFail;
@@ -11,7 +9,6 @@ use crate::tmux_client::TmuxClient;
 pub struct AppOptions {
     pub cursor_refresh_interval: Duration,
     pub auto_resize: bool,
-    pub log_file_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -22,24 +19,11 @@ pub struct App {
     preview: Option<Preview>,
     exit: bool,
     offset: tuinix::TerminalPosition,
-    log_file: Option<std::fs::File>,
     tmux_client: TmuxClient,
 }
 
 impl App {
     pub fn new(layout: Layout, options: AppOptions) -> orfail::Result<Self> {
-        let log_file = options
-            .log_file_path
-            .as_ref()
-            .map(|path| {
-                std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(path)
-            })
-            .transpose()
-            .or_fail()?;
-
         let mut terminal = tuinix::Terminal::new().or_fail()?;
 
         terminal.enable_mouse_input().or_fail()?;
@@ -59,7 +43,6 @@ impl App {
             preview: layout.preview,
             exit: false,
             offset: tuinix::TerminalPosition::default(),
-            log_file,
             tmux_client,
         };
 
@@ -137,31 +120,6 @@ impl App {
             self.handle_normal_key_pressed(pressed_index).or_fail()?;
         }
 
-        self.log_key_press(self.keys[pressed_index].key.code, adjusted_position)
-            .or_fail()?;
-
-        Ok(())
-    }
-
-    fn log_key_press(
-        &mut self,
-        key_code: KeyCode,
-        position: tuinix::TerminalPosition,
-    ) -> orfail::Result<()> {
-        if let Some(ref mut file) = self.log_file {
-            let timestamp = std::time::UNIX_EPOCH.elapsed().or_fail()?.as_secs_f64();
-            writeln!(
-                file,
-                "{}",
-                nojson::object(|f| {
-                    f.member("timestamp", timestamp)?;
-                    f.member("row", position.row)?;
-                    f.member("col", position.col)?;
-                    f.member("key", key_code.to_string())
-                })
-            )
-            .or_fail()?;
-        }
         Ok(())
     }
 
