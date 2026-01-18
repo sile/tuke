@@ -1,9 +1,13 @@
 [package]
 name = "tuke"
 description = "TUI keyboard for tmux"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
-publish = false
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+license = "MIT"
+homepage = "https://github.com/sile/tuke"
+repository = "https://github.com/sile/tuke"
+readme = "README.md"
 
 [dependencies]
 noargs = "0.4.1"
