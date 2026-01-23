@@ -5,7 +5,7 @@ use orfail::OrFail;
 
 /// Control mode client for tmux communication
 ///
-/// Doc: https://github.com/tmux/tmux/wiki/Control-Mode
+/// Doc: <https://github.com/tmux/tmux/wiki/Control-Mode>
 #[derive(Debug)]
 pub struct TmuxClient {
     stdin: std::process::ChildStdin,
