@@ -206,6 +206,7 @@ pub enum KeyCode {
     Backspace,
     Delete,
     Tab,
+    BackTab,
 }
 
 impl KeyCode {
@@ -227,6 +228,7 @@ impl KeyCode {
     pub fn default_shift_code(self) -> Self {
         match self {
             Self::Char(c) => Self::Char(c.to_ascii_uppercase()),
+            Self::Tab => Self::BackTab,
             other => other,
         }
     }
@@ -248,6 +250,7 @@ impl std::fmt::Display for KeyCode {
             Self::Backspace => write!(f, "BSpace"),
             Self::Delete => write!(f, "Delete"),
             Self::Tab => write!(f, "Tab"),
+            Self::BackTab => write!(f, "BTab"),
         }
     }
 }
@@ -268,6 +271,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
             "BSpace" => Ok(Self::Backspace),
             "Delete" => Ok(Self::Delete),
             "Tab" => Ok(Self::Tab),
+            "BTab" => Ok(Self::BackTab),
             s => {
                 if let Some(c) = s.chars().next()
                     && s.len() == 1
