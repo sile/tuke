@@ -251,6 +251,29 @@ impl KeyCode {
             other => other,
         }
     }
+
+    /// Maps this layout key code to the terminal key code to send to the
+    /// child's PTY.
+    ///
+    /// The modifier codes ([`KeyCode::Shift`], [`KeyCode::Ctrl`],
+    /// [`KeyCode::Alt`]) are keyboard state, not keys sent on their own, so
+    /// they have no `termnix` key code and map to `None`. The caller carries
+    /// their effect in [`termnix::Modifiers`] instead.
+    pub fn to_termnix(self) -> Option<termnix::KeyCode> {
+        Some(match self {
+            Self::Char(c) => termnix::KeyCode::Char(c),
+            Self::Up => termnix::KeyCode::Up,
+            Self::Down => termnix::KeyCode::Down,
+            Self::Left => termnix::KeyCode::Left,
+            Self::Right => termnix::KeyCode::Right,
+            Self::Enter => termnix::KeyCode::Enter,
+            Self::Backspace => termnix::KeyCode::Backspace,
+            Self::Delete => termnix::KeyCode::Delete,
+            Self::Tab => termnix::KeyCode::Tab,
+            Self::BackTab => termnix::KeyCode::Tab,
+            Self::Shift | Self::Ctrl | Self::Alt => return None,
+        })
+    }
 }
 
 impl std::fmt::Display for KeyCode {

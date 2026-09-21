@@ -1,387 +1,250 @@
+//! The I/O edge: poll loop, PTY session, raw terminal, and frame diffing.
+//!
+//! This module is compiled into the binary only (`mod app;` in `main.rs`); the
+//! library stays Sans I/O. It owns the [`termnix::Session`] driving one child
+//! process and translates [`State::update`](tuke::state::State::update)'s
+//! actions into real effects.
+
 use std::io::{Read, Write};
+use std::process::Command;
 use std::time::Duration;
 
-use crate::error::Result;
-use crate::layout::{KeyCode, KeyPressState, KeyState, Layout, Preview};
-use crate::tmux_client::TmuxClient;
+use tuke::action::Action;
+use tuke::error::Result;
+use tuke::event::Event;
+use tuke::geometry;
+use tuke::layout::Layout;
+use tuke::render;
+use tuke::state::State;
 
 /// How long to wait for the rest of an escape sequence before treating a lone
 /// `ESC` byte as the Escape key.
 const ESCAPE_TIMEOUT: Duration = Duration::from_millis(50);
 
-#[derive(Debug)]
-pub struct AppOptions {
-    pub cursor_refresh_interval: Duration,
-    pub auto_resize: bool,
-}
-
-#[derive(Debug)]
+/// The edge owns everything with a file descriptor.
 pub struct App {
     driver: tuinix::TerminalDriver,
     input: tuinix::InputDecoder,
     prev_frame: Option<tuinix::Frame>,
-    options: AppOptions,
-    keys: Vec<KeyState>,
-    preview: Option<Preview>,
+    session: termnix::Session,
+    state: State,
+    terminal_size: tuinix::Size,
+    /// The terminal revision at the last render, used to detect output.
+    last_revision: u64,
     exit: bool,
-    offset: tuinix::Position,
-    tmux_client: TmuxClient,
 }
 
 impl App {
-    pub fn new(layout: Layout, options: AppOptions) -> Result<Self> {
+    /// Spawns the child command and takes over the terminal.
+    pub fn new(layout: Layout, command: &mut Command) -> Result<Self> {
         let mut driver = tuinix::TerminalDriver::new()?;
-
         driver.enable_mouse_reporting()?;
 
-        let keys = layout
-            .keys
-            .iter()
-            .map(|k| KeyState::new(k.clone()))
-            .collect();
+        let terminal_size = driver.size();
+        let state = State::new(layout, terminal_size);
 
-        let tmux_client = TmuxClient::new()?;
+        let session_size = geometry::to_termnix_size(state.grid_size())
+            .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;
+        let session = termnix::Session::new(command, session_size)?;
 
-        let mut app = Self {
+        Ok(Self {
             driver,
             input: tuinix::InputDecoder::new(),
             prev_frame: None,
-            options,
-            keys,
-            preview: layout.preview,
+            session,
+            state,
+            terminal_size,
+            last_revision: 0,
             exit: false,
-            offset: tuinix::Position::ORIGIN,
-            tmux_client,
-        };
-
-        app.calculate_offset();
-
-        Ok(app)
+        })
     }
 
+    /// Runs the poll loop until the child exits or the user quits.
     pub fn run(mut self) -> Result<()> {
         self.render()?;
 
-        let mut fds = [
-            libc::pollfd {
-                fd: self.driver.resize_signal_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            },
-            libc::pollfd {
-                fd: self.driver.input_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            },
-        ];
-        let mut refresh_at = std::time::Instant::now() + self.options.cursor_refresh_interval;
-
         while !self.exit {
-            // While a lone `ESC` byte is held, wait only briefly so it is
-            // reported as the Escape key promptly. Otherwise wait until the next
-            // cursor refresh so the active pane's cursor keeps blinking.
-            let timeout = if self.input.has_uncommitted_escape() {
-                ESCAPE_TIMEOUT.min(self.options.cursor_refresh_interval)
-            } else {
-                self.options.cursor_refresh_interval
+            // Drain everything the session can do without a new readiness
+            // edge before blocking, so an edge-triggered poll cannot miss
+            // work that produces no further edge.
+            self.pump_session()?;
+
+            let Some(session_fd) = self.session.fd() else {
+                break;
             };
 
-            let n = unsafe {
-                libc::poll(
-                    fds.as_mut_ptr(),
-                    fds.len() as libc::nfds_t,
-                    timeout_to_millis(timeout),
-                )
+            let mut fds = [
+                libc::pollfd {
+                    fd: self.driver.resize_signal_fd(),
+                    events: libc::POLLIN,
+                    revents: 0,
+                },
+                libc::pollfd {
+                    fd: self.driver.input_fd(),
+                    events: libc::POLLIN,
+                    revents: 0,
+                },
+                libc::pollfd {
+                    fd: session_fd,
+                    events: self.session_interests(),
+                    revents: 0,
+                },
+            ];
+
+            // Wait only briefly while a lone `ESC` byte is held, so it is
+            // reported as the Escape key promptly; otherwise block until an
+            // fd is ready.
+            let timeout = if self.input.has_uncommitted_escape() {
+                timeout_to_millis(ESCAPE_TIMEOUT)
+            } else {
+                -1
             };
+
+            let n = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
             if n < 0 {
                 let error = std::io::Error::last_os_error();
-                // A SIGWINCH handler still makes `poll` return `EINTR`; the
-                // resize byte is already in the signal pipe, so retrying reports
-                // it as `POLLIN` on the next iteration.
                 if error.kind() == std::io::ErrorKind::Interrupted {
                     continue;
                 }
                 return Err(error.into());
             }
 
-            // A descriptor that hung up or failed can never become ready again.
-            if fds
-                .iter()
-                .any(|fd| fd.revents & (libc::POLLHUP | libc::POLLERR | libc::POLLNVAL) != 0)
-            {
-                return Err(crate::Error::message("terminal closed"));
-            }
+            let mut dirty = false;
 
             if fds[0].revents & libc::POLLIN != 0 {
                 self.driver.handle_resize_signal()?;
-                self.calculate_offset();
-                self.render()?;
-                refresh_at = std::time::Instant::now() + self.options.cursor_refresh_interval;
-                continue;
-            }
-
-            if fds[1].revents & libc::POLLIN != 0 {
-                let mut bytes = [0u8; 1024];
-                loop {
-                    // The input descriptor is non-blocking, so an empty read
-                    // reports `WouldBlock` instead of blocking the loop.
-                    match self.driver.read(&mut bytes) {
-                        Ok(0) => break,
-                        Ok(n) => self.input.feed(&bytes[..n]),
-                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
-                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(e) => return Err(e.into()),
-                    }
+                let size = self.driver.size();
+                if size != self.terminal_size {
+                    self.terminal_size = size;
+                    dirty |= self.dispatch(Event::Resize { size })?;
                 }
             }
 
+            if fds[1].revents & libc::POLLIN != 0 {
+                self.read_stdin()?;
+            }
+
             if n == 0 {
-                // The wait elapsed with a lone `ESC` still held, so commit it as
-                // the Escape key.
+                // The wait elapsed with a lone `ESC` still held.
                 self.input.commit_escape();
             }
 
-            let mut dirty = false;
             while let Some(input) = self.input.next() {
-                self.handle_input(input)?;
+                dirty |= self.handle_input(input)?;
+            }
+
+            // The session may have produced output or become writable.
+            self.pump_session()?;
+            let revision = self.session.terminal_state().revision();
+            if revision != self.last_revision {
+                self.last_revision = revision;
                 dirty = true;
             }
 
             if dirty {
                 self.render()?;
             }
-
-            if std::time::Instant::now() >= refresh_at {
-                // Clicking the active pane resets its cursor blink timer, so the
-                // cursor becomes visible again for a while.
-                self.tmux_command("select-pane", &["-t", "0:.0"])?;
-                self.render()?;
-                refresh_at = std::time::Instant::now() + self.options.cursor_refresh_interval;
-            }
         }
 
         Ok(())
     }
 
-    fn handle_input(&mut self, input: tuinix::Input) -> Result<()> {
+    fn session_interests(&self) -> libc::c_short {
+        let interests = self.session.interests();
+        let mut events = 0;
+        if interests.readable {
+            events |= libc::POLLIN;
+        }
+        if interests.writable {
+            events |= libc::POLLOUT;
+        }
+        events
+    }
+
+    fn pump_session(&mut self) -> Result<()> {
+        while self.session.needs_pump() {
+            self.session.pump_io(termnix::PumpBudget::default())?;
+        }
+        // Reap the child if it has exited.
+        if self.session.try_wait()?.is_some() {
+            self.exit = true;
+        }
+        Ok(())
+    }
+
+    fn read_stdin(&mut self) -> Result<()> {
+        let mut bytes = [0u8; 1024];
+        loop {
+            match self.driver.read(&mut bytes) {
+                Ok(0) => break,
+                Ok(n) => self.input.feed(&bytes[..n]),
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(())
+    }
+
+    /// Translates one host input event into a core event and dispatches it.
+    ///
+    /// Returns whether the screen needs repainting.
+    fn handle_input(&mut self, input: tuinix::Input) -> Result<bool> {
         match input {
-            tuinix::Input::Key(key_input) => {
-                self.exit = match key_input.code {
-                    tuinix::KeyCode::Char('q') => true,
-                    tuinix::KeyCode::Char('c') if key_input.ctrl => true,
-                    _ => false,
-                };
-            }
-            tuinix::Input::Mouse(mouse_input) => {
-                self.handle_mouse_input(mouse_input)?;
-            }
-            tuinix::Input::Unrecognized { .. } | tuinix::Input::Paste { .. } => {}
-        }
-        Ok(())
-    }
-
-    fn handle_mouse_input(&mut self, mouse_input: tuinix::MouseInput) -> Result<()> {
-        if mouse_input.kind != tuinix::MouseInputKind::LeftRelease {
-            return Ok(());
-        }
-
-        let adjusted_position = tuinix::Position {
-            row: mouse_input.position.row.saturating_sub(self.offset.row),
-            col: mouse_input.position.col.saturating_sub(self.offset.col),
-        };
-
-        let Some(pressed_index) = self
-            .keys
-            .iter()
-            .position(|ks| ks.key.region.contains(adjusted_position))
-        else {
-            return Ok(());
-        };
-
-        if self.keys[pressed_index].key.code.is_modifier() {
-            self.handle_modifier_key_pressed(pressed_index)?;
-        } else {
-            self.handle_normal_key_pressed(pressed_index)?;
-        }
-
-        Ok(())
-    }
-
-    fn reset_pressed_keys(&mut self) {
-        for key in &mut self.keys {
-            if key.press == KeyPressState::Pressed {
-                key.press = KeyPressState::Neutral;
-            }
-        }
-    }
-
-    fn tmux_command(&mut self, command: &str, args: &[&str]) -> Result<()> {
-        self.tmux_client.send_command(command, args)?;
-        Ok(())
-    }
-
-    fn handle_modifier_key_pressed(&mut self, i: usize) -> Result<()> {
-        self.reset_pressed_keys();
-
-        match self.keys[i].press {
-            KeyPressState::Neutral => {
-                self.keys[i].press = KeyPressState::OneshotActivated;
-            }
-            KeyPressState::Pressed => {
-                self.keys[i].press = KeyPressState::OneshotActivated;
-            }
-            KeyPressState::Activated => {
-                self.keys[i].press = KeyPressState::Neutral;
-            }
-            KeyPressState::OneshotActivated => {
-                self.keys[i].press = KeyPressState::Activated;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn handle_normal_key_pressed(&mut self, i: usize) -> Result<()> {
-        for key in &mut self.keys {
-            match key.press {
-                KeyPressState::Neutral => {}
-                KeyPressState::Pressed => {
-                    key.press = KeyPressState::Neutral;
+            tuinix::Input::Key(key) => self.dispatch(Event::Key {
+                code: key.code,
+                ctrl: key.ctrl,
+            }),
+            tuinix::Input::Mouse(mouse) => {
+                if mouse.kind != tuinix::MouseInputKind::LeftRelease {
+                    return Ok(false);
                 }
-                KeyPressState::Activated => {}
-                KeyPressState::OneshotActivated => {
-                    key.press = KeyPressState::Pressed;
+                self.dispatch(Event::PointerRelease {
+                    position: mouse.position,
+                })
+            }
+            tuinix::Input::Unrecognized { .. } | tuinix::Input::Paste { .. } => Ok(false),
+        }
+    }
+
+    /// Runs the core transition and carries out its actions.
+    fn dispatch(&mut self, event: Event) -> Result<bool> {
+        let actions = self.state.update(event);
+        let mut dirty = false;
+        for action in actions {
+            match action {
+                Action::SendKey(key) => {
+                    self.session.enqueue_input(termnix::Input::Key(key))?;
+                    self.pump_session()?;
+                }
+                Action::SendBytes(bytes) => {
+                    self.session.enqueue_input(termnix::Input::Raw(&bytes))?;
+                    self.pump_session()?;
+                }
+                Action::ResizeSession(size) => {
+                    if let Some(size) = geometry::to_termnix_size(size) {
+                        self.session.resize(size)?;
+                        self.pump_session()?;
+                    }
+                }
+                Action::Redraw => dirty = true,
+                Action::Quit => {
+                    self.exit = true;
+                    dirty = true;
                 }
             }
         }
-        self.keys[i].press = KeyPressState::Pressed;
-
-        let mut code = self.keys[i].key.code;
-        let mut key_string = String::new();
-        let mut ctrl = false;
-        let mut alt = false;
-        if code.is_modifiable() {
-            if self.is_ctrl_pressed() {
-                key_string.push_str("C-");
-                ctrl = true;
-            }
-            if self.is_alt_pressed() {
-                key_string.push_str("M-");
-                alt = true;
-            }
-        }
-        if self.is_shift_pressed() {
-            code = self.keys[i].key.shift_code;
-        }
-
-        key_string.push_str(&code.to_string());
-
-        self.tmux_command("send-keys", &["-t", "0:.0", &key_string])?;
-
-        if let Some(preview) = &mut self.preview {
-            preview.on_key_sent(code, ctrl, alt);
-        }
-
-        Ok(())
-    }
-
-    fn is_ctrl_pressed(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Ctrl
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
-        })
-    }
-
-    fn is_alt_pressed(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Alt
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
-        })
-    }
-
-    fn is_shift_pressed(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Shift
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
-        })
-    }
-
-    fn is_shift_active(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Shift
-                && matches!(
-                    k.press,
-                    KeyPressState::OneshotActivated | KeyPressState::Activated
-                )
-        })
-    }
-
-    fn calculate_offset(&mut self) {
-        let terminal_size = self.driver.size();
-        let mut actual_frame_size = tuinix::Size::default();
-
-        for key_state in &self.keys {
-            actual_frame_size.rows = actual_frame_size
-                .rows
-                .max(key_state.key.region.position.row + key_state.key.region.size.rows);
-            actual_frame_size.cols = actual_frame_size
-                .cols
-                .max(key_state.key.region.position.col + key_state.key.region.size.cols);
-        }
-
-        // Calculate centering offset
-        let offset_row = (terminal_size.rows.saturating_sub(actual_frame_size.rows)) / 2;
-        let offset_col = (terminal_size.cols.saturating_sub(actual_frame_size.cols)) / 2;
-
-        self.offset = tuinix::Position {
-            row: offset_row,
-            col: offset_col,
-        };
+        Ok(dirty)
     }
 
     fn render(&mut self) -> Result<()> {
-        let terminal_size = self.driver.size();
-
-        if self.options.auto_resize {
-            let required_rows = self
-                .keys
-                .iter()
-                .map(|k| k.key.region)
-                .chain(self.preview.iter().map(|p| p.region))
-                .map(|r| r.position.row + r.size.rows)
-                .max()
-                .unwrap_or_default();
-            if terminal_size.rows != required_rows {
-                self.tmux_command(
-                    "resize-pane",
-                    &["-t", "0:0.1", "-y", &required_rows.to_string()],
-                )?;
-            }
-        }
-
-        let mut frame = tuinix::Frame::new(terminal_size);
-        let shift = self.is_shift_active();
-
-        for key_state in &mut self.keys {
-            let key_frame = key_state.to_frame(shift);
-            frame.put_frame(key_state.key.region.position, &key_frame);
-        }
-
-        if let Some(preview) = &self.preview {
-            let preview_frame = preview.to_frame();
-            frame.put_frame(preview.region.position, &preview_frame);
-        }
-
-        // The layout is drawn at its natural size; shift it to the centre of the
-        // terminal by pasting it into a terminal-sized frame.
-        let mut centered_frame = tuinix::Frame::new(terminal_size);
-        centered_frame.put_frame(self.offset, &frame);
-
-        let out = centered_frame.render(self.prev_frame.as_ref(), None);
+        let terminal = self.session.terminal_state();
+        let frame = render::frame(&self.state, terminal, self.terminal_size);
+        let cursor = render::cursor(terminal, self.terminal_size);
+        let out = frame.render(self.prev_frame.as_ref(), cursor);
         self.driver.write_all(&out)?;
         self.driver.flush()?;
-        self.prev_frame = Some(centered_frame);
-
+        self.prev_frame = Some(frame);
         Ok(())
     }
 }

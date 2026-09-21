@@ -1,5 +1,7 @@
+mod app;
+
 use std::path::PathBuf;
-use std::time::Duration;
+use std::process::Command;
 
 fn main() -> noargs::Result<()> {
     let mut args = noargs::raw_args();
@@ -20,19 +22,26 @@ fn main() -> noargs::Result<()> {
         .doc("Path of layout JSONC file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
-    let options = tuke::app::AppOptions {
-        cursor_refresh_interval: noargs::opt("cursor-refresh-interval")
-            .ty("SECONDS")
-            .env("TUKE_CURSOR_REFRESH_INTERVAL")
-            .doc("Interval to refresh cursor visibility in the active pane")
-            .default("0.8")
-            .take(&mut args)
-            .then(|a| a.value().parse().map(Duration::from_secs_f64))?,
-        auto_resize: noargs::flag("auto-resize")
-            .env("TUKE_AUTO_RESIZE")
-            .doc("Automatically resize the tmux pane to fit the keyboard layout")
-            .take(&mut args)
-            .is_present(),
+
+    let command_line: Option<String> = noargs::opt("command")
+        .short('c')
+        .ty("COMMAND")
+        .doc("Command to run in the session (defaults to $SHELL -l)")
+        .take(&mut args)
+        .present_and_then(|a| a.value().parse())?;
+
+    let mut command = match command_line {
+        Some(line) => {
+            let mut command = Command::new("sh");
+            command.arg("-c").arg(line);
+            command
+        }
+        None => {
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_owned());
+            let mut command = Command::new(shell);
+            command.arg("-l");
+            command
+        }
     };
 
     if let Some(help) = args.finish()? {
@@ -44,7 +53,7 @@ fn main() -> noargs::Result<()> {
         .map(tuke::layout::Layout::load_from_file)
         .transpose()?
         .unwrap_or_default();
-    let app = tuke::app::App::new(layout, options)?;
+    let app = app::App::new(layout, &mut command)?;
     app.run()?;
     Ok(())
 }

@@ -20,9 +20,6 @@ pub enum Error {
         error: nojson::JsonParseError,
     },
 
-    /// A `tmux` command reported an error.
-    Tmux(String),
-
     /// A failure that does not fit any other variant.
     Message(String),
 }
@@ -48,7 +45,6 @@ impl std::fmt::Display for Error {
         match self {
             Self::Io(error) => write!(f, "{error}"),
             Self::Json { path, text, error } => format_json_error(f, path, error, text),
-            Self::Tmux(message) => write!(f, "tmux command failed: {message}"),
             Self::Message(message) => write!(f, "{message}"),
         }
     }
@@ -59,7 +55,7 @@ impl std::error::Error for Error {
         match self {
             Self::Io(error) => Some(error),
             Self::Json { error, .. } => Some(error),
-            Self::Tmux(_) | Self::Message(_) => None,
+            Self::Message(_) => None,
         }
     }
 }

@@ -1,9 +1,14 @@
 tuke
 ====
 
-A proof of concept of **TU**I **KE**yboard for tmux.
+A proof of concept of **TU**I **KE**yboard: a software keyboard that drives
+another process in a PTY.
 
 ![tuke.jpg](tuke.jpg)
+
+tuke shows a program (the shell by default) in the top of the terminal and a
+mouse-driven software keyboard below it. Clicking a key sends the corresponding
+key to that program's PTY.
 
 How to Run
 ----------
@@ -17,15 +22,21 @@ $ cargo install --path .
 $ tuke
 ```
 
+Run a specific command instead of `$SHELL -l`:
+
+```console
+$ tuke --command 'vim'
+```
+
 Features
 --------
 
-- Software keyboard designed to run in a tmux pane
-- Pressed keys are sent to other panes using the `$ tmux send-keys` command
-- Configurable key layout (see: [default-layout.jsonc](default-layout.jsonc))
+- Embeds one child process in a PTY and drives it (no tmux required)
+- Software keyboard that turns mouse clicks into key presses
+- Configurable key layout (see: [layouts/default.jsonc](layouts/default.jsonc))
 
 Limitations
 -----------
 
-- Cannot use full tmux features (such as pop-up windows)
-- Cannot always display the cursor in the pane where keys are being sent
+- A single session only (no panes, windows, or sessions)
+- The keyboard reserves the bottom rows of the terminal for itself
