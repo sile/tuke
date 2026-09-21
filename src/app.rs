@@ -120,13 +120,6 @@ impl App {
                 -1
             };
 
-            if trace_enabled() {
-                eprintln!(
-                    "[tuke] poll waiting interests={:#x} timeout={timeout}",
-                    fds[2].events
-                );
-            }
-
             #[expect(
                 unsafe_code,
                 reason = "libc::poll is the only way to wait on the resize, input, and PTY fds at once"
@@ -138,13 +131,6 @@ impl App {
                     continue;
                 }
                 return Err(error.into());
-            }
-
-            if trace_enabled() {
-                eprintln!(
-                    "[tuke] poll woke n={n} resize={:#x} stdin={:#x} session={:#x}",
-                    fds[0].revents, fds[1].revents, fds[2].revents
-                );
             }
 
             if fds[0].revents & libc::POLLIN != 0 {
@@ -219,29 +205,11 @@ impl App {
         // immediately, forever, without the child's output ever being read.
         // Pumping once clears that flag and picks up what arrived; the drain
         // below then finishes any work the budget left behind.
-        let mut pumps = 0u32;
         loop {
             self.session.pump_io(termnix::PumpBudget::default())?;
-            pumps += 1;
             if !self.session.needs_pump() {
                 break;
             }
-            if pumps > 1000 {
-                eprintln!("[tuke] pump did not settle after {pumps} calls; breaking");
-                break;
-            }
-        }
-        if trace_enabled() {
-            let c = self.session.counters();
-            eprintln!(
-                "[tuke] pump calls={pumps} status={:?} revision={} read={} read_wb={} readsys={} interests={:?}",
-                self.session.status(),
-                self.session.terminal_state().revision(),
-                c.pty_bytes_read,
-                c.read_would_block,
-                c.read_syscalls,
-                self.session.interests(),
-            );
         }
         // The child exiting is what ends tuke. The flag is set here rather
         // than mid-turn, so the output this pump just read is rendered before
@@ -297,21 +265,11 @@ impl App {
     /// caller picks it up from the child terminal's revision, which it checks
     /// alongside this signal.
     fn dispatch(&mut self, event: Event) -> Result<bool> {
-        // The event is kept for the trace, so the transition is given a copy.
-        // A paste body can be large, but this only happens under `TUKE_TRACE`.
-        let traced = trace_enabled().then(|| event.clone());
         let actions = self.state.update(event);
-        if let Some(traced) = traced {
-            eprintln!("[tuke] event={traced:?} -> actions={actions:?}");
-        }
         let mut redraw = false;
         for action in actions {
             match action {
                 Action::SendKey(key) => {
-                    if trace_enabled() {
-                        let bytes = self.session.input_byte_len(termnix::Input::Key(key));
-                        eprintln!("[tuke] send key={key:?} bytes={bytes}");
-                    }
                     self.session.enqueue_input(termnix::Input::Key(key))?;
                 }
                 Action::SendBytes(bytes) => {
@@ -341,12 +299,6 @@ impl App {
         self.prev_frame = Some(frame);
         Ok(())
     }
-}
-
-/// Whether `TUKE_TRACE` is set to a non-empty value, enabling the debug trace
-/// on stderr of every dispatched event and sent key.
-fn trace_enabled() -> bool {
-    std::env::var_os("TUKE_TRACE").is_some_and(|value| !value.is_empty())
 }
 
 /// Converts a timeout to the millisecond value `libc::poll` expects.
