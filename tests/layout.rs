@@ -4,14 +4,14 @@
 ///
 /// The layout file writes a key code as a quoted string, so the test parses
 /// `"<code>"` the same way the layout loader does.
-fn parse_code(literal: &str) -> Result<tuke::layout::KeyCode, nojson::JsonParseError> {
+fn parse_code(literal: &str) -> Result<tuke::KeyCode, nojson::JsonParseError> {
     let (json, _) = nojson::RawJson::parse_jsonc(literal).expect("literal is valid JSONC");
-    tuke::layout::KeyCode::try_from(json.value())
+    tuke::KeyCode::try_from(json.value())
 }
 
 #[test]
 fn key_codes_round_trip_through_their_textual_form() {
-    use tuke::layout::KeyCode;
+    use tuke::KeyCode;
 
     let codes = [
         KeyCode::Char('a'),
@@ -42,7 +42,7 @@ fn key_codes_round_trip_through_their_textual_form() {
 
 #[test]
 fn bspace_and_btab_use_the_tmux_spelling() {
-    use tuke::layout::KeyCode;
+    use tuke::KeyCode;
 
     assert_eq!(KeyCode::Backspace.to_string(), "BSpace");
     assert_eq!(KeyCode::BackTab.to_string(), "BTab");
@@ -63,7 +63,7 @@ fn multi_character_string_is_rejected() {
 
 #[test]
 fn modifiers_map_to_no_termnix_key() {
-    use tuke::layout::KeyCode;
+    use tuke::KeyCode;
 
     for code in [KeyCode::Shift, KeyCode::Ctrl, KeyCode::Alt] {
         assert!(code.is_modifier());
@@ -73,7 +73,7 @@ fn modifiers_map_to_no_termnix_key() {
 
 #[test]
 fn named_keys_map_to_the_matching_termnix_code() {
-    use tuke::layout::KeyCode;
+    use tuke::KeyCode;
 
     let cases = [
         (KeyCode::Up, termnix::KeyCode::Up),
@@ -96,14 +96,14 @@ fn named_keys_map_to_the_matching_termnix_code() {
 fn back_tab_maps_to_tab() {
     // Shift is carried in the modifiers, so BTab maps to the Tab key code.
     assert_eq!(
-        tuke::layout::KeyCode::BackTab.to_termnix(),
+        tuke::KeyCode::BackTab.to_termnix(),
         Some(termnix::KeyCode::Tab)
     );
 }
 
 #[test]
 fn default_shift_code_uppercases_characters() {
-    use tuke::layout::KeyCode;
+    use tuke::KeyCode;
 
     assert_eq!(KeyCode::Char('a').default_shift_code(), KeyCode::Char('A'));
     assert_eq!(KeyCode::Tab.default_shift_code(), KeyCode::BackTab);
@@ -112,7 +112,7 @@ fn default_shift_code_uppercases_characters() {
 
 #[test]
 fn default_layout_loads_and_declares_its_keys() {
-    let layout = tuke::layout::Layout::default();
+    let layout = tuke::Layout::default();
 
     // The default layout has the preview row and the QWERTY letters.
     assert!(layout.preview.is_some());
@@ -120,13 +120,13 @@ fn default_layout_loads_and_declares_its_keys() {
         layout
             .keys
             .iter()
-            .any(|k| k.code == tuke::layout::KeyCode::Char('q'))
+            .any(|k| k.code == tuke::KeyCode::Char('q'))
     );
     assert!(
         layout
             .keys
             .iter()
-            .any(|k| k.code == tuke::layout::KeyCode::Char(' '))
+            .any(|k| k.code == tuke::KeyCode::Char(' '))
     );
 }
 
@@ -139,11 +139,11 @@ fn layout_from_a_file_matches_the_text() {
     )
     .expect("write layout file");
 
-    let layout = tuke::layout::Layout::load_from_file(&path).expect("parse layout file");
+    let layout = tuke::Layout::load_from_file(&path).expect("parse layout file");
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(layout.keys.len(), 1);
-    assert_eq!(layout.keys[0].code, tuke::layout::KeyCode::Char('a'));
+    assert_eq!(layout.keys[0].code, tuke::KeyCode::Char('a'));
     assert_eq!(
         layout.keys[0].region.size,
         tuinix::Size { rows: 5, cols: 5 }
@@ -160,7 +160,7 @@ fn a_size_below_the_minimum_is_rejected() {
     )
     .expect("write layout file");
 
-    let result = tuke::layout::Layout::load_from_file(&path);
+    let result = tuke::Layout::load_from_file(&path);
     let _ = std::fs::remove_file(&path);
 
     assert!(result.is_err(), "a 2-column key is too small to draw");

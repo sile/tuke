@@ -1,6 +1,6 @@
 //! Inputs the edge feeds into the Sans I/O core.
 
-/// An event delivered to [`State::update`](crate::state::State::update).
+/// An event delivered to [`State::update`](crate::State::update).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     /// The terminal was resized to `size`.

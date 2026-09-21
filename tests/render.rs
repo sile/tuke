@@ -12,14 +12,8 @@ fn termnix_size(rows: usize, cols: usize) -> termnix::Size {
 }
 
 /// One layout key of the given size at `(row, col)`.
-fn key(
-    code: tuke::layout::KeyCode,
-    row: usize,
-    col: usize,
-    rows: usize,
-    cols: usize,
-) -> tuke::layout::Key {
-    tuke::layout::Key {
+fn key(code: tuke::KeyCode, row: usize, col: usize, rows: usize, cols: usize) -> tuke::Key {
+    tuke::Key {
         code,
         shift_code: code.default_shift_code(),
         region: tuinix::Region {
@@ -30,9 +24,9 @@ fn key(
 }
 
 /// A one-key layout laid out to exactly fill the keyboard area.
-fn single_key_layout(rows: usize, cols: usize) -> tuke::layout::Layout {
-    tuke::layout::Layout {
-        keys: vec![key(tuke::layout::KeyCode::Char('x'), 0, 0, rows, cols)],
+fn single_key_layout(rows: usize, cols: usize) -> tuke::Layout {
+    tuke::Layout {
+        keys: vec![key(tuke::KeyCode::Char('x'), 0, 0, rows, cols)],
         preview: None,
     }
 }
@@ -41,9 +35,9 @@ fn single_key_layout(rows: usize, cols: usize) -> tuke::layout::Layout {
 /// large as that key, so the key's cells are the whole frame.
 fn render_single_key(rows: usize, cols: usize) -> tuinix::Frame {
     let size = tuinix::Size { rows, cols };
-    let state = tuke::state::State::new(single_key_layout(rows, cols), size);
+    let state = tuke::State::new(single_key_layout(rows, cols), size);
     let terminal = termnix::TerminalState::new(termnix_size(rows, cols));
-    tuke::render::frame(&state, &terminal, size)
+    tuke::screen_frame(&state, &terminal, size)
 }
 
 /// The characters of `frame` on `row`, as a `String` (blanks included).
@@ -87,12 +81,12 @@ fn a_one_row_key_shows_its_label() {
 fn a_label_narrower_than_the_key_stays_inside_the_borders() {
     // A long label must be cropped, never widen the key or push a border out.
     let mut layout = single_key_layout(3, 3);
-    layout.keys[0].code = tuke::layout::KeyCode::Backspace;
-    layout.keys[0].shift_code = tuke::layout::KeyCode::Backspace;
+    layout.keys[0].code = tuke::KeyCode::Backspace;
+    layout.keys[0].shift_code = tuke::KeyCode::Backspace;
     let size = tuinix::Size { rows: 3, cols: 3 };
-    let state = tuke::state::State::new(layout, size);
+    let state = tuke::State::new(layout, size);
     let terminal = termnix::TerminalState::new(termnix_size(3, 3));
-    let frame = tuke::render::frame(&state, &terminal, size);
+    let frame = tuke::screen_frame(&state, &terminal, size);
 
     // Every row is exactly three columns: two borders and one cropped column.
     assert_eq!(row_text(&frame, 0, 3), "┌─┐");
@@ -118,9 +112,9 @@ fn the_keyboard_is_drawn_inside_the_screen_at_any_size() -> noprop::TestResult {
             rows: terminal_rows,
             cols: terminal_cols,
         };
-        let state = tuke::state::State::new(single_key_layout(key_rows, key_cols), size);
+        let state = tuke::State::new(single_key_layout(key_rows, key_cols), size);
         let terminal = termnix::TerminalState::new(termnix_size(terminal_rows, terminal_cols));
-        let frame = tuke::render::frame(&state, &terminal, size);
+        let frame = tuke::screen_frame(&state, &terminal, size);
 
         // Every painted cell lies within the screen, and at least one cell of
         // the key's own region is painted, so the key is visible rather than

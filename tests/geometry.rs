@@ -8,7 +8,7 @@ fn grid_rows_leaves_the_keyboard_at_the_bottom() -> noprop::TestResult {
         let terminal_rows = noprop::sample_usize_in(ctx, 0..=24);
         let keyboard_rows = noprop::sample_usize_in(ctx, 0..=terminal_rows);
 
-        let grid = tuke::geometry::grid_rows(terminal_rows, keyboard_rows);
+        let grid = tuke::grid_rows(terminal_rows, keyboard_rows);
 
         // The grid and the keyboard together fill the screen exactly: the
         // keyboard is bottom-aligned, so nothing is lost and nothing overlaps.
@@ -33,7 +33,7 @@ fn grid_rows_saturates_when_the_keyboard_is_too_tall() -> noprop::TestResult {
 
         // A keyboard taller than the screen leaves no grid rows, never a
         // negative count.
-        assert_eq!(tuke::geometry::grid_rows(terminal_rows, keyboard_rows), 0);
+        assert_eq!(tuke::grid_rows(terminal_rows, keyboard_rows), 0);
         Ok(())
     })?;
     Ok(())
@@ -51,8 +51,7 @@ fn grid_rows_is_monotonic_in_the_keyboard_height() -> noprop::TestResult {
 
         // A taller keyboard can only shrink the grid.
         assert!(
-            tuke::geometry::grid_rows(terminal_rows, small)
-                >= tuke::geometry::grid_rows(terminal_rows, large),
+            tuke::grid_rows(terminal_rows, small) >= tuke::grid_rows(terminal_rows, large),
             "terminal {terminal_rows}: grid({small}) < grid({large})"
         );
         Ok(())
@@ -69,7 +68,7 @@ fn keyboard_offset_col_centres_within_one_cell() -> noprop::TestResult {
         let terminal_cols = noprop::sample_usize_in(ctx, 0..=200);
         let layout_cols = noprop::sample_usize_in(ctx, 0..=200);
 
-        let offset = tuke::geometry::keyboard_offset_col(terminal_cols, layout_cols);
+        let offset = tuke::keyboard_offset_col(terminal_cols, layout_cols);
         let right = terminal_cols
             .saturating_sub(layout_cols)
             .saturating_sub(offset);
@@ -109,12 +108,12 @@ fn size_round_trips_through_termnix() -> noprop::TestResult {
         let cols = noprop::sample_usize_in(ctx, 0..=u16::MAX as usize + 1);
         let size = tuinix::Size { rows, cols };
 
-        match tuke::geometry::to_termnix_size(size) {
+        match tuke::to_termnix_size(size) {
             Some(converted) => {
                 // Non-zero in-range sizes survive the round trip unchanged.
                 assert_ne!(rows, 0);
                 assert_ne!(cols, 0);
-                assert_eq!(tuke::geometry::from_termnix_size(converted), size);
+                assert_eq!(tuke::from_termnix_size(converted), size);
                 round_tripped.set(round_tripped.get() + 1);
             }
             None => {

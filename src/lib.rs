@@ -1,21 +1,33 @@
 //! `tuke`'s Sans I/O core.
 //!
 //! This crate holds everything that does not touch a file descriptor: the
-//! layout model ([`layout`]), the terminal/keyboard geometry ([`geometry`]),
-//! the pure transition function ([`state::State::update`]) with its input
-//! [`event::Event`]s and requested [`action::Action`]s, and the pure renderer
-//! ([`render::frame`]). The binary drives the real PTY and terminal.
+//! layout model ([`Layout`]), the terminal/keyboard geometry, the pure
+//! transition function ([`State::update`]) with its input [`Event`]s and
+//! requested [`Action`]s, and the pure renderer ([`screen_frame`]). The binary
+//! drives the real PTY and terminal.
+//!
+//! The types and functions callers work with are re-exported here, so they are
+//! named at the crate root ([`State`], [`Layout`], [`KeyCode`],
+//! [`screen_frame`], …); the modules themselves stay private.
 
 #![warn(missing_docs)]
 #![forbid(unsafe_code)]
 
-pub mod action;
-pub mod error;
-pub mod event;
-pub mod geometry;
+mod action;
+mod error;
+mod event;
+mod geometry;
 mod jsonc;
-pub mod layout;
-pub mod render;
-pub mod state;
+mod layout;
+mod render;
+mod state;
 
+pub use action::Action;
 pub use error::{Error, Result};
+pub use event::Event;
+pub use geometry::{
+    from_termnix_size, grid_rows, keyboard_offset_col, keyboard_rows, to_termnix_size,
+};
+pub use layout::{Key, KeyCode, KeyPressState, KeyState, Layout, Preview};
+pub use render::{screen_cursor, screen_frame};
+pub use state::State;

@@ -2,20 +2,16 @@
 //!
 //! This module is compiled into the binary only (`mod app;` in `main.rs`); the
 //! library stays Sans I/O. It owns the [`termnix::Session`] driving one child
-//! process and translates [`State::update`](tuke::state::State::update)'s
-//! actions into real effects.
+//! process and translates [`State::update`](tuke::State::update)'s actions into
+//! real effects.
 
 use std::io::{Read, Write};
 use std::process::Command;
 use std::time::Duration;
 
-use tuke::action::Action;
-use tuke::error::Result;
-use tuke::event::Event;
-use tuke::geometry;
-use tuke::layout::Layout;
-use tuke::render;
-use tuke::state::State;
+use tuke::{
+    Action, Error, Event, Layout, Result, State, screen_cursor, screen_frame, to_termnix_size,
+};
 
 /// How long to wait for the rest of an escape sequence before treating a lone
 /// `ESC` byte as the Escape key.
@@ -45,8 +41,8 @@ impl App {
         let terminal_size = driver.size();
         let state = State::new(layout, terminal_size);
 
-        let session_size = geometry::to_termnix_size(state.grid_size())
-            .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;
+        let session_size = to_termnix_size(state.grid_size())
+            .ok_or_else(|| Error::message("terminal too small to fit the keyboard layout"))?;
         let session = termnix::Session::new(command, session_size)?;
 
         Ok(Self {
@@ -279,7 +275,7 @@ impl App {
                     self.session.enqueue_input(termnix::Input::Paste(&text))?;
                 }
                 Action::ResizeSession(size) => {
-                    if let Some(size) = geometry::to_termnix_size(size) {
+                    if let Some(size) = to_termnix_size(size) {
                         self.session.resize(size)?;
                     }
                 }
@@ -291,8 +287,8 @@ impl App {
 
     fn render(&mut self) -> Result<()> {
         let terminal = self.session.terminal_state();
-        let frame = render::frame(&self.state, terminal, self.terminal_size);
-        let cursor = render::cursor(terminal, self.terminal_size);
+        let frame = screen_frame(&self.state, terminal, self.terminal_size);
+        let cursor = screen_cursor(terminal, self.terminal_size);
         let out = frame.render(self.prev_frame.as_ref(), cursor);
         self.driver.write_all(&out)?;
         self.driver.flush()?;

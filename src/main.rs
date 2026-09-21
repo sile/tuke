@@ -54,7 +54,7 @@ fn main() -> noargs::Result<()> {
     }
 
     let layout = layout_file_path
-        .map(tuke::layout::Layout::load_from_file)
+        .map(tuke::Layout::load_from_file)
         .transpose()?
         .unwrap_or_default();
     let app = app::App::new(layout, &mut command)?;

@@ -4,8 +4,9 @@
 //! Nothing here touches a file descriptor: the edge hands in the sizes and the
 //! (I/O-free) [`termnix::TerminalState`] and receives a frame to diff and write.
 
-use crate::layout::{KeyState, Preview};
-use crate::state::State;
+use crate::KeyState;
+use crate::Preview;
+use crate::State;
 
 /// Builds the full-screen frame: the child's grid on top, the soft keyboard at
 /// the bottom, centred horizontally.
@@ -13,7 +14,7 @@ use crate::state::State;
 /// `terminal_size` is the physical terminal size. The keyboard is drawn at
 /// [`State::offset`], and the grid occupies the rows above it, sized by
 /// [`State::grid_size`].
-pub fn frame(
+pub fn screen_frame(
     state: &State,
     terminal: &termnix::TerminalState,
     terminal_size: tuinix::Size,
@@ -54,7 +55,7 @@ pub fn frame(
 /// The cursor is placed at the child terminal's cursor when it is visible and
 /// falls inside the terminal, offset by nothing (the grid starts at the screen
 /// origin).
-pub fn cursor(
+pub fn screen_cursor(
     terminal: &termnix::TerminalState,
     terminal_size: tuinix::Size,
 ) -> Option<tuinix::Position> {
