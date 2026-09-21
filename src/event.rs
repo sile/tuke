@@ -59,8 +59,6 @@ impl Event {
     /// it as [`termnix::KeyCode::Tab`] with Shift held, so that is what it
     /// becomes.
     pub fn to_guest_key(self) -> Option<termnix::KeyEvent> {
-        use termnix::KeyCode as GuestKeyCode;
-
         let Self::Key { code, ctrl, alt } = self else {
             return None;
         };
@@ -72,26 +70,26 @@ impl Event {
             modifiers = modifiers.alt();
         }
         let code = match code {
-            tuinix::KeyCode::Char(c) => GuestKeyCode::Char(c),
-            tuinix::KeyCode::Enter => GuestKeyCode::Enter,
-            tuinix::KeyCode::Escape => GuestKeyCode::Escape,
-            tuinix::KeyCode::Backspace => GuestKeyCode::Backspace,
-            tuinix::KeyCode::Tab => GuestKeyCode::Tab,
+            tuinix::KeyCode::Char(c) => termnix::KeyCode::Char(c),
+            tuinix::KeyCode::Enter => termnix::KeyCode::Enter,
+            tuinix::KeyCode::Escape => termnix::KeyCode::Escape,
+            tuinix::KeyCode::Backspace => termnix::KeyCode::Backspace,
+            tuinix::KeyCode::Tab => termnix::KeyCode::Tab,
             tuinix::KeyCode::BackTab => {
                 modifiers = modifiers.shift();
-                GuestKeyCode::Tab
+                termnix::KeyCode::Tab
             }
-            tuinix::KeyCode::Delete => GuestKeyCode::Delete,
-            tuinix::KeyCode::Insert => GuestKeyCode::Insert,
-            tuinix::KeyCode::Up => GuestKeyCode::Up,
-            tuinix::KeyCode::Down => GuestKeyCode::Down,
-            tuinix::KeyCode::Left => GuestKeyCode::Left,
-            tuinix::KeyCode::Right => GuestKeyCode::Right,
-            tuinix::KeyCode::Home => GuestKeyCode::Home,
-            tuinix::KeyCode::End => GuestKeyCode::End,
-            tuinix::KeyCode::PageUp => GuestKeyCode::PageUp,
-            tuinix::KeyCode::PageDown => GuestKeyCode::PageDown,
-            tuinix::KeyCode::F(n) => GuestKeyCode::Function(n),
+            tuinix::KeyCode::Delete => termnix::KeyCode::Delete,
+            tuinix::KeyCode::Insert => termnix::KeyCode::Insert,
+            tuinix::KeyCode::Up => termnix::KeyCode::Up,
+            tuinix::KeyCode::Down => termnix::KeyCode::Down,
+            tuinix::KeyCode::Left => termnix::KeyCode::Left,
+            tuinix::KeyCode::Right => termnix::KeyCode::Right,
+            tuinix::KeyCode::Home => termnix::KeyCode::Home,
+            tuinix::KeyCode::End => termnix::KeyCode::End,
+            tuinix::KeyCode::PageUp => termnix::KeyCode::PageUp,
+            tuinix::KeyCode::PageDown => termnix::KeyCode::PageDown,
+            tuinix::KeyCode::F(n) => termnix::KeyCode::Function(n),
         };
         Some(termnix::KeyEvent { code, modifiers })
     }

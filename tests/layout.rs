@@ -11,24 +11,22 @@ fn parse_code(literal: &str) -> Result<tuke::KeyCode, nojson::JsonParseError> {
 
 #[test]
 fn key_codes_round_trip_through_their_textual_form() {
-    use tuke::KeyCode;
-
     let codes = [
-        KeyCode::Char('a'),
-        KeyCode::Char('7'),
-        KeyCode::Char('!'),
-        KeyCode::Shift,
-        KeyCode::Ctrl,
-        KeyCode::Alt,
-        KeyCode::Up,
-        KeyCode::Down,
-        KeyCode::Left,
-        KeyCode::Right,
-        KeyCode::Enter,
-        KeyCode::Backspace,
-        KeyCode::Delete,
-        KeyCode::Tab,
-        KeyCode::BackTab,
+        tuke::KeyCode::Char('a'),
+        tuke::KeyCode::Char('7'),
+        tuke::KeyCode::Char('!'),
+        tuke::KeyCode::Shift,
+        tuke::KeyCode::Ctrl,
+        tuke::KeyCode::Alt,
+        tuke::KeyCode::Up,
+        tuke::KeyCode::Down,
+        tuke::KeyCode::Left,
+        tuke::KeyCode::Right,
+        tuke::KeyCode::Enter,
+        tuke::KeyCode::Backspace,
+        tuke::KeyCode::Delete,
+        tuke::KeyCode::Tab,
+        tuke::KeyCode::BackTab,
     ];
 
     for code in codes {
@@ -42,10 +40,8 @@ fn key_codes_round_trip_through_their_textual_form() {
 
 #[test]
 fn bspace_and_btab_use_the_tmux_spelling() {
-    use tuke::KeyCode;
-
-    assert_eq!(KeyCode::Backspace.to_string(), "BSpace");
-    assert_eq!(KeyCode::BackTab.to_string(), "BTab");
+    assert_eq!(tuke::KeyCode::Backspace.to_string(), "BSpace");
+    assert_eq!(tuke::KeyCode::BackTab.to_string(), "BTab");
 }
 
 #[test]
@@ -63,9 +59,11 @@ fn multi_character_string_is_rejected() {
 
 #[test]
 fn modifiers_map_to_no_termnix_key() {
-    use tuke::KeyCode;
-
-    for code in [KeyCode::Shift, KeyCode::Ctrl, KeyCode::Alt] {
+    for code in [
+        tuke::KeyCode::Shift,
+        tuke::KeyCode::Ctrl,
+        tuke::KeyCode::Alt,
+    ] {
         assert!(code.is_modifier());
         assert_eq!(code.to_termnix(), None, "{code:?} should not be sent alone");
     }
@@ -73,18 +71,16 @@ fn modifiers_map_to_no_termnix_key() {
 
 #[test]
 fn named_keys_map_to_the_matching_termnix_code() {
-    use tuke::KeyCode;
-
     let cases = [
-        (KeyCode::Up, termnix::KeyCode::Up),
-        (KeyCode::Down, termnix::KeyCode::Down),
-        (KeyCode::Left, termnix::KeyCode::Left),
-        (KeyCode::Right, termnix::KeyCode::Right),
-        (KeyCode::Enter, termnix::KeyCode::Enter),
-        (KeyCode::Backspace, termnix::KeyCode::Backspace),
-        (KeyCode::Delete, termnix::KeyCode::Delete),
-        (KeyCode::Tab, termnix::KeyCode::Tab),
-        (KeyCode::Char('x'), termnix::KeyCode::Char('x')),
+        (tuke::KeyCode::Up, termnix::KeyCode::Up),
+        (tuke::KeyCode::Down, termnix::KeyCode::Down),
+        (tuke::KeyCode::Left, termnix::KeyCode::Left),
+        (tuke::KeyCode::Right, termnix::KeyCode::Right),
+        (tuke::KeyCode::Enter, termnix::KeyCode::Enter),
+        (tuke::KeyCode::Backspace, termnix::KeyCode::Backspace),
+        (tuke::KeyCode::Delete, termnix::KeyCode::Delete),
+        (tuke::KeyCode::Tab, termnix::KeyCode::Tab),
+        (tuke::KeyCode::Char('x'), termnix::KeyCode::Char('x')),
     ];
 
     for (code, expected) in cases {
@@ -103,11 +99,18 @@ fn back_tab_maps_to_tab() {
 
 #[test]
 fn default_shift_code_uppercases_characters() {
-    use tuke::KeyCode;
-
-    assert_eq!(KeyCode::Char('a').default_shift_code(), KeyCode::Char('A'));
-    assert_eq!(KeyCode::Tab.default_shift_code(), KeyCode::BackTab);
-    assert_eq!(KeyCode::Enter.default_shift_code(), KeyCode::Enter);
+    assert_eq!(
+        tuke::KeyCode::Char('a').default_shift_code(),
+        tuke::KeyCode::Char('A')
+    );
+    assert_eq!(
+        tuke::KeyCode::Tab.default_shift_code(),
+        tuke::KeyCode::BackTab
+    );
+    assert_eq!(
+        tuke::KeyCode::Enter.default_shift_code(),
+        tuke::KeyCode::Enter
+    );
 }
 
 #[test]

@@ -9,10 +9,6 @@ use std::io::{Read, Write};
 use std::process::Command;
 use std::time::Duration;
 
-use tuke::{
-    Action, Error, Event, Layout, Result, State, screen_cursor, screen_frame, to_termnix_size,
-};
-
 /// How long to wait for the rest of an escape sequence before treating a lone
 /// `ESC` byte as the Escape key.
 const ESCAPE_TIMEOUT: Duration = Duration::from_millis(50);
@@ -23,7 +19,7 @@ pub struct App {
     input: tuinix::InputDecoder,
     prev_frame: Option<tuinix::Frame>,
     session: termnix::Session,
-    state: State,
+    state: tuke::State,
     terminal_size: tuinix::Size,
     /// The terminal revision at the last render, used to detect output.
     last_revision: u64,
@@ -34,15 +30,15 @@ pub struct App {
 
 impl App {
     /// Spawns the child command and takes over the terminal.
-    pub fn new(layout: Layout, command: &mut Command) -> Result<Self> {
+    pub fn new(layout: tuke::Layout, command: &mut Command) -> tuke::Result<Self> {
         let mut driver = tuinix::TerminalDriver::new()?;
         driver.enable_mouse_reporting()?;
 
         let terminal_size = driver.size();
-        let state = State::new(layout, terminal_size);
+        let state = tuke::State::new(layout, terminal_size);
 
-        let session_size = to_termnix_size(state.grid_size())
-            .ok_or_else(|| Error::message("terminal too small to fit the keyboard layout"))?;
+        let session_size = tuke::to_termnix_size(state.grid_size())
+            .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;
         let session = termnix::Session::new(command, session_size)?;
 
         Ok(Self {
@@ -66,7 +62,7 @@ impl App {
     /// moved, then wait for something to happen next. Doing the flush and the
     /// repaint *before* the wait is what keeps the first screen from staying
     /// blank until an unrelated event wakes the wait.
-    pub fn run(mut self) -> Result<()> {
+    pub fn run(mut self) -> tuke::Result<()> {
         // Whether the screen is out of date. It is driven from both sources of
         // visible change: the child's terminal revision, for the grid, and the
         // core's own redraw requests, for the keyboard's highlights.
@@ -134,7 +130,7 @@ impl App {
                 let size = self.driver.size();
                 if size != self.terminal_size {
                     self.terminal_size = size;
-                    dirty |= self.dispatch(Event::Resize { size })?;
+                    dirty |= self.dispatch(tuke::Event::Resize { size })?;
                 }
             }
 
@@ -194,7 +190,7 @@ impl App {
         events
     }
 
-    fn pump_session(&mut self) -> Result<()> {
+    fn pump_session(&mut self) -> tuke::Result<()> {
         // The first pump is unconditional. `needs_pump` is false right after a
         // `read` hit `WouldBlock`, so gating on it would skip the read
         // entirely and leave the fd readable: `poll` would then return
@@ -216,7 +212,7 @@ impl App {
         Ok(())
     }
 
-    fn read_stdin(&mut self) -> Result<()> {
+    fn read_stdin(&mut self) -> tuke::Result<()> {
         let mut bytes = [0u8; 1024];
         loop {
             match self.driver.read(&mut bytes) {
@@ -233,9 +229,9 @@ impl App {
     /// Translates one host input event into a core event and dispatches it.
     ///
     /// Returns whether the core asked for a repaint of its keyboard.
-    fn handle_input(&mut self, input: tuinix::Input) -> Result<bool> {
+    fn handle_input(&mut self, input: tuinix::Input) -> tuke::Result<bool> {
         match input {
-            tuinix::Input::Key(key) => self.dispatch(Event::Key {
+            tuinix::Input::Key(key) => self.dispatch(tuke::Event::Key {
                 code: key.code,
                 ctrl: key.ctrl,
                 alt: key.alt,
@@ -245,11 +241,11 @@ impl App {
                 if mouse.kind != tuinix::MouseInputKind::LeftRelease {
                     return Ok(false);
                 }
-                self.dispatch(Event::PointerRelease {
+                self.dispatch(tuke::Event::PointerRelease {
                     position: mouse.position,
                 })
             }
-            tuinix::Input::Paste { bytes } => self.dispatch(Event::Paste { bytes }),
+            tuinix::Input::Paste { bytes } => self.dispatch(tuke::Event::Paste { bytes }),
             tuinix::Input::Unrecognized { .. } => Ok(false),
         }
     }
@@ -260,35 +256,35 @@ impl App {
     /// The child's output this dispatch provokes is not reported here: the
     /// caller picks it up from the child terminal's revision, which it checks
     /// alongside this signal.
-    fn dispatch(&mut self, event: Event) -> Result<bool> {
+    fn dispatch(&mut self, event: tuke::Event) -> tuke::Result<bool> {
         let actions = self.state.update(event);
         let mut redraw = false;
         for action in actions {
             match action {
-                Action::SendKey(key) => {
+                tuke::Action::SendKey(key) => {
                     self.session.enqueue_input(termnix::Input::Key(key))?;
                 }
-                Action::SendBytes(bytes) => {
+                tuke::Action::SendBytes(bytes) => {
                     self.session.enqueue_input(termnix::Input::Raw(&bytes))?;
                 }
-                Action::SendPaste(text) => {
+                tuke::Action::SendPaste(text) => {
                     self.session.enqueue_input(termnix::Input::Paste(&text))?;
                 }
-                Action::ResizeSession(size) => {
-                    if let Some(size) = to_termnix_size(size) {
+                tuke::Action::ResizeSession(size) => {
+                    if let Some(size) = tuke::to_termnix_size(size) {
                         self.session.resize(size)?;
                     }
                 }
-                Action::Redraw => redraw = true,
+                tuke::Action::Redraw => redraw = true,
             }
         }
         Ok(redraw)
     }
 
-    fn render(&mut self) -> Result<()> {
+    fn render(&mut self) -> tuke::Result<()> {
         let terminal = self.session.terminal_state();
-        let frame = screen_frame(&self.state, terminal, self.terminal_size);
-        let cursor = screen_cursor(terminal, self.terminal_size);
+        let frame = tuke::screen_frame(&self.state, terminal, self.terminal_size);
+        let cursor = tuke::screen_cursor(terminal, self.terminal_size);
         let out = frame.render(self.prev_frame.as_ref(), cursor);
         self.driver.write_all(&out)?;
         self.driver.flush()?;

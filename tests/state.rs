@@ -24,12 +24,11 @@ fn key(code: tuke::KeyCode, row: usize, col: usize) -> tuke::Key {
 /// The keys are three cells tall each, so the keyboard is nine rows tall and
 /// the layout is three columns wide.
 fn test_layout() -> tuke::Layout {
-    use tuke::KeyCode;
     tuke::Layout {
         keys: vec![
-            key(KeyCode::Ctrl, 0, 0),
-            key(KeyCode::Char('b'), 3, 0),
-            key(KeyCode::Char('c'), 6, 0),
+            key(tuke::KeyCode::Ctrl, 0, 0),
+            key(tuke::KeyCode::Char('b'), 3, 0),
+            key(tuke::KeyCode::Char('c'), 6, 0),
         ],
         preview: None,
     }
