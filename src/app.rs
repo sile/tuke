@@ -272,6 +272,7 @@ impl App {
                 ctrl: key.ctrl,
                 alt: key.alt,
             }),
+
             tuinix::Input::Mouse(mouse) => {
                 if mouse.kind != tuinix::MouseInputKind::LeftRelease {
                     return Ok(false);
@@ -280,7 +281,8 @@ impl App {
                     position: mouse.position,
                 })
             }
-            tuinix::Input::Unrecognized { .. } | tuinix::Input::Paste { .. } => Ok(false),
+            tuinix::Input::Paste { bytes } => self.dispatch(Event::Paste { bytes }),
+            tuinix::Input::Unrecognized { .. } => Ok(false),
         }
     }
 
@@ -291,9 +293,12 @@ impl App {
     /// caller picks it up from the child terminal's revision, which it checks
     /// alongside this signal.
     fn dispatch(&mut self, event: Event) -> Result<bool> {
+        // The event is kept for the trace, so the transition is given a copy.
+        // A paste body can be large, but this only happens under `TUKE_TRACE`.
+        let traced = trace_enabled().then(|| event.clone());
         let actions = self.state.update(event);
-        if trace_enabled() {
-            eprintln!("[tuke] event={event:?} -> actions={actions:?}");
+        if let Some(traced) = traced {
+            eprintln!("[tuke] event={traced:?} -> actions={actions:?}");
         }
         let mut redraw = false;
         for action in actions {
@@ -307,6 +312,9 @@ impl App {
                 }
                 Action::SendBytes(bytes) => {
                     self.session.enqueue_input(termnix::Input::Raw(&bytes))?;
+                }
+                Action::SendPaste(text) => {
+                    self.session.enqueue_input(termnix::Input::Paste(&text))?;
                 }
                 Action::ResizeSession(size) => {
                     if let Some(size) = geometry::to_termnix_size(size) {

@@ -264,6 +264,14 @@ fn host_key(code: tuinix::KeyCode, ctrl: bool, alt: bool) -> tuke::event::Event 
     tuke::event::Event::Key { code, ctrl, alt }
 }
 
+/// The paste payload an action list sends, if it sends exactly one.
+fn sent_paste(actions: &[tuke::action::Action]) -> Option<&str> {
+    match actions {
+        [tuke::action::Action::SendPaste(text)] => Some(text),
+        _ => None,
+    }
+}
+
 #[test]
 fn every_host_key_is_forwarded_to_the_child() {
     // tuke reserves no key of its own, so there is no key it can swallow: even
@@ -329,6 +337,112 @@ fn back_tab_becomes_tab_with_shift() {
 
     assert_eq!(mapped.code, termnix::KeyCode::Tab);
     assert!(mapped.modifiers.shift);
+}
+
+#[test]
+fn a_paste_is_forwarded_as_one_paste() {
+    let mut state = tuke::state::State::new(test_layout(), test_size());
+
+    let actions = state.update(tuke::event::Event::Paste {
+        bytes: b"hello\nworld".to_vec(),
+    });
+
+    // One paste, not the twelve key presses it spells: a newline in a paste is
+    // text, and the child is told so when it is handed over whole.
+    assert_eq!(sent_paste(&actions), Some("hello\nworld"));
+}
+
+#[test]
+fn an_empty_paste_is_still_forwarded() {
+    let mut state = tuke::state::State::new(test_layout(), test_size());
+
+    // The host terminal saw the markers, so the child is told a paste happened
+    // even though it carried nothing: that can be meaningful to an editor.
+    let actions = state.update(tuke::event::Event::Paste { bytes: Vec::new() });
+
+    assert_eq!(sent_paste(&actions), Some(""));
+}
+
+#[test]
+fn a_paste_leaves_the_keyboard_state_alone() {
+    let mut state = tuke::state::State::new(test_layout(), test_size());
+
+    // A paste does not go through a soft key, so it neither consumes a one-shot
+    // modifier nor changes what any key looks like.
+    press(&mut state, 0, 0);
+    state.update(tuke::event::Event::Paste {
+        bytes: b"hi".to_vec(),
+    });
+    let actions = press(&mut state, 3, 0);
+
+    let key = sent_key(&actions).expect("the key after a paste is still sent");
+    assert_eq!(key.code, termnix::KeyCode::Char('b'));
+    assert!(
+        key.modifiers.ctrl,
+        "the one-shot Ctrl armed before the paste should still apply"
+    );
+}
+
+#[test]
+fn a_paste_that_is_not_utf8_is_dropped() {
+    let mut state = tuke::state::State::new(test_layout(), test_size());
+
+    // A guest paste is a string, so bytes that are not text cannot be sent as
+    // one. Nothing is sent rather than fabricating keys for them: the child
+    // must not receive bytes the user never typed.
+    let actions = state.update(tuke::event::Event::Paste {
+        bytes: vec![0xff, 0xfe],
+    });
+
+    assert!(actions.is_empty(), "expected no actions, got {actions:?}");
+}
+
+#[test]
+fn every_paste_round_trips_through_the_transition() -> noprop::TestResult {
+    let seed = noprop::seed_from_env_or_time("TUKE_SEED")?;
+    let reached_utf8 = Cell::new(0usize);
+    let reached_non_utf8 = Cell::new(0usize);
+    let mut runner = noprop::Runner::new(seed);
+    runner.run(256, |ctx| {
+        let len = noprop::sample_usize_in(ctx, 0..=32);
+        let bytes = noprop::sample_bytes_vec(ctx, len);
+        let mut state = tuke::state::State::new(test_layout(), test_size());
+
+        let actions = state.update(tuke::event::Event::Paste {
+            bytes: bytes.clone(),
+        });
+
+        match std::str::from_utf8(&bytes) {
+            Ok(text) => {
+                assert_eq!(
+                    sent_paste(&actions),
+                    Some(text),
+                    "UTF-8 paste {bytes:?} should be forwarded unchanged"
+                );
+                reached_utf8.set(reached_utf8.get() + 1);
+            }
+            Err(_) => {
+                assert!(
+                    actions.is_empty(),
+                    "non-UTF-8 paste {bytes:?} should be dropped, got {actions:?}"
+                );
+                reached_non_utf8.set(reached_non_utf8.get() + 1);
+            }
+        }
+        Ok(())
+    })?;
+
+    // Both branches have to be exercised for the property to mean anything:
+    // a generator that only produced text would never test the drop.
+    assert!(
+        reached_utf8.get() > 0,
+        "no case pasted valid UTF-8\n{runner}"
+    );
+    assert!(
+        reached_non_utf8.get() > 0,
+        "no case pasted invalid UTF-8\n{runner}"
+    );
+    Ok(())
 }
 
 #[test]

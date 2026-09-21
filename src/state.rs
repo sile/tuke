@@ -120,6 +120,7 @@ impl State {
             Event::Resize { size } => self.on_resize(size),
             Event::PointerRelease { position } => self.on_pointer_release(position),
             Event::Key { .. } => self.on_key(event),
+            Event::Paste { .. } => self.on_paste(event),
         }
     }
 
@@ -140,6 +141,19 @@ impl State {
         event
             .to_guest_key()
             .map_or_else(Vec::new, |key| vec![Action::SendKey(key)])
+    }
+
+    fn on_paste(&mut self, event: Event) -> Vec<Action> {
+        // A paste is text the child asked for, exactly like a key is. It is
+        // sent as one input rather than as the key presses it spells, so the
+        // child can tell a paste from typing and its bracketed-paste mode is
+        // honoured on the way out.
+        //
+        // The keyboard's own state is left alone: the paste did not go through
+        // any soft key, so no highlight is armed or consumed by it.
+        event
+            .to_guest_paste()
+            .map_or_else(Vec::new, |text| vec![Action::SendPaste(text)])
     }
 
     fn on_pointer_release(&mut self, position: tuinix::Position) -> Vec<Action> {
