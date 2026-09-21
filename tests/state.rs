@@ -200,6 +200,52 @@ fn ctrl_tapped_twice_is_held_for_every_key() {
 }
 
 #[test]
+fn oneshot_ctrl_is_not_swallowed_by_a_key_that_ignores_it() {
+    let mut layout = test_layout();
+    layout.keys.push(key(tuke::layout::KeyCode::Enter, 9, 0));
+    layout
+        .keys
+        .push(key(tuke::layout::KeyCode::Char('d'), 12, 0));
+    let mut state = tuke::state::State::new(layout, test_size());
+
+    // Tap Ctrl, then Enter: Enter cannot carry Ctrl, so it is sent plain and
+    // the one-shot Ctrl is used up here rather than leaking to the next key.
+    press(&mut state, 0, 0);
+    let enter = press(&mut state, 9, 0);
+    let next = press(&mut state, 12, 0);
+
+    let enter_key = sent_key(&enter).expect("Enter sends one key event");
+    assert_eq!(enter_key.code, termnix::KeyCode::Enter);
+    assert_eq!(enter_key.modifiers, termnix::Modifiers::new());
+
+    let next_key = sent_key(&next).expect("the key after Enter sends one key event");
+    assert_eq!(next_key.code, termnix::KeyCode::Char('d'));
+    assert_eq!(
+        next_key.modifiers,
+        termnix::Modifiers::new(),
+        "Ctrl leaked past the key it was armed for"
+    );
+}
+
+#[test]
+fn oneshot_ctrl_arms_the_next_key_only_after_ignored_keys() {
+    let mut layout = test_layout();
+    layout.keys.push(key(tuke::layout::KeyCode::Tab, 9, 0));
+    layout
+        .keys
+        .push(key(tuke::layout::KeyCode::Backspace, 12, 0));
+    let mut state = tuke::state::State::new(layout, test_size());
+
+    // Even after two keys that cannot carry Ctrl, no Ctrl is delivered later:
+    // each one-shot is consumed by the key it was armed for.
+    press(&mut state, 0, 0);
+    press(&mut state, 9, 0);
+    let after_tab = press(&mut state, 3, 0);
+    let key = sent_key(&after_tab).expect("a normal key still sends one key event");
+    assert_eq!(key.modifiers, termnix::Modifiers::new());
+}
+
+#[test]
 fn shift_selects_the_shift_label() {
     let mut layout = test_layout();
     layout.keys.push(key(tuke::layout::KeyCode::Shift, 9, 0));
