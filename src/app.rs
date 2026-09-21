@@ -116,6 +116,13 @@ impl App {
                 -1
             };
 
+            if trace_enabled() {
+                eprintln!(
+                    "[tuke] poll waiting interests={:#x} timeout={timeout}",
+                    fds[2].events
+                );
+            }
+
             let n = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
             if n < 0 {
                 let error = std::io::Error::last_os_error();
@@ -123,6 +130,13 @@ impl App {
                     continue;
                 }
                 return Err(error.into());
+            }
+
+            if trace_enabled() {
+                eprintln!(
+                    "[tuke] poll woke n={n} resize={:#x} stdin={:#x} session={:#x}",
+                    fds[0].revents, fds[1].revents, fds[2].revents
+                );
             }
 
             if fds[0].revents & libc::POLLIN != 0 {
@@ -188,8 +202,35 @@ impl App {
     }
 
     fn pump_session(&mut self) -> Result<()> {
-        while self.session.needs_pump() {
+        // The first pump is unconditional. `needs_pump` is false right after a
+        // `read` hit `WouldBlock`, so gating on it would skip the read
+        // entirely and leave the fd readable: `poll` would then return
+        // immediately, forever, without the child's output ever being read.
+        // Pumping once clears that flag and picks up what arrived; the drain
+        // below then finishes any work the budget left behind.
+        let mut pumps = 0u32;
+        loop {
             self.session.pump_io(termnix::PumpBudget::default())?;
+            pumps += 1;
+            if !self.session.needs_pump() {
+                break;
+            }
+            if pumps > 1000 {
+                eprintln!("[tuke] pump did not settle after {pumps} calls; breaking");
+                break;
+            }
+        }
+        if trace_enabled() {
+            let c = self.session.counters();
+            eprintln!(
+                "[tuke] pump calls={pumps} status={:?} revision={} read={} read_wb={} readsys={} interests={:?}",
+                self.session.status(),
+                self.session.terminal_state().revision(),
+                c.pty_bytes_read,
+                c.read_would_block,
+                c.read_syscalls,
+                self.session.interests(),
+            );
         }
         // Reap the child if it has exited.
         if self.session.try_wait()?.is_some() {
