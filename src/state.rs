@@ -20,7 +20,6 @@ pub struct State {
     offset: tuinix::Position,
     /// The grid area the child's PTY should be sized to.
     grid_size: tuinix::Size,
-    exit: bool,
 }
 
 impl State {
@@ -37,15 +36,9 @@ impl State {
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
-            exit: false,
         };
         state.recompute_geometry();
         state
-    }
-
-    /// Whether the core has asked the application to quit.
-    pub fn should_exit(&self) -> bool {
-        self.exit
     }
 
     /// The keyboard's keys and their press states.
@@ -126,7 +119,7 @@ impl State {
         match event {
             Event::Resize { size } => self.on_resize(size),
             Event::PointerRelease { position } => self.on_pointer_release(position),
-            Event::Key { code, ctrl } => self.on_key(code, ctrl),
+            Event::Key { .. } => self.on_key(event),
         }
     }
 
@@ -139,14 +132,14 @@ impl State {
         vec![Action::ResizeSession(self.grid_size), Action::Redraw]
     }
 
-    fn on_key(&mut self, code: tuinix::KeyCode, ctrl: bool) -> Vec<Action> {
-        let quit = matches!(code, tuinix::KeyCode::Char('q'))
-            || (ctrl && matches!(code, tuinix::KeyCode::Char('c')));
-        if quit {
-            self.exit = true;
-            return vec![Action::Quit];
-        }
-        Vec::new()
+    fn on_key(&mut self, event: Event) -> Vec<Action> {
+        // Every host key belongs to the child: tuke reserves none of its own,
+        // so it has no quit key and nothing to filter. `q` reaches the child
+        // as `q`, and `C-c` as an interrupt, exactly as they would without
+        // tuke in the way.
+        event
+            .to_guest_key()
+            .map_or_else(Vec::new, |key| vec![Action::SendKey(key)])
     }
 
     fn on_pointer_release(&mut self, position: tuinix::Position) -> Vec<Action> {

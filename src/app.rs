@@ -31,6 +31,8 @@ pub struct App {
     terminal_size: tuinix::Size,
     /// The terminal revision at the last render, used to detect output.
     last_revision: u64,
+    /// Set once the child has been reaped; the loop ends after the turn that
+    /// notices it, so the child's last output is painted first.
     exit: bool,
 }
 
@@ -59,13 +61,15 @@ impl App {
         })
     }
 
-    /// Runs the poll loop until the child exits or the user quits.
+    /// Runs the poll loop until the child exits.
     ///
-    /// Each turn is the same three steps, in this order: flush every effect
-    /// the core has asked for and read back the child's response, repaint if
-    /// anything visible moved, then wait for something to happen next. Doing
-    /// the flush and the repaint *before* the wait is what keeps the first
-    /// screen from staying blank until an unrelated event wakes the wait.
+    /// The child's exit is the only thing that ends the loop: tuke reserves
+    /// no key of its own, so there is no quit key to watch. Each turn is the
+    /// same three steps, in this order: flush every effect the core has asked
+    /// for and read back the child's response, repaint if anything visible
+    /// moved, then wait for something to happen next. Doing the flush and the
+    /// repaint *before* the wait is what keeps the first screen from staying
+    /// blank until an unrelated event wakes the wait.
     pub fn run(mut self) -> Result<()> {
         // Whether the screen is out of date. It is driven from both sources of
         // visible change: the child's terminal revision, for the grid, and the
@@ -235,7 +239,9 @@ impl App {
                 self.session.interests(),
             );
         }
-        // Reap the child if it has exited.
+        // The child exiting is what ends tuke. The flag is set here rather
+        // than mid-turn, so the output this pump just read is rendered before
+        // the loop checks it.
         if self.session.try_wait()?.is_some() {
             self.exit = true;
         }
@@ -264,6 +270,7 @@ impl App {
             tuinix::Input::Key(key) => self.dispatch(Event::Key {
                 code: key.code,
                 ctrl: key.ctrl,
+                alt: key.alt,
             }),
             tuinix::Input::Mouse(mouse) => {
                 if mouse.kind != tuinix::MouseInputKind::LeftRelease {
@@ -307,10 +314,6 @@ impl App {
                     }
                 }
                 Action::Redraw => redraw = true,
-                Action::Quit => {
-                    self.exit = true;
-                    redraw = true;
-                }
             }
         }
         Ok(redraw)

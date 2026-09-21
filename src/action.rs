@@ -20,7 +20,4 @@ pub enum Action {
 
     /// Repaint the screen.
     Redraw,
-
-    /// Exit the application.
-    Quit,
 }
