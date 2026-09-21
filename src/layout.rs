@@ -1,12 +1,18 @@
+//! The software keyboard layout: JSONC parsing and the key/preview model.
+
 use std::path::Path;
 
+/// A software keyboard layout: the keys to draw and an optional send preview.
 #[derive(Debug)]
 pub struct Layout {
+    /// The keys, in the order the layout declares them.
     pub keys: Vec<Key>,
+    /// The send preview, when the layout declares one.
     pub preview: Option<Preview>,
 }
 
 impl Layout {
+    /// Loads a layout from a JSONC file.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
         crate::jsonc::load_file(path)
     }
@@ -80,10 +86,14 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
     }
 }
 
+/// One key the user sent, as recorded by the preview.
 #[derive(Debug, PartialEq, Eq)]
 struct SentKey {
+    /// The layout key code that was sent.
     code: KeyCode,
+    /// Whether Ctrl was applied.
     ctrl: bool,
+    /// Whether Alt was applied.
     alt: bool,
 }
 
@@ -93,13 +103,18 @@ impl SentKey {
     }
 }
 
+/// The send preview: a row that shows the keys most recently sent.
 #[derive(Debug)]
 pub struct Preview {
+    /// Where the preview is drawn, in layout coordinates.
     pub region: tuinix::Region,
+    /// The keys sent so far, in order; cleared when the display would change
+    /// shape (a visible run followed by an invisible one, or vice versa).
     history: Vec<SentKey>,
 }
 
 impl Preview {
+    /// Records a key sent to the child, updating the preview's history.
     pub fn on_key_sent(&mut self, code: KeyCode, ctrl: bool, alt: bool) {
         let sent_key = SentKey { code, ctrl, alt };
         if sent_key.is_visible() {
@@ -115,6 +130,7 @@ impl Preview {
         }
     }
 
+    /// Renders the preview into a frame the size of its region.
     pub fn to_frame(&self) -> tuinix::Frame {
         let mut frame = tuinix::Frame::new(self.region.size);
         let mut at = put_text(
@@ -175,10 +191,14 @@ impl Preview {
     }
 }
 
+/// One soft key: its label codes and where it sits in the layout.
 #[derive(Debug, Clone)]
 pub struct Key {
+    /// The code sent when the key is pressed without Shift.
     pub code: KeyCode,
+    /// The code sent when the key is pressed with Shift active.
     pub shift_code: KeyCode,
+    /// The key's rectangle, in layout coordinates.
     pub region: tuinix::Region,
 }
 
@@ -211,28 +231,49 @@ impl Key {
     }
 }
 
+/// A layout key code, in tmux-compatible notation.
+///
+/// The textual form ([`Display`](std::fmt::Display)) is what a layout
+/// declares: `BSpace`, `BTab`, `C-`, `M-`, `S-`, the arrow names, or a single
+/// printable character.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
+    /// A single printable character.
     Char(char),
+    /// The Shift modifier, held or one-shot.
     Shift,
+    /// The Ctrl modifier, held or one-shot.
     Ctrl,
+    /// The Alt modifier (called `M-` in a layout).
     Alt,
+    /// The Up arrow.
     Up,
+    /// The Down arrow.
     Down,
+    /// The Left arrow.
     Left,
+    /// The Right arrow.
     Right,
+    /// Enter.
     Enter,
+    /// Backspace (called `BSpace` in a layout).
     Backspace,
+    /// Delete.
     Delete,
+    /// Tab.
     Tab,
+    /// Shift+Tab (called `BTab` in a layout).
     BackTab,
 }
 
 impl KeyCode {
+    /// Whether this is a modifier key (`Shift`, `Ctrl`, or `Alt`), which holds
+    /// state rather than being sent on its own.
     pub fn is_modifier(self) -> bool {
         matches!(self, Self::Shift | Self::Ctrl | Self::Alt)
     }
 
+    /// Whether this key can carry Ctrl or Alt when it is sent.
     pub fn is_modifiable(self) -> bool {
         matches!(
             self,
@@ -240,10 +281,13 @@ impl KeyCode {
         )
     }
 
+    /// Whether this is a single-character key.
     pub fn is_char(self) -> bool {
         matches!(self, Self::Char(_))
     }
 
+    /// The code sent for this key when Shift is active and the layout names
+    /// no explicit `shift` code.
     pub fn default_shift_code(self) -> Self {
         match self {
             Self::Char(c) => Self::Char(c.to_ascii_uppercase()),
@@ -347,91 +391,35 @@ fn parse_size(value: nojson::RawJsonValue<'_, '_>) -> Result<tuinix::Size, nojso
     })
 }
 
+/// How a soft key is currently held, which drives its highlight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyPressState {
+    /// Idle: no modifier is pending for this key and it is not highlighted.
     Neutral,
+    /// A modifier is held down (armed), so the key highlights as active.
     Activated,
+    /// A modifier was tapped once and will apply to the next key only.
     OneshotActivated,
+    /// A normal (non-modifier) key that was just pressed.
     Pressed,
 }
 
+/// A soft key together with its current press state.
 #[derive(Debug, Clone)]
 pub struct KeyState {
+    /// The key's static description from the layout.
     pub key: Key,
+    /// How the key is currently held.
     pub press: KeyPressState,
 }
 
 impl KeyState {
+    /// Creates a key state in the [`KeyPressState::Neutral`] state.
     pub fn new(key: Key) -> Self {
         Self {
             key,
             press: KeyPressState::Neutral,
         }
-    }
-
-    pub fn to_frame(&self, shift: bool) -> tuinix::Frame {
-        let mut frame = tuinix::Frame::new(self.key.region.size);
-
-        let width = self.key.region.size.cols;
-        let height = self.key.region.size.rows;
-
-        let style = match self.press {
-            KeyPressState::Neutral => tuinix::Style::new(),
-            KeyPressState::Pressed => tuinix::Style::new().bold(),
-            KeyPressState::Activated => tuinix::Style::new().italic().reverse(),
-            KeyPressState::OneshotActivated => tuinix::Style::new().italic(),
-        };
-
-        // Top border
-        let mut at = put_text(
-            &mut frame,
-            tuinix::Position::ORIGIN,
-            &format!("┌{}┐", "─".repeat(width.saturating_sub(2))),
-            style,
-        );
-
-        let inner = width.saturating_sub(2);
-
-        // Middle rows with left/right borders
-        for row in 1..height.saturating_sub(1) {
-            at = put_text(&mut frame, at, "│", style);
-            if row == (height - 1) / 2 {
-                let label = if shift {
-                    self.key.shift_code.to_string()
-                } else {
-                    self.key.code.to_string()
-                };
-                let padding_left = inner.saturating_sub(label.len()) / 2;
-                let padding_right = inner.saturating_sub(padding_left + label.len());
-                at = put_text(
-                    &mut frame,
-                    at,
-                    &format!(
-                        "{}{label}{}",
-                        " ".repeat(padding_left),
-                        " ".repeat(padding_right)
-                    ),
-                    style,
-                );
-            } else {
-                at = put_text(&mut frame, at, &" ".repeat(inner), style);
-            }
-            at = put_text(&mut frame, at, "│", style);
-            at = tuinix::Position {
-                row: at.row + 1,
-                col: 0,
-            };
-        }
-
-        // Bottom border
-        put_text(
-            &mut frame,
-            at,
-            &format!("└{}┘", "─".repeat(width.saturating_sub(2))),
-            style,
-        );
-
-        frame
     }
 }
 

@@ -1,3 +1,5 @@
+//! The crate's error type.
+
 use std::path::PathBuf;
 
 /// The crate-wide result type.
