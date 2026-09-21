@@ -18,3 +18,4 @@ termnix = "0.3"
 
 [dev-dependencies]
 noprop = "0.2"
+nojson = "0.3.15"
