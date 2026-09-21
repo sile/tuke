@@ -127,6 +127,10 @@ impl App {
                 );
             }
 
+            #[expect(
+                unsafe_code,
+                reason = "libc::poll is the only way to wait on the resize, input, and PTY fds at once"
+            )]
             let n = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
             if n < 0 {
                 let error = std::io::Error::last_os_error();
@@ -186,7 +190,7 @@ impl App {
     /// updating the recorded revision when it has.
     ///
     /// This covers the grid; the keyboard is covered by the core's own redraw
-    /// requests, which [`dispatch`](Self::dispatch) reports.
+    /// requests, which [`dispatch()`](Self::dispatch) reports.
     fn child_moved(&mut self) -> bool {
         let revision = self.session.terminal_state().revision();
         if revision == self.last_revision {

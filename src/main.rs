@@ -1,3 +1,7 @@
+//! The `tuke` binary: parse arguments and hand the terminal to the I/O edge.
+
+#![deny(unsafe_code)]
+
 mod app;
 
 use std::path::PathBuf;

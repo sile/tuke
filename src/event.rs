@@ -1,7 +1,5 @@
 //! Inputs the edge feeds into the Sans I/O core.
 
-use termnix::{KeyCode as GuestKeyCode, KeyEvent, Modifiers};
-
 /// An event delivered to [`State::update`](crate::state::State::update).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
@@ -58,12 +56,15 @@ impl Event {
     /// Every key maps; tuke holds back none of them.
     ///
     /// [`tuinix::KeyCode::BackTab`] has no guest counterpart: the guest spells
-    /// it as [`GuestKeyCode::Tab`] with Shift held, so that is what it becomes.
-    pub fn to_guest_key(self) -> Option<KeyEvent> {
+    /// it as [`termnix::KeyCode::Tab`] with Shift held, so that is what it
+    /// becomes.
+    pub fn to_guest_key(self) -> Option<termnix::KeyEvent> {
+        use termnix::KeyCode as GuestKeyCode;
+
         let Self::Key { code, ctrl, alt } = self else {
             return None;
         };
-        let mut modifiers = Modifiers::new();
+        let mut modifiers = termnix::Modifiers::new();
         if ctrl {
             modifiers = modifiers.ctrl();
         }
@@ -92,7 +93,7 @@ impl Event {
             tuinix::KeyCode::PageDown => GuestKeyCode::PageDown,
             tuinix::KeyCode::F(n) => GuestKeyCode::Function(n),
         };
-        Some(KeyEvent { code, modifiers })
+        Some(termnix::KeyEvent { code, modifiers })
     }
 
     /// Converts a host paste into the pasted text to forward.

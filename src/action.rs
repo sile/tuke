@@ -4,13 +4,11 @@
 //! returns these without performing any I/O, and the edge (the `app` module in
 //! the binary) carries them out against the real PTY and terminal.
 
-use termnix::KeyEvent;
-
 /// A side effect requested by the core.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// Send a key to the child's PTY.
-    SendKey(KeyEvent),
+    SendKey(termnix::KeyEvent),
 
     /// Send bracketed-paste text to the child's PTY.
     ///
