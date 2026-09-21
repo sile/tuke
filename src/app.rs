@@ -66,8 +66,17 @@ impl App {
         while !self.exit {
             // Drain everything the session can do without a new readiness
             // edge before blocking, so an edge-triggered poll cannot miss
-            // work that produces no further edge.
+            // work that produces no further edge. Rendering here, before the
+            // wait, is what paints output the child produced while the loop
+            // was last busy: without it the first screen stays blank until an
+            // unrelated event (a key press) wakes the loop again.
             self.pump_session()?;
+            if self.refresh_from_session() {
+                self.render()?;
+            }
+            if self.exit {
+                break;
+            }
 
             let Some(session_fd) = self.session.fd() else {
                 break;
@@ -135,9 +144,7 @@ impl App {
 
             // The session may have produced output or become writable.
             self.pump_session()?;
-            let revision = self.session.terminal_state().revision();
-            if revision != self.last_revision {
-                self.last_revision = revision;
+            if self.refresh_from_session() {
                 dirty = true;
             }
 
@@ -147,6 +154,17 @@ impl App {
         }
 
         Ok(())
+    }
+
+    /// Records the child terminal's current revision and reports whether it
+    /// changed since the last render.
+    fn refresh_from_session(&mut self) -> bool {
+        let revision = self.session.terminal_state().revision();
+        if revision == self.last_revision {
+            return false;
+        }
+        self.last_revision = revision;
+        true
     }
 
     fn session_interests(&self) -> libc::c_short {
