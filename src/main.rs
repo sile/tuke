@@ -41,7 +41,7 @@ fn main() -> noargs::Result<()> {
     }
 
     let layout = layout_file_path
-        .map(|path| tuke::layout::Layout::load_from_file(path))
+        .map(tuke::layout::Layout::load_from_file)
         .transpose()?
         .unwrap_or_default();
     let app = tuke::app::App::new(layout, options)?;

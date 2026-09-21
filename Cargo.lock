@@ -10,27 +10,21 @@ checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 
 [[package]]
 name = "noargs"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e5dc223a8d69eaeb19c31218a69a55112fe79965764430f092532aed848f1b8"
+checksum = "af5b13e43c3b5f1b4f2db60f5f03c803a04f5dd0a6fd44c83b5517ca1ec42ac4"
 
 [[package]]
 name = "nojson"
-version = "0.3.6"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20f9facf70a088279ffcf06cb5f897660ebd32621629b51872f4d4b25c77e494"
-
-[[package]]
-name = "orfail"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d047c6764bd82c0195d8d392c043a37e9d4a152379e1dd88f7e63b19eb7c1d6"
+checksum = "1d7473c448719d0214889f9ff75d4cdb6cf96582e4a9058e6eb2a52dc8d342ae"
 
 [[package]]
 name = "tuinix"
-version = "0.3.2"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67068facab6ee2aff2c66c3249d064c996435cf8f1a8e61db8675571ca4c01ff"
+checksum = "cb1b08ce720a23a8b0cbdb3a5972ae37e59d0fb37ba8e721c58fbb8140449cf7"
 dependencies = [
  "libc",
 ]
@@ -39,8 +33,8 @@ dependencies = [
 name = "tuke"
 version = "0.0.1"
 dependencies = [
+ "libc",
  "noargs",
  "nojson",
- "orfail",
  "tuinix",
 ]

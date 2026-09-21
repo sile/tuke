@@ -1,7 +1,4 @@
-use std::fmt::Write;
 use std::path::Path;
-
-use orfail::OrFail;
 
 #[derive(Debug)]
 pub struct Layout {
@@ -10,8 +7,8 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> orfail::Result<Self> {
-        crate::jsonc::load_file(path).or_fail()
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
+        crate::jsonc::load_file(path)
     }
 }
 
@@ -29,48 +26,51 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
         let mut keys = Vec::new();
         let mut preview = None;
         let mut next_newline_rows = 1;
-        let mut default_size = tuinix::TerminalSize { rows: 3, cols: 3 };
-        let mut position = tuinix::TerminalPosition::ZERO;
+        let mut default_size = tuinix::Size { rows: 3, cols: 3 };
+        let mut position = tuinix::Position::ORIGIN;
         let mut base_col = 0;
         for key_value in value.to_array()? {
-            if let Some(blank_count) = key_value.to_member("blank")?.get() {
+            if let Some(blank_count) = key_value.to_member("blank")?.optional() {
                 let count: std::num::NonZeroUsize = blank_count.try_into()?;
                 position.col += count.get();
                 continue;
             }
-            if let Some(newline_count) = key_value.to_member("newline")?.get() {
+            if let Some(newline_count) = key_value.to_member("newline")?.optional() {
                 let count: std::num::NonZeroUsize = newline_count.try_into()?;
                 position.col = base_col;
                 position.row += next_newline_rows - 1 + count.get();
                 next_newline_rows = 1;
                 continue;
             }
-            if let Some(position_value) = key_value.to_member("base_position")?.get() {
+            if let Some(position_value) = key_value.to_member("base_position")?.optional() {
                 position.row = position_value.to_member("row")?.required()?.try_into()?;
                 position.col = position_value.to_member("column")?.required()?.try_into()?;
                 base_col = position.col;
                 next_newline_rows = 1;
                 continue;
             }
-            if let Some(default_size_value) = key_value.to_member("default_size")?.get() {
+            if let Some(default_size_value) = key_value.to_member("default_size")?.optional() {
                 default_size = parse_size(default_size_value)?;
                 continue;
             }
-            if let Some(preview_value) = key_value.to_member("preview")?.get() {
+            if let Some(preview_value) = key_value.to_member("preview")?.optional() {
                 let width = preview_value.to_member("width")?.required()?.try_into()?;
-                let size = tuinix::TerminalSize::rows_cols(1, width);
-                let region = tuinix::TerminalRegion { position, size };
+                let size = tuinix::Size {
+                    rows: 1,
+                    cols: width,
+                };
+                let region = tuinix::Region { position, size };
                 preview = Some(Preview {
                     region,
                     history: Vec::new(),
                 });
-                position = region.top_right();
+                position = region_top_right(region);
                 continue;
             }
 
             let key = Key::parse(key_value, position, default_size)?;
 
-            position = key.region.top_right();
+            position = region_top_right(key.region);
             position.col += 1;
             next_newline_rows = next_newline_rows.max(key.region.size.rows);
 
@@ -95,7 +95,7 @@ impl SentKey {
 
 #[derive(Debug)]
 pub struct Preview {
-    pub region: tuinix::TerminalRegion,
+    pub region: tuinix::Region,
     history: Vec<SentKey>,
 }
 
@@ -115,44 +115,63 @@ impl Preview {
         }
     }
 
-    pub fn to_frame(&self) -> orfail::Result<tuinix::TerminalFrame> {
-        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.region.size);
-
-        write!(frame, "> ").or_fail()?;
+    pub fn to_frame(&self) -> tuinix::Frame {
+        let mut frame = tuinix::Frame::new(self.region.size);
+        let mut at = put_text(
+            &mut frame,
+            tuinix::Position::ORIGIN,
+            "> ",
+            tuinix::Style::new(),
+        );
 
         if let Some(k) = self.history.last()
             && !k.is_visible()
         {
-            let style = tuinix::TerminalStyle::new().italic().bold();
-            write!(frame, "{style}").or_fail()?;
+            let style = tuinix::Style::new().italic().bold();
 
+            let mut label = String::new();
             if k.ctrl {
-                write!(frame, "C-").or_fail()?
-            };
+                label.push_str("C-");
+            }
             if k.alt {
-                write!(frame, "M-").or_fail()?
-            };
-            write!(frame, "{}", k.code).or_fail()?;
+                label.push_str("M-");
+            }
+            label.push_str(&k.code.to_string());
 
             let repeat_count = self.history.len();
             if repeat_count > 1 {
-                write!(frame, " (x{repeat_count})").or_fail()?;
+                label.push_str(&format!(" (x{repeat_count})"));
             }
-        } else if !self.history.is_empty() {
-            let style = tuinix::TerminalStyle::new().bold();
-            write!(frame, "{style}").or_fail()?;
 
+            at = put_text(&mut frame, at, &label, style);
+        } else if !self.history.is_empty() {
+            let style = tuinix::Style::new().bold();
             for k in &self.history {
-                write!(frame, "{}", k.code).or_fail()?;
+                at = put_text(&mut frame, at, &k.code.to_string(), style);
             }
-            write!(frame, "{} ", tuinix::TerminalStyle::new().reverse()).or_fail()?;
+            at = put_text(&mut frame, at, " ", style.reverse());
         }
 
-        let padding = " ".repeat(self.region.size.cols.saturating_sub(frame.cursor().col + 1));
-        let reset = tuinix::TerminalStyle::RESET;
-        write!(frame, "{reset}{padding}<").or_fail()?;
+        // Fill the rest of the row with blanks so the counter sits at the right
+        // edge, marked by the trailing `>`.
+        let padding = self.region.size.cols.saturating_sub(at.col + 1);
+        put_text(
+            &mut frame,
+            at,
+            &" ".repeat(padding + 1),
+            tuinix::Style::RESET,
+        );
+        put_text(
+            &mut frame,
+            tuinix::Position {
+                row: 0,
+                col: self.region.size.cols.saturating_sub(1),
+            },
+            ">",
+            tuinix::Style::RESET,
+        );
 
-        Ok(frame)
+        frame
     }
 }
 
@@ -160,18 +179,18 @@ impl Preview {
 pub struct Key {
     pub code: KeyCode,
     pub shift_code: KeyCode,
-    pub region: tuinix::TerminalRegion,
+    pub region: tuinix::Region,
 }
 
 impl Key {
     fn parse(
         value: nojson::RawJsonValue<'_, '_>,
-        position: tuinix::TerminalPosition,
-        default_size: tuinix::TerminalSize,
+        position: tuinix::Position,
+        default_size: tuinix::Size,
     ) -> Result<Self, nojson::JsonParseError> {
         let code: KeyCode = value.to_member("key")?.required()?.try_into()?;
 
-        let shift_code = if let Some(shift) = value.to_member("shift")?.get() {
+        let shift_code = if let Some(shift) = value.to_member("shift")?.optional() {
             shift.try_into()?
         } else {
             code.default_shift_code()
@@ -182,7 +201,7 @@ impl Key {
             .map(parse_size)?
             .unwrap_or(default_size);
 
-        let region = tuinix::TerminalRegion { position, size };
+        let region = tuinix::Region { position, size };
 
         Ok(Self {
             code,
@@ -286,9 +305,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
     }
 }
 
-fn parse_size(
-    value: nojson::RawJsonValue<'_, '_>,
-) -> Result<tuinix::TerminalSize, nojson::JsonParseError> {
+fn parse_size(value: nojson::RawJsonValue<'_, '_>) -> Result<tuinix::Size, nojson::JsonParseError> {
     let width_value = value.to_member("width")?.required()?;
     let width = width_value.try_into()?;
     if width < 3 {
@@ -301,7 +318,7 @@ fn parse_size(
         return Err(height_value.invalid("height must be at least 3"));
     }
 
-    Ok(tuinix::TerminalSize {
+    Ok(tuinix::Size {
         rows: height,
         cols: width,
     })
@@ -329,63 +346,98 @@ impl KeyState {
         }
     }
 
-    pub fn to_frame(&self, shift: bool) -> orfail::Result<tuinix::TerminalFrame> {
-        let mut frame: tuinix::TerminalFrame = tuinix::TerminalFrame::new(self.key.region.size);
+    pub fn to_frame(&self, shift: bool) -> tuinix::Frame {
+        let mut frame = tuinix::Frame::new(self.key.region.size);
 
         let width = self.key.region.size.cols;
         let height = self.key.region.size.rows;
 
-        let style = tuinix::TerminalStyle::new();
         let style = match self.press {
-            KeyPressState::Neutral => style,
-            KeyPressState::Pressed => style.bold(),
-            KeyPressState::Activated => style.italic().reverse(),
-            KeyPressState::OneshotActivated => style.italic(),
+            KeyPressState::Neutral => tuinix::Style::new(),
+            KeyPressState::Pressed => tuinix::Style::new().bold(),
+            KeyPressState::Activated => tuinix::Style::new().italic().reverse(),
+            KeyPressState::OneshotActivated => tuinix::Style::new().italic(),
         };
-        let reset_style = tuinix::TerminalStyle::RESET;
 
         // Top border
-        write!(frame, "{}", style).or_fail()?;
-        write!(frame, "┌").or_fail()?;
-        for _ in 1..width - 1 {
-            write!(frame, "─").or_fail()?;
-        }
-        writeln!(frame, "┐").or_fail()?;
+        let mut at = put_text(
+            &mut frame,
+            tuinix::Position::ORIGIN,
+            &format!("┌{}┐", "─".repeat(width.saturating_sub(2))),
+            style,
+        );
+
+        let inner = width.saturating_sub(2);
 
         // Middle rows with left/right borders
-        for row in 1..height - 1 {
-            write!(frame, "│").or_fail()?;
+        for row in 1..height.saturating_sub(1) {
+            at = put_text(&mut frame, at, "│", style);
             if row == (height - 1) / 2 {
                 let label = if shift {
                     self.key.shift_code.to_string()
                 } else {
                     self.key.code.to_string()
                 };
-                let padding_left = (width - 2 - label.len()) / 2;
-                let padding_right = width - 2 - padding_left - label.len();
-                write!(
-                    frame,
-                    "{:padding_left$}{label}{:padding_right$}",
-                    "",
-                    "",
-                    padding_left = padding_left,
-                    padding_right = padding_right,
-                )
-                .or_fail()?;
+                let padding_left = inner.saturating_sub(label.len()) / 2;
+                let padding_right = inner.saturating_sub(padding_left + label.len());
+                at = put_text(
+                    &mut frame,
+                    at,
+                    &format!(
+                        "{}{label}{}",
+                        " ".repeat(padding_left),
+                        " ".repeat(padding_right)
+                    ),
+                    style,
+                );
             } else {
-                write!(frame, "{:width$}", "", width = width - 2).or_fail()?;
+                at = put_text(&mut frame, at, &" ".repeat(inner), style);
             }
-            writeln!(frame, "│").or_fail()?;
+            at = put_text(&mut frame, at, "│", style);
+            at = tuinix::Position {
+                row: at.row + 1,
+                col: 0,
+            };
         }
 
         // Bottom border
-        write!(frame, "└").or_fail()?;
-        for _ in 1..width - 1 {
-            write!(frame, "─").or_fail()?;
-        }
-        writeln!(frame, "┘").or_fail()?;
-        write!(frame, "{}", reset_style).or_fail()?;
+        put_text(
+            &mut frame,
+            at,
+            &format!("└{}┘", "─".repeat(width.saturating_sub(2))),
+            style,
+        );
 
-        Ok(frame)
+        frame
     }
+}
+
+fn region_top_right(region: tuinix::Region) -> tuinix::Position {
+    tuinix::Position {
+        row: region.position.row,
+        col: region.position.col + region.size.cols,
+    }
+}
+
+/// Writes `text` into `frame` starting at `at`, advancing one column per
+/// character, and returns the position just past the last written character.
+///
+/// A newline moves to the start of the next row, mirroring the `write!`-based
+/// drawing this replaced.
+fn put_text(
+    frame: &mut tuinix::Frame,
+    at: tuinix::Position,
+    text: &str,
+    style: tuinix::Style,
+) -> tuinix::Position {
+    let mut at = at;
+    for c in text.chars() {
+        if c == '\n' {
+            at = at.next_line();
+            continue;
+        }
+        let ch = tuinix::Char::new(c, 1, style).expect("not a control character");
+        at = frame.put_char(at, ch);
+    }
+    at
 }
