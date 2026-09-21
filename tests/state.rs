@@ -259,38 +259,76 @@ fn shift_selects_the_shift_label() {
     assert_eq!(key.code, termnix::KeyCode::Char('B'));
 }
 
+/// The host key event a test sends, with no modifiers unless given.
+fn host_key(code: tuinix::KeyCode, ctrl: bool, alt: bool) -> tuke::event::Event {
+    tuke::event::Event::Key { code, ctrl, alt }
+}
+
 #[test]
-fn quit_keys_exit_the_core() {
-    for event in [
-        tuke::event::Event::Key {
-            code: tuinix::KeyCode::Char('q'),
-            ctrl: false,
-        },
-        tuke::event::Event::Key {
-            code: tuinix::KeyCode::Char('c'),
-            ctrl: true,
-        },
-    ] {
+fn every_host_key_is_forwarded_to_the_child() {
+    // tuke reserves no key of its own, so there is no key it can swallow: even
+    // `q` and `C-c` reach the child.
+    let cases = [
+        (tuinix::KeyCode::Char('q'), false, false),
+        (tuinix::KeyCode::Char('c'), true, false),
+        (tuinix::KeyCode::Char('a'), false, false),
+        (tuinix::KeyCode::Enter, false, false),
+        (tuinix::KeyCode::Escape, false, true),
+        (tuinix::KeyCode::F(5), false, false),
+    ];
+    for (code, ctrl, alt) in cases {
         let mut state = tuke::state::State::new(test_layout(), test_size());
 
-        let actions = state.update(event);
+        let actions = state.update(host_key(code, ctrl, alt));
 
-        assert_eq!(actions, vec![tuke::action::Action::Quit]);
-        assert!(state.should_exit());
+        assert_eq!(actions.len(), 1, "one key event for {code:?}");
+        let tuke::action::Action::SendKey(key) = &actions[0] else {
+            panic!("expected a SendKey for {code:?}, got {actions:?}");
+        };
+        assert_eq!(key.modifiers.ctrl, ctrl, "ctrl for {code:?}");
+        assert_eq!(key.modifiers.alt, alt, "alt for {code:?}");
     }
 }
 
 #[test]
-fn other_host_keys_do_nothing() {
-    let mut state = tuke::state::State::new(test_layout(), test_size());
+fn host_key_codes_map_onto_the_guest_ones() {
+    // A spurious modifier would change the byte the child receives, so the
+    // mapping is checked key by key rather than only for the ones with names.
+    let cases = [
+        (tuinix::KeyCode::Char('x'), termnix::KeyCode::Char('x')),
+        (tuinix::KeyCode::Enter, termnix::KeyCode::Enter),
+        (tuinix::KeyCode::Escape, termnix::KeyCode::Escape),
+        (tuinix::KeyCode::Backspace, termnix::KeyCode::Backspace),
+        (tuinix::KeyCode::Tab, termnix::KeyCode::Tab),
+        (tuinix::KeyCode::Delete, termnix::KeyCode::Delete),
+        (tuinix::KeyCode::Insert, termnix::KeyCode::Insert),
+        (tuinix::KeyCode::Up, termnix::KeyCode::Up),
+        (tuinix::KeyCode::Down, termnix::KeyCode::Down),
+        (tuinix::KeyCode::Left, termnix::KeyCode::Left),
+        (tuinix::KeyCode::Right, termnix::KeyCode::Right),
+        (tuinix::KeyCode::Home, termnix::KeyCode::Home),
+        (tuinix::KeyCode::End, termnix::KeyCode::End),
+        (tuinix::KeyCode::PageUp, termnix::KeyCode::PageUp),
+        (tuinix::KeyCode::PageDown, termnix::KeyCode::PageDown),
+        (tuinix::KeyCode::F(3), termnix::KeyCode::Function(3)),
+    ];
+    for (host, guest) in cases {
+        let mapped = host_key(host, false, false)
+            .to_guest_key()
+            .unwrap_or_else(|| panic!("no mapping for {host:?}"));
+        assert_eq!(mapped.code, guest, "code for {host:?}");
+        assert!(!mapped.modifiers.shift, "shift for {host:?}");
+    }
+}
 
-    let actions = state.update(tuke::event::Event::Key {
-        code: tuinix::KeyCode::Char('a'),
-        ctrl: false,
-    });
+#[test]
+fn back_tab_becomes_tab_with_shift() {
+    let mapped = host_key(tuinix::KeyCode::BackTab, false, false)
+        .to_guest_key()
+        .expect("BackTab maps");
 
-    assert!(actions.is_empty());
-    assert!(!state.should_exit());
+    assert_eq!(mapped.code, termnix::KeyCode::Tab);
+    assert!(mapped.modifiers.shift);
 }
 
 #[test]
