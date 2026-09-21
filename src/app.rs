@@ -210,10 +210,17 @@ impl App {
     /// Runs the core transition and carries out its actions.
     fn dispatch(&mut self, event: Event) -> Result<bool> {
         let actions = self.state.update(event);
+        if trace_enabled() {
+            eprintln!("[tuke] event={event:?} -> actions={actions:?}");
+        }
         let mut dirty = false;
         for action in actions {
             match action {
                 Action::SendKey(key) => {
+                    if trace_enabled() {
+                        let bytes = self.session.input_byte_len(termnix::Input::Key(key));
+                        eprintln!("[tuke] send key={key:?} bytes={bytes}");
+                    }
                     self.session.enqueue_input(termnix::Input::Key(key))?;
                     self.pump_session()?;
                 }
@@ -247,6 +254,12 @@ impl App {
         self.prev_frame = Some(frame);
         Ok(())
     }
+}
+
+/// Whether `TUKE_TRACE` is set to a non-empty value, enabling the debug trace
+/// on stderr of every dispatched event and sent key.
+fn trace_enabled() -> bool {
+    std::env::var_os("TUKE_TRACE").is_some_and(|value| !value.is_empty())
 }
 
 /// Converts a timeout to the millisecond value `libc::poll` expects.
