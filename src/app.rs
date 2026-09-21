@@ -166,10 +166,13 @@ impl App {
             // the session's write buffer has not reached the child, and the
             // wait below must not block on a child that was never given the
             // input it is waiting for.
-            if self.session.needs_pump() {
-                self.pump_session()?;
-                dirty |= self.child_moved();
-            }
+            //
+            // This is unconditional for the same reason the top of the loop
+            // is: `needs_pump()` is false after a `WouldBlock`, and only
+            // `pump_io` clears that, so gating on it here could leave a queued
+            // key unwritten across the wait.
+            self.pump_session()?;
+            dirty |= self.child_moved();
         }
 
         Ok(())
