@@ -60,19 +60,26 @@ impl App {
     }
 
     /// Runs the poll loop until the child exits or the user quits.
+    ///
+    /// Each turn is the same three steps, in this order: flush every effect
+    /// the core has asked for and read back the child's response, repaint if
+    /// anything visible moved, then wait for something to happen next. Doing
+    /// the flush and the repaint *before* the wait is what keeps the first
+    /// screen from staying blank until an unrelated event wakes the wait.
     pub fn run(mut self) -> Result<()> {
-        self.render()?;
+        // Whether the screen is out of date. It is driven from both sources of
+        // visible change: the child's terminal revision, for the grid, and the
+        // core's own redraw requests, for the keyboard's highlights.
+        let mut dirty = true;
 
         while !self.exit {
-            // Drain everything the session can do without a new readiness
-            // edge before blocking, so an edge-triggered poll cannot miss
-            // work that produces no further edge. Rendering here, before the
-            // wait, is what paints output the child produced while the loop
-            // was last busy: without it the first screen stays blank until an
-            // unrelated event (a key press) wakes the loop again.
+            // Flush the outstanding effects and read back whatever the child
+            // wrote in response, so the repaint below sees it.
             self.pump_session()?;
-            if self.refresh_from_session() {
+            dirty |= self.child_moved();
+            if dirty {
                 self.render()?;
+                dirty = false;
             }
             if self.exit {
                 break;
@@ -101,7 +108,7 @@ impl App {
             ];
 
             // Wait only briefly while a lone `ESC` byte is held, so it is
-            // reported as the Escape key promptly; otherwise block until an
+            // reported as the Escape key promptly; otherwise block until a
             // fd is ready.
             let timeout = if self.input.has_uncommitted_escape() {
                 timeout_to_millis(ESCAPE_TIMEOUT)
@@ -117,8 +124,6 @@ impl App {
                 }
                 return Err(error.into());
             }
-
-            let mut dirty = false;
 
             if fds[0].revents & libc::POLLIN != 0 {
                 self.driver.handle_resize_signal()?;
@@ -142,23 +147,26 @@ impl App {
                 dirty |= self.handle_input(input)?;
             }
 
-            // The session may have produced output or become writable.
-            self.pump_session()?;
-            if self.refresh_from_session() {
-                dirty = true;
-            }
-
-            if dirty {
-                self.render()?;
+            // Write anything the core just asked for now, rather than leaving
+            // it queued for the top of the next turn. A key that is still in
+            // the session's write buffer has not reached the child, and the
+            // wait below must not block on a child that was never given the
+            // input it is waiting for.
+            if self.session.needs_pump() {
+                self.pump_session()?;
+                dirty |= self.child_moved();
             }
         }
 
         Ok(())
     }
 
-    /// Records the child terminal's current revision and reports whether it
-    /// changed since the last render.
-    fn refresh_from_session(&mut self) -> bool {
+    /// Reports whether the child terminal has moved since the last repaint,
+    /// updating the recorded revision when it has.
+    ///
+    /// This covers the grid; the keyboard is covered by the core's own redraw
+    /// requests, which [`dispatch`](Self::dispatch) reports.
+    fn child_moved(&mut self) -> bool {
         let revision = self.session.terminal_state().revision();
         if revision == self.last_revision {
             return false;
@@ -206,7 +214,7 @@ impl App {
 
     /// Translates one host input event into a core event and dispatches it.
     ///
-    /// Returns whether the screen needs repainting.
+    /// Returns whether the core asked for a repaint of its keyboard.
     fn handle_input(&mut self, input: tuinix::Input) -> Result<bool> {
         match input {
             tuinix::Input::Key(key) => self.dispatch(Event::Key {
@@ -225,13 +233,18 @@ impl App {
         }
     }
 
-    /// Runs the core transition and carries out its actions.
+    /// Runs the core transition and carries out its actions, returning whether
+    /// the core asked for a repaint.
+    ///
+    /// The child's output this dispatch provokes is not reported here: the
+    /// caller picks it up from the child terminal's revision, which it checks
+    /// alongside this signal.
     fn dispatch(&mut self, event: Event) -> Result<bool> {
         let actions = self.state.update(event);
         if trace_enabled() {
             eprintln!("[tuke] event={event:?} -> actions={actions:?}");
         }
-        let mut dirty = false;
+        let mut redraw = false;
         for action in actions {
             match action {
                 Action::SendKey(key) => {
@@ -240,26 +253,23 @@ impl App {
                         eprintln!("[tuke] send key={key:?} bytes={bytes}");
                     }
                     self.session.enqueue_input(termnix::Input::Key(key))?;
-                    self.pump_session()?;
                 }
                 Action::SendBytes(bytes) => {
                     self.session.enqueue_input(termnix::Input::Raw(&bytes))?;
-                    self.pump_session()?;
                 }
                 Action::ResizeSession(size) => {
                     if let Some(size) = geometry::to_termnix_size(size) {
                         self.session.resize(size)?;
-                        self.pump_session()?;
                     }
                 }
-                Action::Redraw => dirty = true,
+                Action::Redraw => redraw = true,
                 Action::Quit => {
                     self.exit = true;
-                    dirty = true;
+                    redraw = true;
                 }
             }
         }
-        Ok(dirty)
+        Ok(redraw)
     }
 
     fn render(&mut self) -> Result<()> {
