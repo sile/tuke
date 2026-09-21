@@ -150,10 +150,16 @@ impl State {
     }
 
     fn on_pointer_release(&mut self, position: tuinix::Position) -> Vec<Action> {
-        let local = tuinix::Position {
-            row: position.row.saturating_sub(self.offset.row),
-            col: position.col.saturating_sub(self.offset.col),
+        // A release above or left of the keyboard is outside it entirely.
+        // Saturating subtraction would fold such a point onto row or column 0
+        // and hit a key that is not under the pointer.
+        let (Some(row), Some(col)) = (
+            position.row.checked_sub(self.offset.row),
+            position.col.checked_sub(self.offset.col),
+        ) else {
+            return Vec::new();
         };
+        let local = tuinix::Position { row, col };
 
         let Some(index) = self
             .keys
