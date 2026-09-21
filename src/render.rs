@@ -138,6 +138,13 @@ fn termnix_color(color: termnix::Color) -> Option<tuinix::Color> {
 ///
 /// `shift` selects the shifted label when the on-screen keyboard has Shift
 /// active.
+///
+/// The box needs at least three rows and three columns: two borders on each
+/// axis plus one inner row for the label. A key smaller than that is drawn as
+/// a plain labelled block instead, so a cramped layout degrades rather than
+/// hiding the label or overwriting its own border. The label is centred in the
+/// middle inner row, cropping it rather than overflowing when the key is too
+/// narrow.
 fn key_frame(key_state: &KeyState, shift: bool) -> tuinix::Frame {
     let mut frame = tuinix::Frame::new(key_state.key.region.size);
 
@@ -151,53 +158,86 @@ fn key_frame(key_state: &KeyState, shift: bool) -> tuinix::Frame {
         crate::layout::KeyPressState::OneshotActivated => tuinix::Style::new().italic(),
     };
 
-    let mut at = put_text(
-        &mut frame,
-        tuinix::Position::ORIGIN,
-        &format!("┌{}┐", "─".repeat(width.saturating_sub(2))),
-        style,
-    );
+    let label = if shift {
+        key_state.key.shift_code.to_string()
+    } else {
+        key_state.key.code.to_string()
+    };
 
-    let inner = width.saturating_sub(2);
-
-    for row in 1..height.saturating_sub(1) {
-        at = put_text(&mut frame, at, "│", style);
-        if row == (height - 1) / 2 {
-            let label = if shift {
-                key_state.key.shift_code.to_string()
-            } else {
-                key_state.key.code.to_string()
-            };
-            let padding_left = inner.saturating_sub(label.len()) / 2;
-            let padding_right = inner.saturating_sub(padding_left + label.len());
-            at = put_text(
-                &mut frame,
-                at,
-                &format!(
-                    "{}{label}{}",
-                    " ".repeat(padding_left),
-                    " ".repeat(padding_right)
-                ),
-                style,
-            );
-        } else {
-            at = put_text(&mut frame, at, &" ".repeat(inner), style);
-        }
-        at = put_text(&mut frame, at, "│", style);
-        at = tuinix::Position {
-            row: at.row + 1,
-            col: 0,
-        };
+    // A box needs a column for each side border and an inner row for the
+    // label, besides the top and bottom borders. Below that the label is all
+    // that fits, so the key degrades to a filled block rather than to a box
+    // that hides its label.
+    let inner_cols = width.saturating_sub(2);
+    let inner_rows = height.saturating_sub(2);
+    if inner_cols == 0 || inner_rows == 0 {
+        fill(&mut frame, width, height, &label, style);
+        return frame;
     }
 
     put_text(
         &mut frame,
-        at,
-        &format!("└{}┘", "─".repeat(width.saturating_sub(2))),
+        tuinix::Position::ORIGIN,
+        &format!("┌{}┐", "─".repeat(inner_cols)),
+        style,
+    );
+
+    // Centre the label in the middle inner row, cropping it to the interior
+    // width so a long label never pushes the right border aside.
+    let label_row = inner_rows.div_ceil(2);
+    for row in 1..=inner_rows {
+        // Each row is written from an explicit column 0: `put_char` advances
+        // past the right edge of a row by wrapping to the next line, so
+        // following the returned position would skip a row.
+        let text = if row == label_row {
+            format!("│{}│", centred(&label, inner_cols))
+        } else {
+            format!("│{}│", " ".repeat(inner_cols))
+        };
+        put_text(&mut frame, tuinix::Position { row, col: 0 }, &text, style);
+    }
+
+    put_text(
+        &mut frame,
+        tuinix::Position {
+            row: inner_rows + 1,
+            col: 0,
+        },
+        &format!("└{}┘", "─".repeat(inner_cols)),
         style,
     );
 
     frame
+}
+
+/// Centres `label` in `width` columns, cropping it when it is longer than the
+/// space available.
+///
+/// The result is exactly `width` columns wide, so it never disturbs the
+/// borders around it.
+fn centred(label: &str, width: usize) -> String {
+    let cropped: String = label.chars().take(width).collect();
+    let len = cropped.chars().count();
+    let padding_left = (width - len) / 2;
+    let padding_right = width - len - padding_left;
+    format!(
+        "{}{cropped}{}",
+        " ".repeat(padding_left),
+        " ".repeat(padding_right)
+    )
+}
+
+/// Fills a `width` by `height` frame with `label`, for a key too small to hold
+/// a border.
+fn fill(frame: &mut tuinix::Frame, width: usize, height: usize, label: &str, style: tuinix::Style) {
+    for row in 0..height {
+        let text = if row == 0 {
+            centred(label, width)
+        } else {
+            " ".repeat(width)
+        };
+        put_text(frame, tuinix::Position { row, col: 0 }, &text, style);
+    }
 }
 
 /// Renders the send preview.
