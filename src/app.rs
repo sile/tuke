@@ -237,14 +237,13 @@ impl App {
                 alt: key.alt,
             }),
 
-            tuinix::Input::Mouse(mouse) => {
-                if mouse.kind != tuinix::MouseInputKind::LeftRelease {
-                    return Ok(false);
-                }
-                self.dispatch(tuke::Event::PointerRelease {
-                    position: mouse.position,
-                })
-            }
+            tuinix::Input::Mouse(mouse) => self.dispatch(tuke::Event::Mouse {
+                kind: mouse.kind,
+                position: mouse.position,
+                ctrl: mouse.ctrl,
+                alt: mouse.alt,
+                shift: mouse.shift,
+            }),
             tuinix::Input::Paste { bytes } => self.dispatch(tuke::Event::Paste { bytes }),
             tuinix::Input::Unrecognized { .. } => Ok(false),
         }
@@ -263,6 +262,9 @@ impl App {
             match action {
                 tuke::Action::SendKey(key) => {
                     self.session.enqueue_input(termnix::Input::Key(key))?;
+                }
+                tuke::Action::SendMouse(mouse) => {
+                    self.session.enqueue_input(termnix::Input::Mouse(mouse))?;
                 }
                 tuke::Action::SendBytes(bytes) => {
                     self.session.enqueue_input(termnix::Input::Raw(&bytes))?;

@@ -17,6 +17,14 @@ pub enum Action {
     /// never writes bytes whose form depends on the child's mode.
     SendPaste(String),
 
+    /// Send a mouse event to the child's PTY.
+    ///
+    /// The event names a button and a grid position, not report bytes: the
+    /// edge builds the report with the session's current mouse-reporting mode
+    /// at enqueue time, so the core never writes bytes whose form depends on
+    /// the child's modes.
+    SendMouse(termnix::MouseEvent),
+
     /// Send raw bytes to the child's PTY (for example a payload the child
     /// asked for as bytes).
     SendBytes(Vec<u8>),

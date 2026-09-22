@@ -20,6 +20,14 @@ pub struct State {
     offset: tuinix::Position,
     /// The grid area the child's PTY should be sized to.
     grid_size: tuinix::Size,
+    /// The mouse button currently held, as the guest was last told.
+    ///
+    /// The guest's protocol spells a drag as "moved while this button is
+    /// held", but the host reports a drag without naming the button, so the
+    /// core remembers which one went down and hands it back at the drag. It is
+    /// cleared on release, and a drag that arrives with nothing held is sent
+    /// as a bare move rather than guessed at.
+    held_button: Option<tuinix::MouseInputKind>,
 }
 
 impl State {
@@ -36,6 +44,7 @@ impl State {
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
+            held_button: None,
         };
         state.recompute_geometry();
         state
@@ -119,6 +128,7 @@ impl State {
         match event {
             Event::Resize { size } => self.on_resize(size),
             Event::PointerRelease { position } => self.on_pointer_release(position),
+            Event::Mouse { .. } => self.on_mouse(event),
             Event::Key { .. } => self.on_key(event),
             Event::Paste { .. } => self.on_paste(event),
         }
@@ -131,6 +141,70 @@ impl State {
         self.terminal_size = size;
         self.recompute_geometry();
         vec![Action::ResizeSession(self.grid_size), Action::Redraw]
+    }
+
+    fn on_mouse(&mut self, event: Event) -> Vec<Action> {
+        // What lands on the keyboard is tuke's and never reaches the child:
+        // the child's own mouse reporting would otherwise see clicks on keys
+        // that are painted over its screen. A left-button release is the one
+        // kind tuke acts on; the rest are swallowed because a press without
+        // its release (or the reverse) would be a half gesture the child
+        // cannot use, and a drag over a key would report a position the child
+        // never painted.
+        let Some(position) = event.mouse_position() else {
+            return Vec::new();
+        };
+        let inside_keyboard = self
+            .screen_to_layout(position)
+            .is_some_and(|local| self.keys.iter().any(|ks| ks.key.region.contains(local)));
+        if inside_keyboard {
+            return match event.mouse_kind() {
+                Some(tuinix::MouseInputKind::LeftRelease) => self.on_pointer_release(position),
+                _ => Vec::new(),
+            };
+        }
+
+        // Everything else belongs to the child, so the core updates the
+        // button it tracks and hands the edge a guest mouse event to send.
+        if let Some(kind) = event.mouse_kind() {
+            match kind {
+                tuinix::MouseInputKind::LeftPress
+                | tuinix::MouseInputKind::MiddlePress
+                | tuinix::MouseInputKind::RightPress => self.held_button = Some(kind),
+                tuinix::MouseInputKind::LeftRelease
+                | tuinix::MouseInputKind::MiddleRelease
+                | tuinix::MouseInputKind::RightRelease => self.held_button = None,
+                tuinix::MouseInputKind::ScrollUp
+                | tuinix::MouseInputKind::ScrollDown
+                | tuinix::MouseInputKind::Drag => {}
+            }
+        }
+        // A click outside the grid still belongs to the child in the sense
+        // that the child is the only mouse owner above the keyboard, but a
+        // position below or beside the grid would be a coordinate the child
+        // never painted, so it is dropped rather than clamped onto an edge.
+        if !self.inside_grid(position) {
+            return Vec::new();
+        }
+        event
+            .to_guest_mouse(self.held_button)
+            .map_or_else(Vec::new, |mouse| vec![Action::SendMouse(mouse)])
+    }
+
+    /// Translates a screen position into the layout's coordinate system.
+    ///
+    /// Returns `None` when the position is above or left of the keyboard's
+    /// origin, where the layout has no coordinates at all.
+    fn screen_to_layout(&self, position: tuinix::Position) -> Option<tuinix::Position> {
+        Some(tuinix::Position {
+            row: position.row.checked_sub(self.offset.row)?,
+            col: position.col.checked_sub(self.offset.col)?,
+        })
+    }
+
+    /// Whether a screen position lies within the grid area the child painted.
+    fn inside_grid(&self, position: tuinix::Position) -> bool {
+        position.row < self.grid_size.rows && position.col < self.grid_size.cols
     }
 
     fn on_key(&mut self, event: Event) -> Vec<Action> {
