@@ -30,4 +30,4 @@ pub use geometry::{
 };
 pub use layout::{Key, KeyCode, KeyPressState, KeyState, Layout, Preview};
 pub use render::{screen_cursor, screen_frame};
-pub use state::State;
+pub use state::{KeyboardPos, State};

@@ -10,6 +10,43 @@ use crate::event::Event;
 use crate::geometry;
 use crate::layout::{KeyCode, KeyPressState, KeyState, Layout, Preview};
 
+/// Where the user asked the floating keyboard to sit.
+///
+/// The coordinates are the ones the command line uses: the terminal's
+/// bottom-left corner is the origin, `col` counts columns from the left, and
+/// `rows` counts rows up from the bottom to the keyboard's bottom edge. They
+/// are kept as given rather than resolved against a size, because the terminal
+/// can be resized: [`KeyboardPos::to_screen`] resolves them again whenever the
+/// terminal size changes, so the keyboard keeps its offset from the corner it
+/// was pinned to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyboardPos {
+    /// Columns from the terminal's left edge to the keyboard's left edge.
+    pub col: usize,
+    /// Rows from the terminal's bottom edge to the keyboard's bottom edge.
+    pub rows: usize,
+}
+
+impl KeyboardPos {
+    /// Resolves the position to the anchor [`State`] lays the keyboard out
+    /// from, for a `terminal_size`-sized terminal.
+    ///
+    /// The anchor is the screen position of the keyboard's bottom-left corner:
+    /// its last row and its leftmost column. `rows` counts up from the
+    /// terminal's bottom row, so `rows` 0 puts the keyboard against the bottom
+    /// edge. A `rows` past the top is clamped to the top row, so the anchor
+    /// always names a row the terminal has.
+    pub fn to_screen(self, terminal_size: tuinix::Size) -> tuinix::Position {
+        tuinix::Position {
+            row: terminal_size
+                .rows
+                .saturating_sub(1)
+                .saturating_sub(self.rows),
+            col: self.col,
+        }
+    }
+}
+
 /// The soft keyboard's state and its pure transition function.
 #[derive(Debug)]
 pub struct State {
@@ -20,15 +57,14 @@ pub struct State {
     offset: tuinix::Position,
     /// The grid area the child's PTY should be sized to.
     grid_size: tuinix::Size,
-    /// The keyboard's placement, when it floats over the grid instead of
-    /// taking the bottom rows.
+    /// Where the keyboard floats, when it is not docked to the bottom.
     ///
-    /// It is the screen position of the keyboard's bottom-left corner: `row`
-    /// is the row its bounding box ends on (its last row, not the row past
-    /// it), and `col` is its leftmost column. The layout's origin sits
-    /// `layout_rows - 1` rows above `row`. When it is `None`, the keyboard is
-    /// bottom-aligned and centred, and the grid shrinks to the rows above it.
-    keyboard_pos: Option<tuinix::Position>,
+    /// It is kept as the user gave it (terminal bottom-left origin, not
+    /// resolved against a size), so a resize can resolve it again and the
+    /// keyboard keeps its offset from the corner. When it is `None`, the
+    /// keyboard is bottom-aligned and centred, and the grid shrinks to the
+    /// rows above it.
+    keyboard_pos: Option<KeyboardPos>,
     /// The mouse button currently held, as the guest was last told.
     ///
     /// The guest's protocol spells a drag as "moved while this button is
@@ -50,7 +86,7 @@ impl State {
     pub fn new(
         layout: Layout,
         terminal_size: tuinix::Size,
-        keyboard_pos: Option<tuinix::Position>,
+        keyboard_pos: Option<KeyboardPos>,
     ) -> Self {
         let keys = layout
             .keys
@@ -139,9 +175,11 @@ impl State {
 
         match self.keyboard_pos {
             // The keyboard floats: the grid keeps the whole terminal, and the
-            // keyboard is anchored at its bottom-left corner. The origin is
-            // the layout's top-left, `layout_rows` above that anchor.
-            Some(anchor) => {
+            // keyboard is anchored at its bottom-left corner. The anchor is
+            // resolved against the current terminal size, so a resize moves
+            // the keyboard with the corner it was pinned to.
+            Some(pos) => {
+                let anchor = pos.to_screen(self.terminal_size);
                 // `anchor.row` is the keyboard's last row, so the origin is
                 // `layout_rows - 1` rows above it. Subtracting the whole
                 // `layout_rows` would put the origin one row too high and the

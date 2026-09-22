@@ -11,7 +11,7 @@ use std::process::Command;
 ///
 /// The two numbers are separated by a comma; anything else is an error, so a
 /// typo is reported rather than silently read as the origin.
-fn parse_keyboard_pos(text: &str) -> tuke::Result<app::KeyboardPos> {
+fn parse_keyboard_pos(text: &str) -> tuke::Result<tuke::KeyboardPos> {
     let (col, rows) = text
         .split_once(',')
         .ok_or_else(|| tuke::Error::message(format!("expected COL,ROWS, got {text:?}")))?;
@@ -23,7 +23,7 @@ fn parse_keyboard_pos(text: &str) -> tuke::Result<app::KeyboardPos> {
         .trim()
         .parse()
         .map_err(|_| tuke::Error::message(format!("invalid row {rows:?}")))?;
-    Ok(app::KeyboardPos { col, rows })
+    Ok(tuke::KeyboardPos { col, rows })
 }
 
 fn main() -> noargs::Result<()> {
