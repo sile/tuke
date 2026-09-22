@@ -20,6 +20,15 @@ pub struct State {
     offset: tuinix::Position,
     /// The grid area the child's PTY should be sized to.
     grid_size: tuinix::Size,
+    /// The keyboard's placement, when it floats over the grid instead of
+    /// taking the bottom rows.
+    ///
+    /// It is the screen position of the keyboard's bottom-left corner: `row`
+    /// is the row its bounding box ends on (its last row, not the row past
+    /// it), and `col` is its leftmost column. The layout's origin sits
+    /// `layout_rows - 1` rows above `row`. When it is `None`, the keyboard is
+    /// bottom-aligned and centred, and the grid shrinks to the rows above it.
+    keyboard_pos: Option<tuinix::Position>,
     /// The mouse button currently held, as the guest was last told.
     ///
     /// The guest's protocol spells a drag as "moved while this button is
@@ -32,7 +41,17 @@ pub struct State {
 
 impl State {
     /// Builds the initial state from a layout and the current terminal size.
-    pub fn new(layout: Layout, terminal_size: tuinix::Size) -> Self {
+    ///
+    /// `keyboard_pos` floats the keyboard: when it is `Some`, its position is
+    /// taken as the screen position of the keyboard's bottom-left corner, the
+    /// grid keeps the whole terminal, and the keyboard is painted over it.
+    /// When it is `None`, the keyboard is bottom-aligned and centred, and the
+    /// grid gets the rows above it.
+    pub fn new(
+        layout: Layout,
+        terminal_size: tuinix::Size,
+        keyboard_pos: Option<tuinix::Position>,
+    ) -> Self {
         let keys = layout
             .keys
             .iter()
@@ -44,6 +63,7 @@ impl State {
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
+            keyboard_pos,
             held_button: None,
         };
         state.recompute_geometry();
@@ -68,6 +88,14 @@ impl State {
     /// The size of the terminal grid area the child's PTY is sized to.
     pub fn grid_size(&self) -> tuinix::Size {
         self.grid_size
+    }
+
+    /// The keyboard's bounding box: the extent of every key and the preview.
+    pub fn layout_size(&self) -> tuinix::Size {
+        tuinix::Size {
+            rows: self.layout_rows(),
+            cols: self.layout_cols(),
+        }
     }
 
     /// Whether Shift is currently active (one-shot or held).
@@ -106,21 +134,51 @@ impl State {
     /// Recomputes the keyboard offset and the grid size from the terminal size
     /// and the layout's extent.
     fn recompute_geometry(&mut self) {
-        let keyboard_rows = geometry::keyboard_rows(self.layout_rows());
-        let grid_rows = geometry::grid_rows(self.terminal_size.rows, keyboard_rows);
-        let offset_col = geometry::keyboard_offset_col(self.terminal_size.cols, self.layout_cols());
+        let layout_rows = self.layout_rows();
+        let layout_cols = self.layout_cols();
 
-        // The keyboard is bottom-aligned, so its origin is the row just below
-        // the grid. `grid_rows` is already terminal height minus keyboard
-        // height (saturating), which is exactly that row.
-        self.offset = tuinix::Position {
-            row: grid_rows,
-            col: offset_col,
-        };
-        self.grid_size = tuinix::Size {
-            rows: grid_rows,
-            cols: self.terminal_size.cols,
-        };
+        match self.keyboard_pos {
+            // The keyboard floats: the grid keeps the whole terminal, and the
+            // keyboard is anchored at its bottom-left corner. The origin is
+            // the layout's top-left, `layout_rows` above that anchor.
+            Some(anchor) => {
+                // `anchor.row` is the keyboard's last row, so the origin is
+                // `layout_rows - 1` rows above it. Subtracting the whole
+                // `layout_rows` would put the origin one row too high and the
+                // keyboard one row above the anchor.
+                self.offset = tuinix::Position {
+                    row: anchor.row.saturating_add(1).saturating_sub(layout_rows),
+                    col: anchor.col,
+                };
+                self.grid_size = self.terminal_size;
+            }
+            // The keyboard docks to the bottom: the grid gets the rows above
+            // it, and the keyboard is centred horizontally.
+            None => {
+                let keyboard_rows = geometry::keyboard_rows(layout_rows);
+                let grid_rows = geometry::grid_rows(self.terminal_size.rows, keyboard_rows);
+                let offset_col =
+                    geometry::keyboard_offset_col(self.terminal_size.cols, layout_cols);
+                self.offset = tuinix::Position {
+                    row: grid_rows,
+                    col: offset_col,
+                };
+                self.grid_size = tuinix::Size {
+                    rows: grid_rows,
+                    cols: self.terminal_size.cols,
+                };
+            }
+        }
+    }
+
+    /// Whether the keyboard floats over the grid rather than taking the rows
+    /// above the grid.
+    ///
+    /// When it floats, the grid keeps the whole terminal and the keyboard is
+    /// drawn on top of it; the renderer paints the grid first and the keyboard
+    /// second.
+    pub fn is_overlay(&self) -> bool {
+        self.keyboard_pos.is_some()
     }
 
     /// Applies an event, returning the actions it asks for.
@@ -144,28 +202,29 @@ impl State {
     }
 
     fn on_mouse(&mut self, event: Event) -> Vec<Action> {
-        // What lands on the keyboard is tuke's and never reaches the child:
-        // the child's own mouse reporting would otherwise see clicks on keys
-        // that are painted over its screen. A left-button release is the one
-        // kind tuke acts on; the rest are swallowed because a press without
-        // its release (or the reverse) would be a half gesture the child
-        // cannot use, and a drag over a key would report a position the child
-        // never painted.
         let Some(position) = event.mouse_position() else {
             return Vec::new();
         };
-        let inside_keyboard = self
+        let inside_key = self
             .screen_to_layout(position)
             .is_some_and(|local| self.keys.iter().any(|ks| ks.key.region.contains(local)));
-        if inside_keyboard {
-            return match event.mouse_kind() {
-                Some(tuinix::MouseInputKind::LeftRelease) => self.on_pointer_release(position),
-                _ => Vec::new(),
-            };
+
+        // A left-button release on a key is the one mouse gesture the keyboard
+        // claims: it presses the key under the pointer. Every other gesture is
+        // the child's.
+        if inside_key && event.mouse_kind() == Some(tuinix::MouseInputKind::LeftRelease) {
+            return self.on_pointer_release(position);
         }
 
-        // Everything else belongs to the child, so the core updates the
-        // button it tracks and hands the edge a guest mouse event to send.
+        // When the keyboard docks to the bottom, the rows below the grid are
+        // not part of the child's screen, so a gesture there is a coordinate
+        // the child never painted: it is swallowed rather than clamped onto an
+        // edge. When the keyboard floats, the grid is the whole terminal, so
+        // there is no such dead zone and every gesture has a real position.
+        if !self.is_overlay() && !self.inside_grid(position) {
+            return Vec::new();
+        }
+
         if let Some(kind) = event.mouse_kind() {
             match kind {
                 tuinix::MouseInputKind::LeftPress
@@ -178,13 +237,6 @@ impl State {
                 | tuinix::MouseInputKind::ScrollDown
                 | tuinix::MouseInputKind::Drag => {}
             }
-        }
-        // A click outside the grid still belongs to the child in the sense
-        // that the child is the only mouse owner above the keyboard, but a
-        // position below or beside the grid would be a coordinate the child
-        // never painted, so it is dropped rather than clamped onto an edge.
-        if !self.inside_grid(position) {
-            return Vec::new();
         }
         event
             .to_guest_mouse(self.held_button)

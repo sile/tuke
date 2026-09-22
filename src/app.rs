@@ -13,6 +13,43 @@ use std::time::Duration;
 /// `ESC` byte as the Escape key.
 const ESCAPE_TIMEOUT: Duration = Duration::from_millis(50);
 
+/// Where the user asked the floating keyboard to sit, before the terminal size
+/// is known.
+///
+/// The coordinates are the ones the command line uses: the terminal's
+/// bottom-left corner is the origin, `col` counts columns from the left, and
+/// `rows` counts rows up from the bottom to the keyboard's bottom edge. The
+/// internal top-left origin needs the terminal height, which is only known
+/// once the terminal is open, so the conversion waits for
+/// [`KeyboardPos::to_screen`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyboardPos {
+    /// Columns from the terminal's left edge to the keyboard's left edge.
+    pub col: usize,
+    /// Rows from the terminal's bottom edge to the keyboard's bottom edge.
+    pub rows: usize,
+}
+
+impl KeyboardPos {
+    /// Resolves the position to the anchor [`tuke::State::new`] expects for a
+    /// `terminal_size`-sized terminal.
+    ///
+    /// The anchor is the screen position of the keyboard's bottom-left corner:
+    /// its last row and its leftmost column. `rows` counts up from the
+    /// terminal's bottom row, so `rows` 0 puts the keyboard against the bottom
+    /// edge. A `rows` past the top is clamped to the top row, so the anchor
+    /// always names a row the terminal has.
+    pub fn to_screen(self, terminal_size: tuinix::Size) -> tuinix::Position {
+        tuinix::Position {
+            row: terminal_size
+                .rows
+                .saturating_sub(1)
+                .saturating_sub(self.rows),
+            col: self.col,
+        }
+    }
+}
+
 /// The edge owns everything with a file descriptor.
 pub struct App {
     driver: tuinix::TerminalDriver,
@@ -30,12 +67,22 @@ pub struct App {
 
 impl App {
     /// Spawns the child command and takes over the terminal.
-    pub fn new(layout: tuke::Layout, command: &mut Command) -> tuke::Result<Self> {
+    ///
+    /// `keyboard_pos` floats the keyboard: it is the position of the
+    /// keyboard's bottom-left corner, measured from the terminal's bottom-left
+    /// corner (column from the left, rows from the bottom). It is resolved to
+    /// the internal top-left origin once the terminal size is known.
+    pub fn new(
+        layout: tuke::Layout,
+        command: &mut Command,
+        keyboard_pos: Option<KeyboardPos>,
+    ) -> tuke::Result<Self> {
         let mut driver = tuinix::TerminalDriver::new()?;
         driver.enable_mouse_reporting()?;
 
         let terminal_size = driver.size();
-        let state = tuke::State::new(layout, terminal_size);
+        let keyboard_pos = keyboard_pos.map(|pos| pos.to_screen(terminal_size));
+        let state = tuke::State::new(layout, terminal_size, keyboard_pos);
 
         let session_size = tuke::to_termnix_size(state.grid_size())
             .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;

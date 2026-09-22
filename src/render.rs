@@ -8,12 +8,18 @@ use crate::KeyState;
 use crate::Preview;
 use crate::State;
 
-/// Builds the full-screen frame: the child's grid on top, the soft keyboard at
-/// the bottom, centred horizontally.
+/// Builds the full-screen frame.
 ///
-/// `terminal_size` is the physical terminal size. The keyboard is drawn at
-/// [`State::offset`], and the grid occupies the rows above it, sized by
-/// [`State::grid_size`].
+/// The grid is painted first, over the rows the child owns. When the keyboard
+/// docks to the bottom those are the rows above it; when it floats they are
+/// the whole terminal, and the keyboard is then painted *over* the grid.
+///
+/// In the floating case the keyboard is not just its keys: the area of its
+/// bounding box is filled in and outlined first, so the grid does not show
+/// through the gaps between keys. The keys and the preview are pasted on top
+/// of that, and finally the border is drawn around the whole keyboard.
+///
+/// `terminal_size` is the physical terminal size.
 pub fn screen_frame(
     state: &State,
     terminal: &termnix::TerminalState,
@@ -25,6 +31,11 @@ pub fn screen_frame(
 
     let shift = state.is_shift_active();
     let offset = state.offset();
+
+    if state.is_overlay() {
+        draw_keyboard_background(&mut frame, state, offset);
+    }
+
     for key_state in state.keys() {
         let key_frame = key_frame(key_state, shift);
         frame.put_frame(
@@ -48,6 +59,63 @@ pub fn screen_frame(
     }
 
     frame
+}
+
+/// Fills the keyboard's bounding box with blanks and outlines it, so the grid
+/// painted underneath does not show through the keyboard.
+///
+/// `offset` is the layout's top-left in screen coordinates and the box is
+/// `layout_size` cells. Anything past the terminal's edge is left out, so a
+/// floating keyboard partly off-screen is cropped rather than wrapping.
+fn draw_keyboard_background(frame: &mut tuinix::Frame, state: &State, offset: tuinix::Position) {
+    let size = state.layout_size();
+    let blank = tuinix::Char::new(' ', 1, tuinix::Style::new()).expect("a space is one column");
+    for row in 0..size.rows {
+        for col in 0..size.cols {
+            let at = tuinix::Position {
+                row: offset.row + row,
+                col: offset.col + col,
+            };
+            if frame.fits(at, blank) {
+                frame.put_char(at, blank);
+            }
+        }
+    }
+
+    draw_keyboard_border(frame, offset, size);
+}
+
+/// Draws the one-cell border around the keyboard's bounding box.
+///
+/// Every edge cell is chosen from the box's own size, so a one-row or
+/// one-column keyboard still gets a closed outline (a single line rather than
+/// overlapping corners). Only cells that fit in the terminal are drawn, so a
+/// box partly off-screen keeps the border it can show.
+fn draw_keyboard_border(frame: &mut tuinix::Frame, offset: tuinix::Position, size: tuinix::Size) {
+    let style = tuinix::Style::new();
+    let last_col = size.cols.saturating_sub(1);
+    let last_row = size.rows.saturating_sub(1);
+    for row in 0..size.rows {
+        for col in 0..size.cols {
+            let ch = match (row == 0, row == last_row, col == 0, col == last_col) {
+                (true, false, true, false) => '┌',
+                (true, false, false, true) => '┐',
+                (false, true, true, false) => '└',
+                (false, true, false, true) => '┘',
+                (true, false, _, _) | (false, true, _, _) => '─',
+                (_, _, true, false) | (_, _, false, true) => '│',
+                _ => continue,
+            };
+            let ch = tuinix::Char::new(ch, 1, style).expect("a border glyph is one column");
+            let at = tuinix::Position {
+                row: offset.row + row,
+                col: offset.col + col,
+            };
+            if frame.fits(at, ch) {
+                frame.put_char(at, ch);
+            }
+        }
+    }
 }
 
 /// The screen coordinate of the text cursor, if it should be shown.
