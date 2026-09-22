@@ -13,10 +13,21 @@ fn key_region(row: usize, col: usize) -> tuinix::Region {
 /// One soft key at `(row, col)`, 3x3 in layout cells.
 fn key(code: tuke::KeyCode, row: usize, col: usize) -> tuke::Key {
     tuke::Key {
-        code,
-        shift_code: code.default_shift_code(),
+        action: tuke::KeyAction::Send {
+            code,
+            shift_code: code.default_shift_code(),
+        },
         region: key_region(row, col),
     }
+}
+
+/// Wraps a layout in a one-layout set named `default`, which is what the core
+/// takes now that a key can switch layouts.
+fn layout_set(layout: tuke::Layout) -> tuke::LayoutSet {
+    tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout,
+    }])
 }
 
 /// A layout with a single column of keys: `Ctrl`, `b`, and `c`.
@@ -66,9 +77,20 @@ fn sent_key(actions: &[tuke::Action]) -> Option<&termnix::KeyEvent> {
     }
 }
 
+/// The code of the state's soft key at index `index`.
+///
+/// These tests only build send keys when they read a code back, so a switch
+/// key is a mistake in the test rather than a case to handle.
+fn code_of_state_key(state: &tuke::State, index: usize) -> tuke::KeyCode {
+    match state.keys()[index].key.action {
+        tuke::KeyAction::Send { code, .. } => code,
+        tuke::KeyAction::Switch { .. } => panic!("expected a send key"),
+    }
+}
+
 #[test]
 fn new_state_has_no_modifiers_active() {
-    let state = tuke::State::new(test_layout(), test_size(), None);
+    let state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     assert!(!state.is_shift_active());
     assert!(
@@ -81,7 +103,7 @@ fn new_state_has_no_modifiers_active() {
 
 #[test]
 fn new_state_places_the_keyboard_at_the_bottom() {
-    let state = tuke::State::new(test_layout(), test_size(), None);
+    let state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // The layout is 9 rows tall and 3 columns wide, centred in a 30-column
     // screen; the keyboard takes the bottom 9 rows.
@@ -89,9 +111,88 @@ fn new_state_places_the_keyboard_at_the_bottom() {
     assert_eq!(state.grid_size(), tuinix::Size { rows: 31, cols: 30 });
 }
 
+/// A two-layout set: `default` has a switch key that shows `other`, and
+/// `other` has a single `z` key.
+fn switch_set() -> tuke::LayoutSet {
+    tuke::LayoutSet::from_named(vec![
+        tuke::NamedLayout {
+            name: "default".to_string(),
+            layout: tuke::Layout {
+                keys: vec![tuke::Key {
+                    action: tuke::KeyAction::Switch {
+                        to: "other".to_string(),
+                    },
+                    region: key_region(0, 0),
+                }],
+                preview: None,
+            },
+        },
+        tuke::NamedLayout {
+            name: "other".to_string(),
+            layout: tuke::Layout {
+                keys: vec![key(tuke::KeyCode::Char('z'), 0, 0)],
+                preview: None,
+            },
+        },
+    ])
+}
+
+#[test]
+fn the_state_starts_on_the_first_layout() {
+    let state = tuke::State::new(switch_set(), test_size(), None);
+
+    assert_eq!(state.current_layout_name(), "default");
+}
+
+#[test]
+fn pressing_a_switch_key_shows_its_target() {
+    let mut state = tuke::State::new(switch_set(), test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    // The switch is the whole effect: it asks for a repaint and nothing else,
+    // because no key was pressed on the child's behalf.
+    assert_eq!(actions, vec![tuke::Action::Redraw]);
+    assert_eq!(state.current_layout_name(), "other");
+    assert_eq!(code_of_state_key(&state, 0), tuke::KeyCode::Char('z'));
+}
+
+#[test]
+fn a_switched_in_key_sends_its_own_code() {
+    let mut state = tuke::State::new(switch_set(), test_size(), None);
+
+    press(&mut state, 0, 0);
+    let actions = press(&mut state, 0, 0);
+
+    let key = sent_key(&actions).expect("the new layout's key is sent");
+    assert_eq!(key.code, termnix::KeyCode::Char('z'));
+}
+
+#[test]
+fn a_switch_to_an_unknown_layout_does_nothing() {
+    let set = tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "only".to_string(),
+        layout: tuke::Layout {
+            keys: vec![tuke::Key {
+                action: tuke::KeyAction::Switch {
+                    to: "missing".to_string(),
+                },
+                region: key_region(0, 0),
+            }],
+            preview: None,
+        },
+    }]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    assert!(actions.is_empty(), "expected no actions, got {actions:?}");
+    assert_eq!(state.current_layout_name(), "only");
+}
+
 #[test]
 fn resize_to_the_same_size_asks_for_nothing() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = state.update(tuke::Event::Resize { size: test_size() });
 
@@ -100,7 +201,7 @@ fn resize_to_the_same_size_asks_for_nothing() {
 
 #[test]
 fn resize_reports_the_new_grid_and_redraws() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = state.update(tuke::Event::Resize {
         size: tuinix::Size { rows: 50, cols: 40 },
@@ -120,7 +221,7 @@ fn resize_reports_the_new_grid_and_redraws() {
 
 #[test]
 fn pointer_release_outside_every_key_asks_for_nothing() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // Row 15 is above the keyboard (which starts at row 31), so it hits no key.
     let actions = state.update(tuke::Event::PointerRelease {
@@ -132,7 +233,7 @@ fn pointer_release_outside_every_key_asks_for_nothing() {
 
 #[test]
 fn modifier_key_only_redraws() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = press(&mut state, 0, 0);
 
@@ -142,7 +243,7 @@ fn modifier_key_only_redraws() {
 
 #[test]
 fn normal_key_sends_its_character() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = press(&mut state, 3, 0);
 
@@ -153,7 +254,7 @@ fn normal_key_sends_its_character() {
 
 #[test]
 fn oneshot_ctrl_applies_to_the_next_key_only() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // Tap Ctrl once, then press `b`: the `b` carries Ctrl and Ctrl returns to
     // neutral, so the following `c` is plain.
@@ -178,7 +279,7 @@ fn oneshot_ctrl_applies_to_the_next_key_only() {
 
 #[test]
 fn ctrl_tapped_twice_is_held_for_every_key() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // Two taps arm Ctrl for good, so both keys carry it.
     press(&mut state, 0, 0);
@@ -197,7 +298,7 @@ fn oneshot_ctrl_is_not_swallowed_by_a_key_that_ignores_it() {
     let mut layout = test_layout();
     layout.keys.push(key(tuke::KeyCode::Enter, 9, 0));
     layout.keys.push(key(tuke::KeyCode::Char('d'), 12, 0));
-    let mut state = tuke::State::new(layout, test_size(), None);
+    let mut state = tuke::State::new(layout_set(layout), test_size(), None);
 
     // Tap Ctrl, then Enter: Enter cannot carry Ctrl, so it is sent plain and
     // the one-shot Ctrl is used up here rather than leaking to the next key.
@@ -223,7 +324,7 @@ fn oneshot_ctrl_arms_the_next_key_only_after_ignored_keys() {
     let mut layout = test_layout();
     layout.keys.push(key(tuke::KeyCode::Tab, 9, 0));
     layout.keys.push(key(tuke::KeyCode::Backspace, 12, 0));
-    let mut state = tuke::State::new(layout, test_size(), None);
+    let mut state = tuke::State::new(layout_set(layout), test_size(), None);
 
     // Even after two keys that cannot carry Ctrl, no Ctrl is delivered later:
     // each one-shot is consumed by the key it was armed for.
@@ -238,7 +339,7 @@ fn oneshot_ctrl_arms_the_next_key_only_after_ignored_keys() {
 fn shift_selects_the_shift_label() {
     let mut layout = test_layout();
     layout.keys.push(key(tuke::KeyCode::Shift, 9, 0));
-    let mut state = tuke::State::new(layout, test_size(), None);
+    let mut state = tuke::State::new(layout_set(layout), test_size(), None);
 
     press(&mut state, 9, 0);
     assert!(state.is_shift_active());
@@ -269,7 +370,7 @@ fn sent_mouse(actions: &[tuke::Action]) -> Option<&termnix::MouseEvent> {
 
 #[test]
 fn a_mouse_press_in_the_grid_goes_to_the_child() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 4, 9));
 
@@ -285,7 +386,7 @@ fn a_mouse_press_in_the_grid_goes_to_the_child() {
 
 #[test]
 fn a_mouse_release_outside_the_keyboard_goes_to_the_child() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // The keyboard starts at row 31, so row 4 is in the grid: the release
     // pairs with the press above rather than pressing a soft key.
@@ -300,7 +401,7 @@ fn a_mouse_release_outside_the_keyboard_goes_to_the_child() {
 
 #[test]
 fn a_click_on_a_key_never_reaches_the_child() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
     let centre = screen_centre(&state, 3, 0);
 
     // The whole gesture is the keyboard's: the child's reporting would
@@ -321,7 +422,7 @@ fn a_click_on_a_key_never_reaches_the_child() {
 
 #[test]
 fn a_left_release_on_a_key_presses_it() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
     let centre = screen_centre(&state, 3, 0);
 
     let actions = state.update(host_mouse(
@@ -336,7 +437,7 @@ fn a_left_release_on_a_key_presses_it() {
 
 #[test]
 fn a_drag_reports_the_button_held_by_the_preceding_press() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // The host's drag does not name the button, so the core has to remember
     // the press: a guest told "moved" with no button cannot draw a selection.
@@ -355,7 +456,7 @@ fn a_drag_reports_the_button_held_by_the_preceding_press() {
 
 #[test]
 fn a_drag_with_no_button_held_is_a_bare_move() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // A move the host reports without a press is not a drag: guessing a button
     // would make the child select text the user never selected.
@@ -367,7 +468,7 @@ fn a_drag_with_no_button_held_is_a_bare_move() {
 
 #[test]
 fn the_held_button_is_forgotten_at_release() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 4, 9));
     state.update(host_mouse(tuinix::MouseInputKind::LeftRelease, 4, 9));
@@ -383,7 +484,7 @@ fn the_held_button_is_forgotten_at_release() {
 
 #[test]
 fn the_wheel_is_sent_as_a_press_of_a_wheel_button() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let up = state.update(host_mouse(tuinix::MouseInputKind::ScrollUp, 4, 9));
     let down = state.update(host_mouse(tuinix::MouseInputKind::ScrollDown, 4, 9));
@@ -402,7 +503,7 @@ fn the_wheel_is_sent_as_a_press_of_a_wheel_button() {
 
 #[test]
 fn a_mouse_event_below_the_grid_is_dropped() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // Row 35 is below the 31-row grid but above nothing on screen: the child
     // never painted it, so sending it would point at a cell that is not there
@@ -419,7 +520,7 @@ fn a_floating_keyboard_sends_a_drag_over_a_key_to_the_child() {
     // child's, only the left release presses the key.
     let size = tuinix::Size { rows: 40, cols: 30 };
     let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
-    let mut state = tuke::State::new(test_layout(), size, Some(anchor));
+    let mut state = tuke::State::new(layout_set(test_layout()), size, Some(anchor));
     let centre = screen_centre(&state, 3, 0);
 
     let actions = state.update(host_mouse(
@@ -436,7 +537,7 @@ fn a_floating_keyboard_sends_a_drag_over_a_key_to_the_child() {
 fn a_floating_keyboard_still_presses_a_key_on_left_release() {
     let size = tuinix::Size { rows: 40, cols: 30 };
     let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
-    let mut state = tuke::State::new(test_layout(), size, Some(anchor));
+    let mut state = tuke::State::new(layout_set(test_layout()), size, Some(anchor));
     let centre = screen_centre(&state, 3, 0);
 
     let actions = state.update(host_mouse(
@@ -456,7 +557,7 @@ fn a_floating_keyboard_follows_a_resize() {
     // where it was.
     let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
     let mut state = tuke::State::new(
-        test_layout(),
+        layout_set(test_layout()),
         tuinix::Size { rows: 40, cols: 30 },
         Some(anchor),
     );
@@ -477,7 +578,7 @@ fn a_floating_keyboard_keeps_its_distance_from_the_bottom() {
     // clearance from the new bottom instead of counting from the old one.
     let anchor = tuke::KeyboardPos { col: 0, rows: 2 };
     let mut state = tuke::State::new(
-        test_layout(),
+        layout_set(test_layout()),
         tuinix::Size { rows: 40, cols: 30 },
         Some(anchor),
     );
@@ -496,7 +597,7 @@ fn a_floating_keyboard_keeps_its_distance_from_the_bottom() {
 fn a_floating_keyboard_keeps_the_grid_at_full_size() {
     let size = tuinix::Size { rows: 40, cols: 30 };
     let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
-    let state = tuke::State::new(test_layout(), size, Some(anchor));
+    let state = tuke::State::new(layout_set(test_layout()), size, Some(anchor));
 
     assert!(state.is_overlay());
     assert_eq!(state.grid_size(), size);
@@ -510,7 +611,7 @@ fn a_floating_keyboard_keeps_the_grid_at_full_size() {
 fn a_docked_keyboard_swallows_a_key_press_that_is_not_a_release() {
     // The docked keyboard is not part of the grid, so the child never painted
     // the key's position: a press there must not leak to it.
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
     let centre = screen_centre(&state, 3, 0);
 
     let actions = state.update(host_mouse(
@@ -524,7 +625,7 @@ fn a_docked_keyboard_swallows_a_key_press_that_is_not_a_release() {
 
 #[test]
 fn a_mouse_event_beside_the_keyboard_is_dropped() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // Column 29 is right of the 3-column keyboard's keys but inside the 30
     // column grid, so this is a grid click at the far right edge.
@@ -536,7 +637,7 @@ fn a_mouse_event_beside_the_keyboard_is_dropped() {
 
 #[test]
 fn mouse_modifiers_are_copied_through() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = state.update(tuke::Event::Mouse {
         kind: tuinix::MouseInputKind::LeftPress,
@@ -567,7 +668,7 @@ fn the_grid_and_keyboard_split_every_mouse_position() -> noprop::TestResult {
         let rows = noprop::sample_usize_in(ctx, 9..=60);
         let cols = noprop::sample_usize_in(ctx, 3..=80);
         let size = tuinix::Size { rows, cols };
-        let mut state = tuke::State::new(test_layout(), size, None);
+        let mut state = tuke::State::new(layout_set(test_layout()), size, None);
         let row = noprop::sample_usize_in(ctx, 0..rows);
         let col = noprop::sample_usize_in(ctx, 0..cols);
 
@@ -627,7 +728,7 @@ fn every_host_key_is_forwarded_to_the_child() {
         (tuinix::KeyCode::F(5), false, false),
     ];
     for (code, ctrl, alt) in cases {
-        let mut state = tuke::State::new(test_layout(), test_size(), None);
+        let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
         let actions = state.update(host_key(code, ctrl, alt));
 
@@ -683,7 +784,7 @@ fn back_tab_becomes_tab_with_shift() {
 
 #[test]
 fn a_paste_is_forwarded_as_one_paste() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     let actions = state.update(tuke::Event::Paste {
         bytes: b"hello\nworld".to_vec(),
@@ -696,7 +797,7 @@ fn a_paste_is_forwarded_as_one_paste() {
 
 #[test]
 fn an_empty_paste_is_still_forwarded() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // The host terminal saw the markers, so the child is told a paste happened
     // even though it carried nothing: that can be meaningful to an editor.
@@ -707,7 +808,7 @@ fn an_empty_paste_is_still_forwarded() {
 
 #[test]
 fn a_paste_leaves_the_keyboard_state_alone() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // A paste does not go through a soft key, so it neither consumes a one-shot
     // modifier nor changes what any key looks like.
@@ -727,7 +828,7 @@ fn a_paste_leaves_the_keyboard_state_alone() {
 
 #[test]
 fn a_paste_that_is_not_utf8_is_dropped() {
-    let mut state = tuke::State::new(test_layout(), test_size(), None);
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
     // A guest paste is a string, so bytes that are not text cannot be sent as
     // one. Nothing is sent rather than fabricating keys for them: the child
@@ -748,7 +849,7 @@ fn every_paste_round_trips_through_the_transition() -> noprop::TestResult {
     runner.run(256, |ctx| {
         let len = noprop::sample_usize_in(ctx, 0..=32);
         let bytes = noprop::sample_bytes_vec(ctx, len);
-        let mut state = tuke::State::new(test_layout(), test_size(), None);
+        let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
         let actions = state.update(tuke::Event::Paste {
             bytes: bytes.clone(),
@@ -799,7 +900,7 @@ fn any_screen_size_keeps_the_keyboard_fully_on_screen() -> noprop::TestResult {
             rows: terminal_rows,
             cols: terminal_cols,
         };
-        let mut state = tuke::State::new(test_layout(), size, None);
+        let mut state = tuke::State::new(layout_set(test_layout()), size, None);
 
         // The grid and keyboard partition the screen, so the keyboard's 9
         // rows and 3 columns stay within the terminal at any size.

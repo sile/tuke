@@ -25,6 +25,18 @@ fn parse_code(literal: &str) -> Result<tuke::KeyCode, nojson::JsonParseError> {
     tuke::KeyCode::try_from(json.value())
 }
 
+/// The code a send key sends when Shift is not active.
+///
+/// A key is either a send key or a switch key; these tests only build send
+/// keys, so this unwraps the code rather than threading a `Result` through
+/// every assertion.
+fn code_of(key: &tuke::Key) -> tuke::KeyCode {
+    match key.action {
+        tuke::KeyAction::Send { code, .. } => code,
+        tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+    }
+}
+
 #[test]
 fn key_codes_round_trip_through_their_textual_form() {
     let codes = [
@@ -141,13 +153,13 @@ fn default_layout_loads_and_declares_its_keys() {
         layout
             .keys
             .iter()
-            .any(|k| k.code == tuke::KeyCode::Char('q'))
+            .any(|k| code_of(k) == tuke::KeyCode::Char('q'))
     );
     assert!(
         layout
             .keys
             .iter()
-            .any(|k| k.code == tuke::KeyCode::Char(' '))
+            .any(|k| code_of(k) == tuke::KeyCode::Char(' '))
     );
 }
 
@@ -159,12 +171,69 @@ fn layout_from_a_file_matches_the_text() {
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(layout.keys.len(), 1);
-    assert_eq!(layout.keys[0].code, tuke::KeyCode::Char('a'));
+    assert_eq!(code_of(&layout.keys[0]), tuke::KeyCode::Char('a'));
     assert_eq!(
         layout.keys[0].region.size,
         tuinix::Size { rows: 5, cols: 5 }
     );
     assert!(layout.preview.is_none());
+}
+
+#[test]
+fn a_switch_key_parses_its_target() {
+    // A switch key spells its action as `{"switch_to": NAME}` under `key`,
+    // the same member a send key uses, so one key form covers both.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"switch_to": "minimal"}, "size": {"width": 5, "height": 5}}]"#,
+    ))
+    .expect("parse switch key");
+
+    assert_eq!(layout.keys.len(), 1);
+    assert_eq!(
+        layout.keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "minimal".to_string()
+        }
+    );
+}
+
+#[test]
+fn a_switch_key_ignores_the_shift_member() {
+    // A switch key has no code to shift, so a `shift` beside it is not an
+    // error but the switch is still the whole action.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"switch_to": "other"}, "shift": "a"}]"#,
+    ))
+    .expect("parse switch key with a stray shift");
+
+    assert_eq!(
+        layout.keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "other".to_string()
+        }
+    );
+}
+
+#[test]
+fn a_switch_to_a_missing_layout_is_still_a_key() {
+    // The target is resolved at press time, not load time, so a layout that
+    // names a layout it does not define still loads: the key is simply inert
+    // rather than a file that fails to open.
+    let set = parse_set(r#"[{"layout": "only"}, {"key": {"switch_to": "nowhere"}}]"#);
+
+    assert_eq!(
+        set.get("only").expect("only layout").keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "nowhere".to_string()
+        }
+    );
+}
+
+#[test]
+fn a_switch_without_a_target_is_rejected() {
+    let result = tuke::Layout::load_from_file(write_temp(r#"[{"key": {"other": 1}}]"#));
+
+    assert!(result.is_err(), "a switch object needs a switch_to member");
 }
 
 /// The rightmost column any key or the preview extends to, in layout cells.
@@ -199,7 +268,7 @@ fn a_file_without_a_layout_entry_is_one_default_layout() {
     assert_eq!(set.layouts()[0].name, "default");
     assert_eq!(set.layouts()[0].layout.keys.len(), 1);
     assert_eq!(
-        set.layouts()[0].layout.keys[0].code,
+        code_of(&set.layouts()[0].layout.keys[0]),
         tuke::KeyCode::Char('a')
     );
 }
@@ -230,8 +299,8 @@ fn a_layout_entry_starts_a_named_layout() {
         second.keys[0].region.position,
         tuinix::Position { row: 0, col: 0 }
     );
-    assert_eq!(first.keys[0].code, tuke::KeyCode::Char('a'));
-    assert_eq!(second.keys[0].code, tuke::KeyCode::Char('b'));
+    assert_eq!(code_of(&first.keys[0]), tuke::KeyCode::Char('a'));
+    assert_eq!(code_of(&second.keys[0]), tuke::KeyCode::Char('b'));
 }
 
 #[test]
@@ -260,7 +329,7 @@ fn the_first_layout_is_the_one_shown_at_startup() {
         ]"#,
     );
 
-    assert_eq!(set.first().keys[0].code, tuke::KeyCode::Char('x'));
+    assert_eq!(code_of(&set.first().keys[0]), tuke::KeyCode::Char('x'));
 }
 
 #[test]
@@ -321,7 +390,7 @@ fn mini_fits_in_eighty_columns() {
 #[test]
 fn mini_carries_the_keys_a_shell_needs() {
     let layout = shipped_layout("mini.jsonc");
-    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| k.code == code);
+    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| code_of(k) == code);
 
     for c in 'a'..='z' {
         assert!(has(tuke::KeyCode::Char(c)), "missing letter {c}");
@@ -353,7 +422,7 @@ fn mini_carries_the_keys_a_shell_needs() {
         layout
             .keys
             .iter()
-            .find(|k| k.code == code)
+            .find(|k| code_of(k) == code)
             .map(|k| k.region)
             .unwrap_or_else(|| panic!("missing {code}"))
     };
@@ -403,7 +472,10 @@ fn mini_has_no_overlapping_keys() {
             assert!(
                 separated,
                 "keys {:?} at {:?} and {:?} at {:?} overlap",
-                a.code, a.region, b.code, b.region
+                code_of(a),
+                a.region,
+                code_of(b),
+                b.region
             );
         }
     }
@@ -417,13 +489,13 @@ fn mini_labels_fit_their_keys() {
     // label is not an error - but `BSpace` in a three-column key would read
     // `BSp`, which is a layout bug rather than a rendering one.
     for key in &layout.keys {
-        let label = key.code.to_string();
+        let label = code_of(key).to_string();
         let interior = key.region.size.cols.saturating_sub(2);
         assert!(
             label.chars().count() <= interior,
             "label {label:?} needs {} columns but key {:?} has {interior}",
             label.chars().count(),
-            key.code
+            code_of(key)
         );
     }
 }

@@ -14,7 +14,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tuke::{Key, Layout};
+use tuke::{Key, KeyAction, Layout};
 
 fn main() -> ExitCode {
     let mut args = std::env::args_os().skip(1);
@@ -36,17 +36,13 @@ fn main() -> ExitCode {
         let region = key.region;
         println!(
             "  {:<7} row={} col={} {}x{}  label={:?}{}",
-            key.code.to_string(),
+            code_text(key),
             region.position.row,
             region.position.col,
             region.size.cols,
             region.size.rows,
             label(key),
-            if key.shift_code == key.code {
-                String::new()
-            } else {
-                format!(" shift={:?}", key.shift_code.to_string())
-            },
+            shift_text(key),
         );
     }
 
@@ -67,10 +63,34 @@ fn main() -> ExitCode {
 
 /// The label the renderer would draw for a key: its code as text, except that
 /// a space is shown as `Space` so it is visible in the listing.
+///
+/// A switch key has no code, so it is labelled with the layout it shows.
 fn label(key: &Key) -> String {
-    match key.code.to_string().as_str() {
-        " " => "Space".to_owned(),
-        other => other.to_owned(),
+    match &key.action {
+        KeyAction::Send { code, .. } => match code.to_string().as_str() {
+            " " => "Space".to_owned(),
+            other => other.to_owned(),
+        },
+        KeyAction::Switch { to } => format!("-> {to}"),
+    }
+}
+
+/// The text a send key carries, or `(switch)` for a key that switches layouts.
+fn code_text(key: &Key) -> String {
+    match key.action {
+        KeyAction::Send { code, .. } => code.to_string(),
+        KeyAction::Switch { .. } => "(switch)".to_owned(),
+    }
+}
+
+/// The extra column noting a shifted code, or nothing when Shift is the same
+/// as the unshifted code or the key switches layouts.
+fn shift_text(key: &Key) -> String {
+    match key.action {
+        KeyAction::Send { code, shift_code } if shift_code != code => {
+            format!(" shift={:?}", shift_code.to_string())
+        }
+        _ => String::new(),
     }
 }
 

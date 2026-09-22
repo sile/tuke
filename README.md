@@ -57,6 +57,21 @@ keyboard region. Three are shipped:
 
 The file to load is currently hard-coded, so `mini.jsonc` is not reachable yet.
 
+A key also does more than send: it can switch layouts. A key whose `key` is
+`{"switch_to": NAME}` instead of a code shows the layout named `NAME` in the
+same file. A file can declare more than one layout, with `{"layout": NAME}`
+starting a new one; a file that never does is a single layout named `default`.
+The keyboard shows the first layout it declares.
+
+```jsonc
+[
+  {"key": "a"},
+  {"key": {"switch_to": "minimal"}},
+  {"layout": "minimal"},
+  {"key": {"switch_to": "default"}}
+]
+```
+
 To see what tuke reads out of a layout - every key's code, region, and label,
 plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect_layout.rs)
 example against it:
@@ -84,17 +99,15 @@ Agreed design:
 - **Automatic switch (C).** A layout declares the smallest terminal it can be
   useful in, and tuke picks the largest layout that still fits. No key press is
   needed; resizing the terminal re-picks.
-- **Manual switch (B).** A dedicated soft key cycles to the next layout, so the
-  choice is possible at any size.
+- **Manual switch (B).** Done: a `{"switch_to": NAME}` key shows another
+  layout in the same file, so the choice is possible at any size.
 - **Minimize (A).** A dedicated soft key hides the keyboard and hands the whole
   terminal to the child, toggling back on a second press.
 
-Open question to settle before coding: **how a switch key is written down.**
-`KeyCode` today names either a character or a key that goes to the child
-(`Char`, `Up`, `C-`, `Tab`, ...). A switch key names no child key at all, so it
-needs a new kind of code (`LayoutNext` / `LayoutPrev` / `ToggleKeyboard`, or
-equivalent) that `State` acts on instead of forwarding. That choice decides both
-the JSONC syntax and how the core distinguishes "send this" from "do this".
+Still open before the automatic switch: **how a layout declares the smallest
+terminal it fits in.** A switch key needs nothing more than its target name,
+which is settled; picking a layout by size needs each one to carry a size to
+compare against.
 
 ### 2. Positional keyboard
 

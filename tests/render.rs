@@ -14,13 +14,23 @@ fn termnix_size(rows: usize, cols: usize) -> termnix::Size {
 /// One layout key of the given size at `(row, col)`.
 fn key(code: tuke::KeyCode, row: usize, col: usize, rows: usize, cols: usize) -> tuke::Key {
     tuke::Key {
-        code,
-        shift_code: code.default_shift_code(),
+        action: tuke::KeyAction::Send {
+            code,
+            shift_code: code.default_shift_code(),
+        },
         region: tuinix::Region {
             position: tuinix::Position { row, col },
             size: tuinix::Size { rows, cols },
         },
     }
+}
+
+/// Wraps a layout in a one-layout set, which is what the core now takes.
+fn layout_set(layout: tuke::Layout) -> tuke::LayoutSet {
+    tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout,
+    }])
 }
 
 /// A one-key layout laid out to exactly fill the keyboard area.
@@ -35,7 +45,7 @@ fn single_key_layout(rows: usize, cols: usize) -> tuke::Layout {
 /// large as that key, so the key's cells are the whole frame.
 fn render_single_key(rows: usize, cols: usize) -> tuinix::Frame {
     let size = tuinix::Size { rows, cols };
-    let state = tuke::State::new(single_key_layout(rows, cols), size, None);
+    let state = tuke::State::new(layout_set(single_key_layout(rows, cols)), size, None);
     let terminal = termnix::TerminalState::new(termnix_size(rows, cols));
     tuke::screen_frame(&state, &terminal, size)
 }
@@ -81,10 +91,12 @@ fn a_one_row_key_shows_its_label() {
 fn a_label_narrower_than_the_key_stays_inside_the_borders() {
     // A long label must be cropped, never widen the key or push a border out.
     let mut layout = single_key_layout(3, 3);
-    layout.keys[0].code = tuke::KeyCode::Backspace;
-    layout.keys[0].shift_code = tuke::KeyCode::Backspace;
+    layout.keys[0].action = tuke::KeyAction::Send {
+        code: tuke::KeyCode::Backspace,
+        shift_code: tuke::KeyCode::Backspace,
+    };
     let size = tuinix::Size { rows: 3, cols: 3 };
-    let state = tuke::State::new(layout, size, None);
+    let state = tuke::State::new(layout_set(layout), size, None);
     let terminal = termnix::TerminalState::new(termnix_size(3, 3));
     let frame = tuke::screen_frame(&state, &terminal, size);
 
@@ -104,9 +116,8 @@ fn a_floating_keyboard_is_painted_over_the_grid() {
     // the terminal's last row. A grid cell the keyboard covers holds a letter,
     // which the keyboard must paint over rather than let show through.
     let size = tuinix::Size { rows: 4, cols: 5 };
-    let layout = single_key_layout(3, 5);
     let anchor = tuke::KeyboardPos { col: 0, rows: 0 };
-    let state = tuke::State::new(layout, size, Some(anchor));
+    let state = tuke::State::new(layout_set(single_key_layout(3, 5)), size, Some(anchor));
     let mut terminal = termnix::TerminalState::new(termnix_size(4, 5));
 
     terminal.feed(b"Z");
@@ -129,9 +140,8 @@ fn a_floating_keyboard_leaves_the_grid_at_full_size() {
     // The grid is the whole terminal when the keyboard floats, so a position
     // under the keyboard is still a real grid position.
     let size = tuinix::Size { rows: 4, cols: 5 };
-    let layout = single_key_layout(3, 5);
     let anchor = tuke::KeyboardPos { col: 0, rows: 0 };
-    let state = tuke::State::new(layout, size, Some(anchor));
+    let state = tuke::State::new(layout_set(single_key_layout(3, 5)), size, Some(anchor));
 
     assert!(state.is_overlay());
     assert_eq!(state.grid_size(), size);
@@ -151,7 +161,11 @@ fn the_keyboard_is_drawn_inside_the_screen_at_any_size() -> noprop::TestResult {
             rows: terminal_rows,
             cols: terminal_cols,
         };
-        let state = tuke::State::new(single_key_layout(key_rows, key_cols), size, None);
+        let state = tuke::State::new(
+            layout_set(single_key_layout(key_rows, key_cols)),
+            size,
+            None,
+        );
         let terminal = termnix::TerminalState::new(termnix_size(terminal_rows, terminal_cols));
         let frame = tuke::screen_frame(&state, &terminal, size);
 

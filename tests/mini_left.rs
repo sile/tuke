@@ -41,6 +41,14 @@ fn shipped_layout(name: &str) -> tuke::Layout {
         .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()))
 }
 
+/// The code a send key sends when Shift is not active.
+fn code_of(key: &tuke::Key) -> tuke::KeyCode {
+    match key.action {
+        tuke::KeyAction::Send { code, .. } => code,
+        tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+    }
+}
+
 #[test]
 fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
     let layout = shipped_layout("mini-left.jsonc");
@@ -57,7 +65,7 @@ fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
         let key = layout
             .keys
             .iter()
-            .find(|k| k.code == code)
+            .find(|k| code_of(k) == code)
             .unwrap_or_else(|| panic!("missing {code}"));
         assert_eq!(
             key.region.position.col, 0,
@@ -96,7 +104,7 @@ fn mini_left_is_taller_than_mini() {
 #[test]
 fn mini_left_carries_the_keys_a_shell_needs() {
     let layout = shipped_layout("mini-left.jsonc");
-    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| k.code == code);
+    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| code_of(k) == code);
 
     for c in 'a'..='z' {
         assert!(has(tuke::KeyCode::Char(c)), "missing letter {c}");
@@ -136,7 +144,10 @@ fn mini_left_has_no_overlapping_keys() {
             assert!(
                 separated,
                 "keys {:?} at {:?} and {:?} at {:?} overlap",
-                a.code, a.region, b.code, b.region
+                code_of(a),
+                a.region,
+                code_of(b),
+                b.region
             );
         }
     }
@@ -147,13 +158,13 @@ fn mini_left_labels_fit_their_keys() {
     let layout = shipped_layout("mini-left.jsonc");
 
     for key in &layout.keys {
-        let label = key.code.to_string();
+        let label = code_of(key).to_string();
         let interior = key.region.size.cols.saturating_sub(2);
         assert!(
             label.chars().count() <= interior,
             "label {label:?} needs {} columns but key {:?} has {interior}",
             label.chars().count(),
-            key.code
+            code_of(key)
         );
     }
 }

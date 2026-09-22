@@ -23,6 +23,14 @@ fn load(tag: &str, text: &str) -> Result<tuke::Layout, tuke::Error> {
     result
 }
 
+/// The code a send key sends when Shift is not active.
+fn code_of(key: &tuke::Key) -> tuke::KeyCode {
+    match key.action {
+        tuke::KeyAction::Send { code, .. } => code,
+        tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+    }
+}
+
 #[test]
 fn a_missing_file_reports_its_path() {
     let path = temp_path("does-not-exist");
@@ -63,7 +71,7 @@ fn a_trailing_comma_is_accepted() {
     .expect("JSONC allows a trailing comma");
 
     assert_eq!(layout.keys.len(), 1);
-    assert_eq!(layout.keys[0].code, tuke::KeyCode::Char('a'));
+    assert_eq!(code_of(&layout.keys[0]), tuke::KeyCode::Char('a'));
 }
 
 #[test]
