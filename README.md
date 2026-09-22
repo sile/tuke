@@ -57,6 +57,17 @@ keyboard region. Three are shipped:
 
 The file to load is currently hard-coded, so `mini.jsonc` is not reachable yet.
 
+To see what tuke reads out of a layout - every key's code, region, and label,
+plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect_layout.rs)
+example against it:
+
+```console
+$ cargo run --example inspect_layout layouts/mini.jsonc
+```
+
+That is also the worked example of reading a layout from Rust, and the extent
+it prints is the number a layout chooser compares against the terminal size.
+
 Roadmap
 -------
 
