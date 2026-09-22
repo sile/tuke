@@ -25,6 +25,7 @@ fn key_codes_round_trip_through_their_textual_form() {
         tuke::KeyCode::Enter,
         tuke::KeyCode::Backspace,
         tuke::KeyCode::Delete,
+        tuke::KeyCode::Escape,
         tuke::KeyCode::Tab,
         tuke::KeyCode::BackTab,
     ];
@@ -79,6 +80,7 @@ fn named_keys_map_to_the_matching_termnix_code() {
         (tuke::KeyCode::Enter, termnix::KeyCode::Enter),
         (tuke::KeyCode::Backspace, termnix::KeyCode::Backspace),
         (tuke::KeyCode::Delete, termnix::KeyCode::Delete),
+        (tuke::KeyCode::Escape, termnix::KeyCode::Escape),
         (tuke::KeyCode::Tab, termnix::KeyCode::Tab),
         (tuke::KeyCode::Char('x'), termnix::KeyCode::Char('x')),
     ];

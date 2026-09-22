@@ -260,6 +260,8 @@ pub enum KeyCode {
     Backspace,
     /// Delete.
     Delete,
+    /// Escape (called `Esc` in a layout).
+    Escape,
     /// Tab.
     Tab,
     /// Shift+Tab (called `BTab` in a layout).
@@ -313,6 +315,7 @@ impl KeyCode {
             Self::Enter => termnix::KeyCode::Enter,
             Self::Backspace => termnix::KeyCode::Backspace,
             Self::Delete => termnix::KeyCode::Delete,
+            Self::Escape => termnix::KeyCode::Escape,
             Self::Tab => termnix::KeyCode::Tab,
             Self::BackTab => termnix::KeyCode::Tab,
             Self::Shift | Self::Ctrl | Self::Alt => return None,
@@ -335,6 +338,7 @@ impl std::fmt::Display for KeyCode {
             Self::Enter => write!(f, "Enter"),
             Self::Backspace => write!(f, "BSpace"),
             Self::Delete => write!(f, "Delete"),
+            Self::Escape => write!(f, "Esc"),
             Self::Tab => write!(f, "Tab"),
             Self::BackTab => write!(f, "BTab"),
         }
@@ -356,6 +360,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for KeyCode {
             "Enter" => Ok(Self::Enter),
             "BSpace" => Ok(Self::Backspace),
             "Delete" => Ok(Self::Delete),
+            "Esc" => Ok(Self::Escape),
             "Tab" => Ok(Self::Tab),
             "BTab" => Ok(Self::BackTab),
             s => {
