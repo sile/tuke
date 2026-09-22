@@ -86,11 +86,11 @@ fn main() -> noargs::Result<()> {
         .map(|pos| parse_keyboard_pos(&pos))
         .transpose()?;
 
-    let layout = layout_file_path
-        .map(tuke::Layout::load_from_file)
+    let layouts = layout_file_path
+        .map(tuke::LayoutSet::load_from_file)
         .transpose()?
         .unwrap_or_default();
-    let app = app::App::new(layout, &mut command, keyboard_pos)?;
+    let app = app::App::new(layouts, &mut command, keyboard_pos)?;
     app.run()?;
     Ok(())
 }

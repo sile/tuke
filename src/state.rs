@@ -8,7 +8,7 @@
 use crate::action::Action;
 use crate::event::Event;
 use crate::geometry;
-use crate::layout::{KeyCode, KeyPressState, KeyState, Layout, Preview};
+use crate::layout::{KeyAction, KeyCode, KeyPressState, KeyState, LayoutSet, Preview};
 
 /// Where the user asked the floating keyboard to sit.
 ///
@@ -50,6 +50,10 @@ impl KeyboardPos {
 /// The soft keyboard's state and its pure transition function.
 #[derive(Debug)]
 pub struct State {
+    /// Every layout in the set, so a `switch_to` key can look up its target.
+    layouts: LayoutSet,
+    /// The name of the layout currently shown.
+    current: String,
     keys: Vec<KeyState>,
     preview: Option<Preview>,
     terminal_size: tuinix::Size,
@@ -84,26 +88,48 @@ impl State {
     /// When it is `None`, the keyboard is bottom-aligned and centred, and the
     /// grid gets the rows above it.
     pub fn new(
-        layout: Layout,
+        layouts: LayoutSet,
         terminal_size: tuinix::Size,
         keyboard_pos: Option<KeyboardPos>,
     ) -> Self {
-        let keys = layout
-            .keys
-            .iter()
-            .map(|key| KeyState::new(key.clone()))
-            .collect();
+        let current = layouts.first_name().to_string();
         let mut state = Self {
-            keys,
-            preview: layout.preview,
+            layouts,
+            current,
+            keys: Vec::new(),
+            preview: None,
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
             keyboard_pos,
             held_button: None,
         };
+        state.show_current_layout();
         state.recompute_geometry();
         state
+    }
+
+    /// Rebuilds the keys and preview from the current layout.
+    ///
+    /// Switching layouts replaces the whole keyboard, so this is what both
+    /// startup and a `switch_to` press go through: the new layout's keys start
+    /// neutral and its own preview is the one that will be drawn.
+    fn show_current_layout(&mut self) {
+        let layout = self
+            .layouts
+            .get(&self.current)
+            .expect("the current layout name always names a layout in the set");
+        self.keys = layout
+            .keys
+            .iter()
+            .map(|key| KeyState::new(key.clone()))
+            .collect();
+        self.preview = layout.preview.clone();
+    }
+
+    /// The name of the layout currently shown.
+    pub fn current_layout_name(&self) -> &str {
+        &self.current
     }
 
     /// The keyboard's keys and their press states.
@@ -137,11 +163,13 @@ impl State {
     /// Whether Shift is currently active (one-shot or held).
     pub fn is_shift_active(&self) -> bool {
         self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Shift
-                && matches!(
-                    k.press,
-                    KeyPressState::OneshotActivated | KeyPressState::Activated
-                )
+            matches!(
+                k.key.action,
+                KeyAction::Send { code, .. } if code == KeyCode::Shift
+            ) && matches!(
+                k.press,
+                KeyPressState::OneshotActivated | KeyPressState::Activated
+            )
         })
     }
 
@@ -340,7 +368,8 @@ impl State {
             return Vec::new();
         };
 
-        if self.keys[index].key.code.is_modifier() {
+        if matches!(self.keys[index].key.action, KeyAction::Send { code, .. } if code.is_modifier())
+        {
             self.press_modifier(index);
             vec![Action::Redraw]
         } else {
@@ -377,7 +406,29 @@ impl State {
 
     /// Updates the modifier-held/one-shot state for a normal key press and
     /// returns the key to send.
+    ///
+    /// A key that switches layouts is handled here too: a press on it replaces
+    /// the keyboard with its target layout and sends nothing, so it has no
+    /// press state to hold and no code to send. The switch happens on the
+    /// press itself, not on a later key, so the new layout is what the user
+    /// sees as soon as the key is released.
     fn press_normal(&mut self, index: usize) -> Vec<Action> {
+        let (code, shift_code) = match &self.keys[index].key.action {
+            KeyAction::Send { code, shift_code } => (*code, *shift_code),
+            KeyAction::Switch { to } => {
+                // An unknown target is ignored: a layout file can name a
+                // layout that does not exist, and the keyboard stays as it is
+                // rather than the whole app failing over a single mistyped
+                // name.
+                if self.layouts.get(to).is_some() {
+                    self.current = to.clone();
+                    self.show_current_layout();
+                    return vec![Action::Redraw];
+                }
+                return Vec::new();
+            }
+        };
+
         for key in &mut self.keys {
             match key.press {
                 KeyPressState::Neutral => {}
@@ -393,10 +444,7 @@ impl State {
         self.keys[index].press = KeyPressState::Pressed;
 
         let shift = self.is_shift_pressed();
-        let mut code = self.keys[index].key.code;
-        if shift {
-            code = self.keys[index].key.shift_code;
-        }
+        let code = if shift { shift_code } else { code };
 
         // Modifiers only combine with keys that accept them; a modifier key
         // itself is never sent on its own.
@@ -436,23 +484,24 @@ impl State {
     }
 
     fn is_ctrl_pressed(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Ctrl
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
-        })
+        self.is_modifier_pressed(KeyCode::Ctrl)
     }
 
     fn is_alt_pressed(&self) -> bool {
-        self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Alt
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
-        })
+        self.is_modifier_pressed(KeyCode::Alt)
     }
 
     fn is_shift_pressed(&self) -> bool {
+        self.is_modifier_pressed(KeyCode::Shift)
+    }
+
+    /// Whether the soft key that carries the `modifier` code is held down.
+    fn is_modifier_pressed(&self, modifier: KeyCode) -> bool {
         self.keys.iter().any(|k| {
-            k.key.code == KeyCode::Shift
-                && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
+            matches!(
+                k.key.action,
+                KeyAction::Send { code, .. } if code == modifier
+            ) && matches!(k.press, KeyPressState::Pressed | KeyPressState::Activated)
         })
     }
 }

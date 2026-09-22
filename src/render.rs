@@ -227,10 +227,18 @@ fn key_frame(key_state: &KeyState, shift: bool) -> tuinix::Frame {
         crate::layout::KeyPressState::OneshotActivated => tuinix::Style::new().italic(),
     };
 
-    let label = if shift {
-        key_state.key.shift_code.to_string()
-    } else {
-        key_state.key.code.to_string()
+    let label = match &key_state.key.action {
+        crate::layout::KeyAction::Send { code, shift_code } => {
+            if shift {
+                shift_code.to_string()
+            } else {
+                code.to_string()
+            }
+        }
+        // A switch key is labelled with where it goes: the layout it shows is
+        // the only thing a press on it can mean, so its name is what the user
+        // needs to see.
+        crate::layout::KeyAction::Switch { to } => to.clone(),
     };
 
     // A box needs a column for each side border and an inner row for the

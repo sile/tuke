@@ -37,7 +37,7 @@ impl App {
     /// the core unresolved, so a resize can resolve it again against the new
     /// size.
     pub fn new(
-        layout: tuke::Layout,
+        layouts: tuke::LayoutSet,
         command: &mut Command,
         keyboard_pos: Option<tuke::KeyboardPos>,
     ) -> tuke::Result<Self> {
@@ -45,7 +45,7 @@ impl App {
         driver.enable_mouse_reporting()?;
 
         let terminal_size = driver.size();
-        let state = tuke::State::new(layout, terminal_size, keyboard_pos);
+        let state = tuke::State::new(layouts, terminal_size, keyboard_pos);
 
         let session_size = tuke::to_termnix_size(state.grid_size())
             .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;

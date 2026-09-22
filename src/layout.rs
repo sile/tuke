@@ -45,6 +45,17 @@ impl LayoutSet {
         &self.layouts
     }
 
+    /// Builds a layout set from named layouts, without validating their
+    /// `switch_to` targets.
+    ///
+    /// It exists so tests and callers that build layouts in code can make a
+    /// set without going through JSONC. [`LayoutSet::load_from_file`] is the
+    /// way a user's file becomes a set, and it also checks that every
+    /// `switch_to` names a layout that exists.
+    pub fn from_named(layouts: Vec<NamedLayout>) -> Self {
+        Self { layouts }
+    }
+
     /// The layout named `name`, or `None` when the set has no such layout.
     pub fn get(&self, name: &str) -> Option<&Layout> {
         self.layouts
@@ -60,6 +71,14 @@ impl LayoutSet {
     /// user sees.
     pub fn first(&self) -> &Layout {
         &self.layouts[0].layout
+    }
+
+    /// The name of the first declared layout.
+    ///
+    /// It is what [`LayoutSet::first`] would return, by name, so a caller that
+    /// tracks the current layout can start from it.
+    pub fn first_name(&self) -> &str {
+        &self.layouts[0].name
     }
 }
 
@@ -280,7 +299,7 @@ impl LayoutBuilder {
 }
 
 /// One key the user sent, as recorded by the preview.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct SentKey {
     /// The layout key code that was sent.
     code: KeyCode,
@@ -297,7 +316,7 @@ impl SentKey {
 }
 
 /// The send preview: a row that shows the keys most recently sent.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Preview {
     /// Where the preview is drawn, in layout coordinates.
     pub region: tuinix::Region,
@@ -384,15 +403,35 @@ impl Preview {
     }
 }
 
-/// One soft key: its label codes and where it sits in the layout.
+/// One soft key: what pressing it does, and where it sits in the layout.
 #[derive(Debug, Clone)]
 pub struct Key {
-    /// The code sent when the key is pressed without Shift.
-    pub code: KeyCode,
-    /// The code sent when the key is pressed with Shift active.
-    pub shift_code: KeyCode,
+    /// What a press on the key does: send a code, or switch layouts.
+    pub action: KeyAction,
     /// The key's rectangle, in layout coordinates.
     pub region: tuinix::Region,
+}
+
+/// What pressing a soft key does.
+///
+/// A key either types something (the common case) or changes which layout the
+/// keyboard shows. Both are declared under the same `key` member, so a layout
+/// spells them the same way and only the key's value tells them apart: a
+/// string is a code to send, and a `{"switch_to": NAME}` object is a switch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyAction {
+    /// Send a key to the child when this key is pressed.
+    Send {
+        /// The code sent when the key is pressed without Shift.
+        code: KeyCode,
+        /// The code sent when the key is pressed with Shift active.
+        shift_code: KeyCode,
+    },
+    /// Show another layout in the same set when this key is pressed.
+    Switch {
+        /// The name of the layout to show, as declared by `{"layout": NAME}`.
+        to: String,
+    },
 }
 
 impl Key {
@@ -401,12 +440,22 @@ impl Key {
         position: tuinix::Position,
         default_size: tuinix::Size,
     ) -> Result<Self, nojson::JsonParseError> {
-        let code: KeyCode = value.to_member("key")?.required()?.try_into()?;
-
-        let shift_code = if let Some(shift) = value.to_member("shift")?.optional() {
-            shift.try_into()?
+        let key_value = value.to_member("key")?.required()?;
+        let action = if key_value.kind().is_object() {
+            let to = key_value
+                .to_member("switch_to")?
+                .required()?
+                .to_unquoted_string_str()?
+                .to_string();
+            KeyAction::Switch { to }
         } else {
-            code.default_shift_code()
+            let code: KeyCode = key_value.try_into()?;
+            let shift_code = if let Some(shift) = value.to_member("shift")?.optional() {
+                shift.try_into()?
+            } else {
+                code.default_shift_code()
+            };
+            KeyAction::Send { code, shift_code }
         };
 
         let size = value
@@ -416,11 +465,7 @@ impl Key {
 
         let region = tuinix::Region { position, size };
 
-        Ok(Self {
-            code,
-            shift_code,
-            region,
-        })
+        Ok(Self { action, region })
     }
 }
 
