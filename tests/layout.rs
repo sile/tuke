@@ -215,6 +215,10 @@ fn mini_carries_the_keys_a_shell_needs() {
         tuke::KeyCode::Enter,
         tuke::KeyCode::Backspace,
         tuke::KeyCode::Char(' '),
+        tuke::KeyCode::Left,
+        tuke::KeyCode::Down,
+        tuke::KeyCode::Up,
+        tuke::KeyCode::Right,
     ] {
         assert!(has(code), "missing {code}");
     }

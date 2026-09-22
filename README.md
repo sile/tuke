@@ -53,7 +53,7 @@ keyboard region. Three are shipped:
 | --- | --- | --- |
 | [layouts/default.jsonc](layouts/default.jsonc) | 144 cols | The full three-region keyboard |
 | [layouts/compact-right.jsonc](layouts/compact-right.jsonc) | 144 cols | Same, narrower clusters |
-| [layouts/mini.jsonc](layouts/mini.jsonc) | 61 cols | Fits in 80 columns; the keys a shell needs, no Shift/Alt |
+| [layouts/mini.jsonc](layouts/mini.jsonc) | 76 cols | Fits in 80 columns; the keys a shell needs plus the arrows, no Shift/Alt |
 
 The file to load is currently hard-coded, so `mini.jsonc` is not reachable yet.
 
@@ -97,6 +97,6 @@ positionally (rows of key widths) and let tuke compute the coordinates.
 - The horizontal centring in [`src/geometry.rs`](src/geometry.rs) exists
   because layouts carry absolute columns; a positional format would make it
   unnecessary.
-- `mini.jsonc` widens `Esc` (5), `Tab` (5), `BSpace` (8), `Enter` (7), `C-`
-  (4) so their labels fit, which leaves the row ends ragged. Cosmetics, to be
-  revisited.
+- `mini.jsonc` keys are four columns wide (only 76 of the 80 columns are
+  used), which is the narrowest that still reads well. `Esc`/`Tab` (6),
+  `BSpace` (9), `Enter` (7) and the arrows (7) are wider so their labels fit.

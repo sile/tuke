@@ -4,13 +4,16 @@
   // leaves the rest (the extra symbols, Shift, Alt) to a fuller layout chosen
   // by hand.
   //
-  // The rows are laid out so the keys a thumb reaches for - Ctrl, Space,
-  // Enter, BSpace - sit near the bottom centre, where the hand already is.
+  // The keys are four columns wide, which is narrow but still wide enough to
+  // read a one-character label without the key looking cramped. The rows are
+  // laid out so the keys a thumb reaches for - Ctrl, Space, Enter, BSpace -
+  // sit near the bottom centre, and the arrow cluster sits at the right end
+  // of its own row.
 
   // Number row: digits with the symbols that need no Shift on the right.
   {"base_position": {"row": 0, "column": 0}},
-  {"default_size": {"width": 3, "height": 3}},
-  {"key": "Esc", "size": {"width": 5, "height": 3}},
+  {"default_size": {"width": 4, "height": 3}},
+  {"key": "Esc", "size": {"width": 6, "height": 3}},
   {"key": "1"},
   {"key": "2"},
   {"key": "3"},
@@ -28,7 +31,7 @@
   {"newline": 1},
 
   // Upper letter row, with its symbols on the right.
-  {"key": "Tab", "size": {"width": 5, "height": 3}},
+  {"key": "Tab", "size": {"width": 6, "height": 3}},
   {"key": "q"},
   {"key": "w"},
   {"key": "e"},
@@ -58,10 +61,10 @@
   {"key": "l"},
   {"key": "("},
   {"key": ")"},
-  {"key": "BSpace", "size": {"width": 8, "height": 3}},
+  {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
-  // Bottom row: the thumb keys sit together in the middle.
+  // Bottom row: the thumb keys sit under the middle of the letters.
   {"blank": 8},
   {"key": "z"},
   {"key": "x"},
@@ -70,8 +73,16 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  {"blank": 4},
+  {"blank": 1},
   {"key": "C-", "size": {"width": 4, "height": 3}},
-  {"key": " "},
+  {"key": " ", "size": {"width": 13, "height": 3}},
   {"key": "Enter", "size": {"width": 7, "height": 3}},
+  {"newline": 1},
+
+  // Arrow row, out at the right end where it does not crowd the letters.
+  {"blank": 44},
+  {"key": "Left", "size": {"width": 7, "height": 3}},
+  {"key": "Down", "size": {"width": 7, "height": 3}},
+  {"key": "Up", "size": {"width": 7, "height": 3}},
+  {"key": "Right", "size": {"width": 7, "height": 3}},
 ]
