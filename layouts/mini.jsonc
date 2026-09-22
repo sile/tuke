@@ -1,0 +1,77 @@
+[
+  // A compact QWERTY keyboard for narrow screens: every key in this layout
+  // fits within 80 columns. It carries the keys a shell needs most often and
+  // leaves the rest (the extra symbols, Shift, Alt) to a fuller layout chosen
+  // by hand.
+  //
+  // The rows are laid out so the keys a thumb reaches for - Ctrl, Space,
+  // Enter, BSpace - sit near the bottom centre, where the hand already is.
+
+  // Number row: digits with the symbols that need no Shift on the right.
+  {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 3, "height": 3}},
+  {"key": "Esc", "size": {"width": 5, "height": 3}},
+  {"key": "1"},
+  {"key": "2"},
+  {"key": "3"},
+  {"key": "4"},
+  {"key": "5"},
+  {"key": "6"},
+  {"key": "7"},
+  {"key": "8"},
+  {"key": "9"},
+  {"key": "0"},
+  {"key": "-"},
+  {"key": "."},
+  {"key": "_"},
+  {"key": "/"},
+  {"newline": 1},
+
+  // Upper letter row, with its symbols on the right.
+  {"key": "Tab", "size": {"width": 5, "height": 3}},
+  {"key": "q"},
+  {"key": "w"},
+  {"key": "e"},
+  {"key": "r"},
+  {"key": "t"},
+  {"key": "y"},
+  {"key": "u"},
+  {"key": "i"},
+  {"key": "o"},
+  {"key": "p"},
+  {"key": "?"},
+  {"key": ","},
+  {"key": "~"},
+  {"key": "\""},
+  {"newline": 1},
+
+  // Home row, indented by one key and closed with Backspace.
+  {"blank": 4},
+  {"key": "a"},
+  {"key": "s"},
+  {"key": "d"},
+  {"key": "f"},
+  {"key": "g"},
+  {"key": "h"},
+  {"key": "j"},
+  {"key": "k"},
+  {"key": "l"},
+  {"key": "("},
+  {"key": ")"},
+  {"key": "BSpace", "size": {"width": 8, "height": 3}},
+  {"newline": 1},
+
+  // Bottom row: the thumb keys sit together in the middle.
+  {"blank": 8},
+  {"key": "z"},
+  {"key": "x"},
+  {"key": "c"},
+  {"key": "v"},
+  {"key": "b"},
+  {"key": "n"},
+  {"key": "m"},
+  {"blank": 4},
+  {"key": "C-", "size": {"width": 4, "height": 3}},
+  {"key": " "},
+  {"key": "Enter", "size": {"width": 7, "height": 3}},
+]

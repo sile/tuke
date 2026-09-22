@@ -156,6 +156,116 @@ fn layout_from_a_file_matches_the_text() {
     assert!(layout.preview.is_none());
 }
 
+/// The rightmost column any key or the preview extends to, in layout cells.
+fn layout_cols(layout: &tuke::Layout) -> usize {
+    layout
+        .keys
+        .iter()
+        .map(|k| k.region.position.col + k.region.size.cols)
+        .chain(
+            layout
+                .preview
+                .iter()
+                .map(|p| p.region.position.col + p.region.size.cols),
+        )
+        .max()
+        .unwrap_or_default()
+}
+
+/// Loads a layout that ships with tuke, by file name under `layouts/`.
+fn shipped_layout(name: &str) -> tuke::Layout {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("layouts")
+        .join(name);
+    tuke::Layout::load_from_file(&path)
+        .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()))
+}
+
+#[test]
+fn mini_fits_in_eighty_columns() {
+    let layout = shipped_layout("mini.jsonc");
+
+    // The point of this layout is that it is usable on a narrow screen: an
+    // 80-column terminal must be able to show it without cropping.
+    assert!(
+        layout_cols(&layout) <= 80,
+        "mini is {} columns wide, over the 80-column budget",
+        layout_cols(&layout)
+    );
+}
+
+#[test]
+fn mini_carries_the_keys_a_shell_needs() {
+    let layout = shipped_layout("mini.jsonc");
+    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| k.code == code);
+
+    for c in 'a'..='z' {
+        assert!(has(tuke::KeyCode::Char(c)), "missing letter {c}");
+    }
+    for c in '0'..='9' {
+        assert!(has(tuke::KeyCode::Char(c)), "missing digit {c}");
+    }
+    for c in ['.', '-', '_', '/', '?', ',', '~', '"', '(', ')'] {
+        assert!(has(tuke::KeyCode::Char(c)), "missing symbol {c}");
+    }
+    for code in [
+        tuke::KeyCode::Ctrl,
+        tuke::KeyCode::Escape,
+        tuke::KeyCode::Tab,
+        tuke::KeyCode::Enter,
+        tuke::KeyCode::Backspace,
+        tuke::KeyCode::Char(' '),
+    ] {
+        assert!(has(code), "missing {code}");
+    }
+
+    // Shift and Alt are deliberately absent: a compact layout carries only the
+    // modifier a shell cannot do without.
+    assert!(!has(tuke::KeyCode::Shift), "mini should not carry Shift");
+    assert!(!has(tuke::KeyCode::Alt), "mini should not carry Alt");
+}
+
+#[test]
+fn mini_has_no_overlapping_keys() {
+    let layout = shipped_layout("mini.jsonc");
+
+    // Overlapping keys would make a hit test ambiguous, and the JSONC cursor
+    // rules already place them, so a collision means the layout moved a key by
+    // hand on top of another.
+    for (i, a) in layout.keys.iter().enumerate() {
+        for b in &layout.keys[i + 1..] {
+            let separated = a.region.position.col + a.region.size.cols <= b.region.position.col
+                || b.region.position.col + b.region.size.cols <= a.region.position.col
+                || a.region.position.row + a.region.size.rows <= b.region.position.row
+                || b.region.position.row + b.region.size.rows <= a.region.position.row;
+            assert!(
+                separated,
+                "keys {:?} at {:?} and {:?} at {:?} overlap",
+                a.code, a.region, b.code, b.region
+            );
+        }
+    }
+}
+
+#[test]
+fn mini_labels_fit_their_keys() {
+    let layout = shipped_layout("mini.jsonc");
+
+    // The renderer crops a label that is too long for its key, so a cramped
+    // label is not an error - but `BSpace` in a three-column key would read
+    // `BSp`, which is a layout bug rather than a rendering one.
+    for key in &layout.keys {
+        let label = key.code.to_string();
+        let interior = key.region.size.cols.saturating_sub(2);
+        assert!(
+            label.chars().count() <= interior,
+            "label {label:?} needs {} columns but key {:?} has {interior}",
+            label.chars().count(),
+            key.code
+        );
+    }
+}
+
 #[test]
 fn a_size_below_the_minimum_is_rejected() {
     let path = std::env::temp_dir().join(format!("tuke-layout-min-{}.jsonc", std::process::id()));
