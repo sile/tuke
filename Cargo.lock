@@ -40,9 +40,9 @@ checksum = "4b59efba88ff29e9fb1fea914a60aa69aea73f02f2bcbd76b369f7a07cdda95a"
 
 [[package]]
 name = "termnix"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d8a06a73688fcb5208a5717321dfadd6e53293ac1e80af9c48007af37aa3cde"
+checksum = "712d85cf9a7ec1bacada9c84fa15dab36bcbea0ba26d0544cf524b1eab456821"
 dependencies = [
  "libc",
  "unicode-width",

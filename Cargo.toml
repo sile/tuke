@@ -14,7 +14,7 @@ libc = "0.2"
 noargs = "0.4.3"
 nojson = "0.3.15"
 tuinix = "0.7.0"
-termnix = "0.3"
+termnix = "0.4"
 
 [dev-dependencies]
 noprop = "0.2"
