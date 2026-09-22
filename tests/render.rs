@@ -105,7 +105,7 @@ fn a_floating_keyboard_is_painted_over_the_grid() {
     // which the keyboard must paint over rather than let show through.
     let size = tuinix::Size { rows: 4, cols: 5 };
     let layout = single_key_layout(3, 5);
-    let anchor = tuinix::Position { row: 3, col: 0 };
+    let anchor = tuke::KeyboardPos { col: 0, rows: 0 };
     let state = tuke::State::new(layout, size, Some(anchor));
     let mut terminal = termnix::TerminalState::new(termnix_size(4, 5));
 
@@ -130,7 +130,7 @@ fn a_floating_keyboard_leaves_the_grid_at_full_size() {
     // under the keyboard is still a real grid position.
     let size = tuinix::Size { rows: 4, cols: 5 };
     let layout = single_key_layout(3, 5);
-    let anchor = tuinix::Position { row: 3, col: 0 };
+    let anchor = tuke::KeyboardPos { col: 0, rows: 0 };
     let state = tuke::State::new(layout, size, Some(anchor));
 
     assert!(state.is_overlay());

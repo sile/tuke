@@ -418,7 +418,7 @@ fn a_floating_keyboard_sends_a_drag_over_a_key_to_the_child() {
     // position over a key is still a grid position: a drag there is the
     // child's, only the left release presses the key.
     let size = tuinix::Size { rows: 40, cols: 30 };
-    let anchor = tuinix::Position { row: 39, col: 13 };
+    let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
     let mut state = tuke::State::new(test_layout(), size, Some(anchor));
     let centre = screen_centre(&state, 3, 0);
 
@@ -435,7 +435,7 @@ fn a_floating_keyboard_sends_a_drag_over_a_key_to_the_child() {
 #[test]
 fn a_floating_keyboard_still_presses_a_key_on_left_release() {
     let size = tuinix::Size { rows: 40, cols: 30 };
-    let anchor = tuinix::Position { row: 39, col: 13 };
+    let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
     let mut state = tuke::State::new(test_layout(), size, Some(anchor));
     let centre = screen_centre(&state, 3, 0);
 
@@ -450,9 +450,52 @@ fn a_floating_keyboard_still_presses_a_key_on_left_release() {
 }
 
 #[test]
+fn a_floating_keyboard_follows_a_resize() {
+    // The position is pinned to the terminal's bottom-left corner, so when the
+    // terminal grows the keyboard moves with the corner rather than staying
+    // where it was.
+    let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
+    let mut state = tuke::State::new(
+        test_layout(),
+        tuinix::Size { rows: 40, cols: 30 },
+        Some(anchor),
+    );
+    assert_eq!(state.offset().row, 31);
+
+    state.update(tuke::Event::Resize {
+        size: tuinix::Size { rows: 50, cols: 30 },
+    });
+
+    // Ten more rows: the keyboard's last row is now 49, so it starts at 41.
+    assert_eq!(state.offset().row, 41);
+    assert_eq!(state.grid_size(), tuinix::Size { rows: 50, cols: 30 });
+}
+
+#[test]
+fn a_floating_keyboard_keeps_its_distance_from_the_bottom() {
+    // With two rows of clearance, growing the terminal keeps two rows of
+    // clearance from the new bottom instead of counting from the old one.
+    let anchor = tuke::KeyboardPos { col: 0, rows: 2 };
+    let mut state = tuke::State::new(
+        test_layout(),
+        tuinix::Size { rows: 40, cols: 30 },
+        Some(anchor),
+    );
+    // Last row 37 (40 - 1 - 2), nine rows tall, so it starts at 29.
+    assert_eq!(state.offset().row, 29);
+
+    state.update(tuke::Event::Resize {
+        size: tuinix::Size { rows: 50, cols: 30 },
+    });
+
+    // Last row 47 (50 - 1 - 2), so it starts at 39.
+    assert_eq!(state.offset().row, 39);
+}
+
+#[test]
 fn a_floating_keyboard_keeps_the_grid_at_full_size() {
     let size = tuinix::Size { rows: 40, cols: 30 };
-    let anchor = tuinix::Position { row: 39, col: 13 };
+    let anchor = tuke::KeyboardPos { col: 13, rows: 0 };
     let state = tuke::State::new(test_layout(), size, Some(anchor));
 
     assert!(state.is_overlay());
