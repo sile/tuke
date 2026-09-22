@@ -3,7 +3,7 @@
   // fits within 80 columns. It carries the keys a shell needs most often and
   // leaves the rest (Shift, Alt) to a fuller layout chosen by hand.
   //
-  // The keys are four columns wide, which is narrow but still wide enough to
+  // The keys are five columns wide, which is narrow but still wide enough to
   // read a one-character label without the key looking cramped. The rows run
   // top to bottom: symbols, digits, then the three letter rows, and finally
   // the arrows and the thumb keys.
@@ -12,7 +12,7 @@
   // letter rows stay narrow. It is centred over the rows below.
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
-  {"blank": 13},
+  {"blank": 7},
   {"key": "-"},
   {"key": "_"},
   {"key": "/"},
@@ -76,7 +76,6 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  {"blank": 6},
   {"key": "Up", "size": {"width": 7, "height": 3}},
   {"newline": 1},
 
@@ -86,7 +85,7 @@
   {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"key": " ", "size": {"width": 19, "height": 3}},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
-  {"blank": 8},
+  {"blank": 2},
   {"key": "Left", "size": {"width": 7, "height": 3}},
   {"key": "Down", "size": {"width": 7, "height": 3}},
   {"key": "Right", "size": {"width": 7, "height": 3}},
