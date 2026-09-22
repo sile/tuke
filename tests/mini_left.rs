@@ -42,6 +42,32 @@ fn shipped_layout(name: &str) -> tuke::Layout {
 }
 
 #[test]
+fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
+    let layout = shipped_layout("mini-left.jsonc");
+
+    // The letter rows and the thumb row sit flush against the left edge, so a
+    // left hand resting on the board reaches every key without reaching right.
+    for code in [
+        tuke::KeyCode::Char('q'),
+        tuke::KeyCode::Char('a'),
+        tuke::KeyCode::Ctrl,
+        tuke::KeyCode::Backspace,
+        tuke::KeyCode::Tab,
+    ] {
+        let key = layout
+            .keys
+            .iter()
+            .find(|k| k.code == code)
+            .unwrap_or_else(|| panic!("missing {code}"));
+        assert_eq!(
+            key.region.position.col, 0,
+            "{code} starts at column {}, not the left edge",
+            key.region.position.col
+        );
+    }
+}
+
+#[test]
 fn mini_left_fits_a_narrow_screen() {
     let layout = shipped_layout("mini-left.jsonc");
 

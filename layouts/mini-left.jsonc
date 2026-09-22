@@ -22,7 +22,8 @@
   {"key": "_"},
   {"newline": 1},
 
-  // Digit rows: Esc leads the top row, then the digits split five and five.
+  // Digit rows: Esc leads the top row; Tab leads the bottom row, directly
+  // under Esc, and the digits split five and five.
   {"key": "Esc", "size": {"width": 9, "height": 3}},
   {"key": "1"},
   {"key": "2"},
@@ -30,7 +31,7 @@
   {"key": "4"},
   {"key": "5"},
   {"newline": 1},
-  {"blank": 5},
+  {"key": "Tab", "size": {"width": 9, "height": 3}},
   {"key": "6"},
   {"key": "7"},
   {"key": "8"},
@@ -38,8 +39,7 @@
   {"key": "0"},
   {"newline": 1},
 
-  // Upper letter row: Tab to the left of q.
-  {"key": "Tab", "size": {"width": 9, "height": 3}},
+  // Upper letter row: the letters start at the left edge.
   {"key": "q"},
   {"key": "w"},
   {"key": "e"},
@@ -52,8 +52,7 @@
   {"key": "p"},
   {"newline": 1},
 
-  // Home row, indented by one key.
-  {"blank": 4},
+  // Home row: the letters start at the left edge.
   {"key": "a"},
   {"key": "s"},
   {"key": "d"},
@@ -80,8 +79,8 @@
   {"newline": 1},
 
   // Thumb row, directly under the letters: Backspace to the left of Space,
-  // Enter to the right, and the rest of the arrow cluster under Up.
-  {"blank": 3},
+  // Enter to the right, and the rest of the arrow cluster under Up. Backspace
+  // starts at the left edge, lining up with the letter rows above it.
   {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"key": " ", "size": {"width": 19, "height": 3}},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
