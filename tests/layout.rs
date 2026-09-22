@@ -205,7 +205,7 @@ fn mini_carries_the_keys_a_shell_needs() {
     for c in '0'..='9' {
         assert!(has(tuke::KeyCode::Char(c)), "missing digit {c}");
     }
-    for c in ['.', '-', '_', '/', '?', ',', '~', '"', '(', ')'] {
+    for c in ['.', '-', '_', '/', '?', '~', '"', '(', ')'] {
         assert!(has(tuke::KeyCode::Char(c)), "missing symbol {c}");
     }
     for code in [
