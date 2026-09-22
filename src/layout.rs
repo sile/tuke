@@ -19,7 +19,9 @@ pub struct Layout {
 /// never names one is a single layout.
 ///
 /// A layout's keys carry a `switch_to` code that names another layout in the
-/// same set, which is how one soft key swaps the keyboard for another.
+/// same set, which is how one soft key swaps the keyboard for another. A name
+/// no layout in the file declares is rejected when the file is read, at the
+/// name that spelled it, so a switch that could never fire cannot get in.
 #[derive(Debug)]
 pub struct LayoutSet {
     layouts: Vec<NamedLayout>,
@@ -50,8 +52,9 @@ impl LayoutSet {
     ///
     /// It exists so tests and callers that build layouts in code can make a
     /// set without going through JSONC. [`LayoutSet::load_from_file`] is the
-    /// way a user's file becomes a set, and it also checks that every
-    /// `switch_to` names a layout that exists.
+    /// way a user's file becomes a set, and it rejects a `switch_to` that
+    /// names a layout the file does not define; a set built by this function
+    /// has no such check, so a switch to a name it lacks is inert.
     pub fn from_named(layouts: Vec<NamedLayout>) -> Self {
         Self { layouts }
     }
@@ -114,6 +117,7 @@ impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for LayoutSet {
         for entry in value.to_array()? {
             builder.accept(entry)?;
         }
+        builder.check_switches()?;
         Ok(builder.finish())
     }
 }
@@ -136,21 +140,31 @@ impl LayoutSet {
 /// being filled rather than here, so a `{"layout": NAME}` entry ends the
 /// current layout and starts the next one with a fresh cursor at the origin.
 #[derive(Debug, Default)]
-struct LayoutSetBuilder {
+struct LayoutSetBuilder<'text, 'raw> {
     layouts: Vec<NamedLayout>,
     names: Vec<String>,
     current_name: Option<String>,
     current: LayoutBuilder,
+    /// Every `switch_to` seen, paired with the value that named it.
+    ///
+    /// The target's existence cannot be checked while the entries are read:
+    /// a switch can name a layout that is declared later in the same file, so
+    /// the names are all known only once the file has been read to its end.
+    /// The references are collected here and checked by
+    /// [`LayoutSet::check_switches`] afterwards. The value is kept so an
+    /// unknown target can be reported at the name that spelled it.
+    switches: Vec<(String, nojson::RawJsonValue<'text, 'raw>)>,
 }
 
-impl LayoutSetBuilder {
+impl<'text, 'raw> LayoutSetBuilder<'text, 'raw> {
     /// Applies one layout entry, either starting a new layout or adding to the
     /// current one.
     fn accept(
         &mut self,
-        entry: nojson::RawJsonValue<'_, '_>,
+        entry: nojson::RawJsonValue<'text, 'raw>,
     ) -> Result<(), nojson::JsonParseError> {
         let Some(name_value) = entry.to_member("layout")?.optional() else {
+            self.record_switch(entry)?;
             return self.current.accept(entry);
         };
 
@@ -172,6 +186,55 @@ impl LayoutSetBuilder {
                 name: previous_name.unwrap_or_else(|| "default".to_string()),
                 layout: previous.finish(),
             });
+        }
+        Ok(())
+    }
+
+    /// Records the target of a `switch_to` entry, if `entry` has one.
+    ///
+    /// A `switch_to` key names its target under the same `key` member a send
+    /// key takes its code from, so only entries whose `key` is an object can
+    /// carry one. The value is kept along with the name so a missing target
+    /// can be reported where the name was written.
+    fn record_switch(
+        &mut self,
+        entry: nojson::RawJsonValue<'text, 'raw>,
+    ) -> Result<(), nojson::JsonParseError> {
+        let Some(key_value) = entry.to_member("key")?.optional() else {
+            return Ok(());
+        };
+        if !key_value.kind().is_object() {
+            return Ok(());
+        }
+        let Some(target) = key_value.to_member("switch_to")?.optional() else {
+            return Ok(());
+        };
+        self.switches
+            .push((target.to_unquoted_string_str()?.to_string(), target));
+        Ok(())
+    }
+
+    /// Checks that every `switch_to` names a layout the file defines.
+    ///
+    /// It runs once the whole file has been read, so a switch may name a
+    /// layout declared after it. A name the file never declares is an error
+    /// reported at the `switch_to` value: a layout that silently does nothing
+    /// when pressed is a typo the user cannot see.
+    fn check_switches(&self) -> Result<(), nojson::JsonParseError> {
+        let mut names: Vec<&str> = self.layouts.iter().map(|l| l.name.as_str()).collect();
+        // The layout still being built is not in `layouts` yet, so its name
+        // (or the `default` a file with no `{"layout": …}` entry takes) is
+        // added by hand, matching what `finish` will push.
+        if let Some(name) = &self.current_name {
+            names.push(name);
+        } else {
+            names.push("default");
+        }
+
+        for (target, value) in &self.switches {
+            if !names.contains(&target.as_str()) {
+                return Err(value.invalid(format!("unknown layout '{target}'")));
+            }
         }
         Ok(())
     }

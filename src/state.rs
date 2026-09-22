@@ -416,10 +416,10 @@ impl State {
         let (code, shift_code) = match &self.keys[index].key.action {
             KeyAction::Send { code, shift_code } => (*code, *shift_code),
             KeyAction::Switch { to } => {
-                // An unknown target is ignored: a layout file can name a
-                // layout that does not exist, and the keyboard stays as it is
-                // rather than the whole app failing over a single mistyped
-                // name.
+                // A set read from a file has already checked every switch, so
+                // this only misses for a set built by `LayoutSet::from_named`,
+                // which does not. The keyboard then stays as it is rather than
+                // the press doing nothing at all.
                 if self.layouts.get(to).is_some() {
                     self.current = to.clone();
                     self.show_current_layout();
