@@ -12,7 +12,7 @@
   // letter rows stay narrow. It is centred over the rows below.
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
-  {"blank": 7},
+  {"blank": 10},
   {"key": "\""},
   {"key": "."},
   {"key": "/"},
@@ -75,12 +75,13 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
+  {"blank": 2},
   {"key": "Up", "size": {"width": 7, "height": 3}},
   {"newline": 1},
 
   // Thumb row, directly under the letters: Backspace to the left of Space,
   // Enter to the right, and the rest of the arrow cluster under Up.
-  {"blank": 1},
+  {"blank": 3},
   {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"key": " ", "size": {"width": 19, "height": 3}},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
