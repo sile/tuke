@@ -11,78 +11,271 @@ pub struct Layout {
     pub preview: Option<Preview>,
 }
 
-impl Layout {
-    /// Loads a layout from a JSONC file.
+/// The layouts a layout file defines, in the order they are declared.
+///
+/// A file is one JSONC array: [`Layout`] entries lay out keys, and a
+/// `{"layout": NAME}` entry starts a new named layout. Entries before the
+/// first `{"layout": …}` belong to a layout named `default`, so a file that
+/// never names one is a single layout.
+///
+/// A layout's keys carry a `switch_to` code that names another layout in the
+/// same set, which is how one soft key swaps the keyboard for another.
+#[derive(Debug)]
+pub struct LayoutSet {
+    layouts: Vec<NamedLayout>,
+}
+
+/// One named layout within a [`LayoutSet`].
+#[derive(Debug)]
+pub struct NamedLayout {
+    /// The name a `switch_to` refers to it by.
+    pub name: String,
+    /// The keys and preview to draw while it is showing.
+    pub layout: Layout,
+}
+
+impl LayoutSet {
+    /// Loads a layout set from a JSONC file.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
         crate::jsonc::load_file(path)
     }
+
+    /// The layouts in declaration order.
+    pub fn layouts(&self) -> &[NamedLayout] {
+        &self.layouts
+    }
+
+    /// The layout named `name`, or `None` when the set has no such layout.
+    pub fn get(&self, name: &str) -> Option<&Layout> {
+        self.layouts
+            .iter()
+            .find(|named| named.name == name)
+            .map(|named| &named.layout)
+    }
+
+    /// The first declared layout.
+    ///
+    /// It is what tuke shows when it starts, so a layout file needs no entry
+    /// naming an "initial" layout: the first one it declares is the one the
+    /// user sees.
+    pub fn first(&self) -> &Layout {
+        &self.layouts[0].layout
+    }
 }
 
-impl Default for Layout {
+impl Default for LayoutSet {
     fn default() -> Self {
         crate::jsonc::load_str("default.json", include_str!("../layouts/default.jsonc"))
             .expect("bug")
     }
 }
 
-impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for Layout {
+impl Layout {
+    /// Loads a single layout from a JSONC file.
+    ///
+    /// This is the first layout of the file's [`LayoutSet`]: a file defining
+    /// several layouts loads as its first one, the one it shows at startup.
+    /// Prefer [`LayoutSet::load_from_file`] when the layouts switch.
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
+        Ok(LayoutSet::load_from_file(path)?.into_first())
+    }
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        LayoutSet::default().into_first()
+    }
+}
+
+impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for LayoutSet {
     type Error = nojson::JsonParseError;
 
     fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
-        let mut keys = Vec::new();
-        let mut preview = None;
-        let mut next_newline_rows = 1;
-        let mut default_size = tuinix::Size { rows: 3, cols: 3 };
-        let mut position = tuinix::Position::ORIGIN;
-        let mut base_col = 0;
-        for key_value in value.to_array()? {
-            if let Some(blank_count) = key_value.to_member("blank")?.optional() {
-                let count: std::num::NonZeroUsize = blank_count.try_into()?;
-                position.col += count.get();
-                continue;
-            }
-            if let Some(newline_count) = key_value.to_member("newline")?.optional() {
-                let count: std::num::NonZeroUsize = newline_count.try_into()?;
-                position.col = base_col;
-                position.row += next_newline_rows - 1 + count.get();
-                next_newline_rows = 1;
-                continue;
-            }
-            if let Some(position_value) = key_value.to_member("base_position")?.optional() {
-                position.row = position_value.to_member("row")?.required()?.try_into()?;
-                position.col = position_value.to_member("column")?.required()?.try_into()?;
-                base_col = position.col;
-                next_newline_rows = 1;
-                continue;
-            }
-            if let Some(default_size_value) = key_value.to_member("default_size")?.optional() {
-                default_size = parse_size(default_size_value)?;
-                continue;
-            }
-            if let Some(preview_value) = key_value.to_member("preview")?.optional() {
-                let width = preview_value.to_member("width")?.required()?.try_into()?;
-                let size = tuinix::Size {
+        let mut builder = LayoutSetBuilder::default();
+        for entry in value.to_array()? {
+            builder.accept(entry)?;
+        }
+        Ok(builder.finish())
+    }
+}
+
+impl LayoutSet {
+    /// Consumes the set and returns its first layout.
+    fn into_first(self) -> Layout {
+        self.layouts
+            .into_iter()
+            .next()
+            .expect("a layout set always has at least one layout")
+            .layout
+    }
+}
+
+/// Builds a [`LayoutSet`] from the entries of one layout file.
+///
+/// The entries are positional: each key is placed where the cursor sits and
+/// moves the cursor past itself. The cursor lives in the [`LayoutBuilder`]
+/// being filled rather than here, so a `{"layout": NAME}` entry ends the
+/// current layout and starts the next one with a fresh cursor at the origin.
+#[derive(Debug, Default)]
+struct LayoutSetBuilder {
+    layouts: Vec<NamedLayout>,
+    names: Vec<String>,
+    current_name: Option<String>,
+    current: LayoutBuilder,
+}
+
+impl LayoutSetBuilder {
+    /// Applies one layout entry, either starting a new layout or adding to the
+    /// current one.
+    fn accept(
+        &mut self,
+        entry: nojson::RawJsonValue<'_, '_>,
+    ) -> Result<(), nojson::JsonParseError> {
+        let Some(name_value) = entry.to_member("layout")?.optional() else {
+            return self.current.accept(entry);
+        };
+
+        let name = name_value.to_unquoted_string_str()?.to_string();
+        if self.names.contains(&name) {
+            return Err(name_value.invalid("duplicate layout name"));
+        }
+        self.names.push(name.clone());
+
+        // The layout before the first `{"layout": …}` is the unnamed one, and
+        // it is called `default`. When the file opens with a `{"layout": …}`
+        // entry there is no such layout: the cursor has not moved and no key
+        // has been placed, so the placeholder is dropped rather than pushing
+        // an empty `default` in front of the named layouts.
+        let previous_name = self.current_name.replace(name);
+        let previous = std::mem::take(&mut self.current);
+        if previous_name.is_some() || !previous.is_empty() {
+            self.layouts.push(NamedLayout {
+                name: previous_name.unwrap_or_else(|| "default".to_string()),
+                layout: previous.finish(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Finishes the set with the layout still being built.
+    fn finish(mut self) -> LayoutSet {
+        self.layouts.push(NamedLayout {
+            name: self.current_name.unwrap_or_else(|| "default".to_string()),
+            layout: self.current.finish(),
+        });
+        LayoutSet {
+            layouts: self.layouts,
+        }
+    }
+}
+
+/// Builds one [`Layout`] from its entries, holding the parsing cursor.
+#[derive(Debug)]
+struct LayoutBuilder {
+    keys: Vec<Key>,
+    preview: Option<Preview>,
+    next_newline_rows: usize,
+    default_size: tuinix::Size,
+    position: tuinix::Position,
+    base_col: usize,
+}
+
+impl Default for LayoutBuilder {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            preview: None,
+            next_newline_rows: 1,
+            default_size: tuinix::Size { rows: 3, cols: 3 },
+            position: tuinix::Position::ORIGIN,
+            base_col: 0,
+        }
+    }
+}
+
+impl LayoutBuilder {
+    /// Handles the entries that move the cursor, returning whether `entry` was
+    /// one of them.
+    fn accept_cursor(
+        &mut self,
+        entry: nojson::RawJsonValue<'_, '_>,
+    ) -> Result<bool, nojson::JsonParseError> {
+        if let Some(blank_count) = entry.to_member("blank")?.optional() {
+            let count: std::num::NonZeroUsize = blank_count.try_into()?;
+            self.position.col += count.get();
+            return Ok(true);
+        }
+        if let Some(newline_count) = entry.to_member("newline")?.optional() {
+            let count: std::num::NonZeroUsize = newline_count.try_into()?;
+            self.position.col = self.base_col;
+            self.position.row += self.next_newline_rows - 1 + count.get();
+            self.next_newline_rows = 1;
+            return Ok(true);
+        }
+        if let Some(position_value) = entry.to_member("base_position")?.optional() {
+            self.position.row = position_value.to_member("row")?.required()?.try_into()?;
+            self.position.col = position_value.to_member("column")?.required()?.try_into()?;
+            self.base_col = self.position.col;
+            self.next_newline_rows = 1;
+            return Ok(true);
+        }
+        if let Some(default_size_value) = entry.to_member("default_size")?.optional() {
+            self.default_size = parse_size(default_size_value)?;
+            return Ok(true);
+        }
+        if let Some(preview_value) = entry.to_member("preview")?.optional() {
+            let width = preview_value.to_member("width")?.required()?.try_into()?;
+            let region = tuinix::Region {
+                position: self.position,
+                size: tuinix::Size {
                     rows: 1,
                     cols: width,
-                };
-                let region = tuinix::Region { position, size };
-                preview = Some(Preview {
-                    region,
-                    history: Vec::new(),
-                });
-                position = region_top_right(region);
-                continue;
-            }
-
-            let key = Key::parse(key_value, position, default_size)?;
-
-            position = region_top_right(key.region);
-            position.col += 1;
-            next_newline_rows = next_newline_rows.max(key.region.size.rows);
-
-            keys.push(key);
+                },
+            };
+            self.preview = Some(Preview {
+                region,
+                history: Vec::new(),
+            });
+            self.position = region_top_right(region);
+            return Ok(true);
         }
-        Ok(Self { keys, preview })
+        Ok(false)
+    }
+
+    /// Applies one entry: a cursor movement, or a key placed at the cursor.
+    fn accept(
+        &mut self,
+        entry: nojson::RawJsonValue<'_, '_>,
+    ) -> Result<(), nojson::JsonParseError> {
+        if self.accept_cursor(entry)? {
+            return Ok(());
+        }
+
+        let key = Key::parse(entry, self.position, self.default_size)?;
+
+        self.position = region_top_right(key.region);
+        self.position.col += 1;
+        self.next_newline_rows = self.next_newline_rows.max(key.region.size.rows);
+
+        self.keys.push(key);
+        Ok(())
+    }
+
+    /// Whether no entry has placed a key or defined a preview yet.
+    ///
+    /// A `{"layout": …}` entry that opens a file ends the placeholder layout
+    /// before it, and an empty one is dropped: a layout with nothing in it is
+    /// not something the user asked for.
+    fn is_empty(&self) -> bool {
+        self.keys.is_empty() && self.preview.is_none()
+    }
+
+    /// Finishes the layout being built.
+    fn finish(self) -> Layout {
+        Layout {
+            keys: self.keys,
+            preview: self.preview,
+        }
     }
 }
 

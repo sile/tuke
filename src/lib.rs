@@ -28,6 +28,6 @@ pub use event::Event;
 pub use geometry::{
     from_termnix_size, grid_rows, keyboard_offset_col, keyboard_rows, to_termnix_size,
 };
-pub use layout::{Key, KeyCode, KeyPressState, KeyState, Layout, Preview};
+pub use layout::{Key, KeyCode, KeyPressState, KeyState, Layout, LayoutSet, NamedLayout, Preview};
 pub use render::{screen_cursor, screen_frame};
 pub use state::{KeyboardPos, State};

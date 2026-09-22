@@ -1,5 +1,21 @@
 //! Tests for the layout model: JSONC parsing and key code mapping.
 
+/// Writes `text` to a fresh temporary file and returns its path.
+///
+/// Each call gets its own name, so the tests can run in parallel without
+/// sharing a file.
+fn write_temp(text: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static NEXT: AtomicU32 = AtomicU32::new(0);
+    let path = std::env::temp_dir().join(format!(
+        "tuke-layout-test-{}-{}.jsonc",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    std::fs::write(&path, text).expect("write layout file");
+    path
+}
+
 /// Parses a single JSON string literal as a `KeyCode`.
 ///
 /// The layout file writes a key code as a quoted string, so the test parses
@@ -137,12 +153,7 @@ fn default_layout_loads_and_declares_its_keys() {
 
 #[test]
 fn layout_from_a_file_matches_the_text() {
-    let path = std::env::temp_dir().join(format!("tuke-layout-test-{}.jsonc", std::process::id()));
-    std::fs::write(
-        &path,
-        r#"[{"key": "a", "size": {"width": 5, "height": 5}}]"#,
-    )
-    .expect("write layout file");
+    let path = write_temp(r#"[{"key": "a", "size": {"width": 5, "height": 5}}]"#);
 
     let layout = tuke::Layout::load_from_file(&path).expect("parse layout file");
     let _ = std::fs::remove_file(&path);
@@ -170,6 +181,119 @@ fn layout_cols(layout: &tuke::Layout) -> usize {
         )
         .max()
         .unwrap_or_default()
+}
+
+/// Parses a layout set from an inline JSONC document.
+fn parse_set(text: &str) -> tuke::LayoutSet {
+    tuke::LayoutSet::load_from_file(write_temp(text))
+        .unwrap_or_else(|e| panic!("parse {text}: {e}"))
+}
+
+#[test]
+fn a_file_without_a_layout_entry_is_one_default_layout() {
+    // The long-standing form: a bare array of keys. It must still load, as a
+    // single layout named `default`.
+    let set = parse_set(r#"[{"key": "a", "size": {"width": 5, "height": 5}}]"#);
+
+    assert_eq!(set.layouts().len(), 1);
+    assert_eq!(set.layouts()[0].name, "default");
+    assert_eq!(set.layouts()[0].layout.keys.len(), 1);
+    assert_eq!(
+        set.layouts()[0].layout.keys[0].code,
+        tuke::KeyCode::Char('a')
+    );
+}
+
+#[test]
+fn a_layout_entry_starts_a_named_layout() {
+    let set = parse_set(
+        r#"[
+            {"layout": "first"},
+            {"key": "a"},
+            {"layout": "second"},
+            {"key": "b"}
+        ]"#,
+    );
+
+    let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["first", "second"]);
+
+    // Each layout restarts the cursor at the origin, so both keys land at
+    // column 0 row 0 rather than continuing from the previous layout.
+    let first = set.get("first").expect("first layout");
+    let second = set.get("second").expect("second layout");
+    assert_eq!(
+        first.keys[0].region.position,
+        tuinix::Position { row: 0, col: 0 }
+    );
+    assert_eq!(
+        second.keys[0].region.position,
+        tuinix::Position { row: 0, col: 0 }
+    );
+    assert_eq!(first.keys[0].code, tuke::KeyCode::Char('a'));
+    assert_eq!(second.keys[0].code, tuke::KeyCode::Char('b'));
+}
+
+#[test]
+fn entries_before_the_first_layout_entry_belong_to_default() {
+    let set = parse_set(
+        r#"[
+            {"key": "a"},
+            {"layout": "second"},
+            {"key": "b"}
+        ]"#,
+    );
+
+    let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["default", "second"]);
+    assert_eq!(set.get("default").expect("default").keys.len(), 1);
+}
+
+#[test]
+fn the_first_layout_is_the_one_shown_at_startup() {
+    let set = parse_set(
+        r#"[
+            {"layout": "shown"},
+            {"key": "x"},
+            {"layout": "hidden"},
+            {"key": "y"}
+        ]"#,
+    );
+
+    assert_eq!(set.first().keys[0].code, tuke::KeyCode::Char('x'));
+}
+
+#[test]
+fn a_duplicate_layout_name_is_rejected() {
+    let result = tuke::LayoutSet::load_from_file(write_temp(
+        r#"[
+            {"layout": "dup"},
+            {"key": "a"},
+            {"layout": "dup"},
+            {"key": "b"}
+        ]"#,
+    ));
+
+    assert!(result.is_err(), "the same layout name twice is ambiguous");
+}
+
+#[test]
+fn an_unknown_layout_name_is_not_found() {
+    let set = parse_set(r#"[{"layout": "only"}, {"key": "a"}]"#);
+
+    assert!(set.get("missing").is_none());
+    assert!(set.get("only").is_some());
+}
+
+#[test]
+fn the_shipped_default_layout_is_one_layout_named_default() {
+    // The shipped layouts have no `{"layout": …}` entry, so this is the shape
+    // the default file takes: one unnamed layout holding every key.
+    let set: tuke::LayoutSet = tuke::LayoutSet::default();
+
+    assert_eq!(set.layouts().len(), 1);
+    assert_eq!(set.layouts()[0].name, "default");
+    assert!(set.first().preview.is_some());
 }
 
 /// Loads a layout that ships with tuke, by file name under `layouts/`.
@@ -306,12 +430,7 @@ fn mini_labels_fit_their_keys() {
 
 #[test]
 fn a_size_below_the_minimum_is_rejected() {
-    let path = std::env::temp_dir().join(format!("tuke-layout-min-{}.jsonc", std::process::id()));
-    std::fs::write(
-        &path,
-        r#"[{"key": "a", "size": {"width": 2, "height": 5}}]"#,
-    )
-    .expect("write layout file");
+    let path = write_temp(r#"[{"key": "a", "size": {"width": 2, "height": 5}}]"#);
 
     let result = tuke::Layout::load_from_file(&path);
     let _ = std::fs::remove_file(&path);
