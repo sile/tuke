@@ -35,7 +35,7 @@ fn single_key_layout(rows: usize, cols: usize) -> tuke::Layout {
 /// large as that key, so the key's cells are the whole frame.
 fn render_single_key(rows: usize, cols: usize) -> tuinix::Frame {
     let size = tuinix::Size { rows, cols };
-    let state = tuke::State::new(single_key_layout(rows, cols), size);
+    let state = tuke::State::new(single_key_layout(rows, cols), size, None);
     let terminal = termnix::TerminalState::new(termnix_size(rows, cols));
     tuke::screen_frame(&state, &terminal, size)
 }
@@ -84,7 +84,7 @@ fn a_label_narrower_than_the_key_stays_inside_the_borders() {
     layout.keys[0].code = tuke::KeyCode::Backspace;
     layout.keys[0].shift_code = tuke::KeyCode::Backspace;
     let size = tuinix::Size { rows: 3, cols: 3 };
-    let state = tuke::State::new(layout, size);
+    let state = tuke::State::new(layout, size, None);
     let terminal = termnix::TerminalState::new(termnix_size(3, 3));
     let frame = tuke::screen_frame(&state, &terminal, size);
 
@@ -96,6 +96,45 @@ fn a_label_narrower_than_the_key_stays_inside_the_borders() {
         middle.starts_with('│') && middle.ends_with('│'),
         "the middle row lost a border: {middle:?}"
     );
+}
+
+#[test]
+fn a_floating_keyboard_is_painted_over_the_grid() {
+    // One three-row key at the layout origin, floating with its bottom edge on
+    // the terminal's last row. A grid cell the keyboard covers holds a letter,
+    // which the keyboard must paint over rather than let show through.
+    let size = tuinix::Size { rows: 4, cols: 5 };
+    let layout = single_key_layout(3, 5);
+    let anchor = tuinix::Position { row: 3, col: 0 };
+    let state = tuke::State::new(layout, size, Some(anchor));
+    let mut terminal = termnix::TerminalState::new(termnix_size(4, 5));
+
+    terminal.feed(b"Z");
+
+    let frame = tuke::screen_frame(&state, &terminal, size);
+
+    // The keyboard occupies rows 1..4, so the grid's `Z` at (0, 0) stays
+    // visible above it, and the letter at the covered cell is gone.
+    assert_eq!(row_text(&frame, 0, 5), "Z    ");
+    assert!(!row_text(&frame, 1, 5).contains('Z'));
+    // The key's box is the keyboard's outline, drawn over the filled
+    // background.
+    assert_eq!(row_text(&frame, 1, 5), "┌───┐");
+    assert_eq!(row_text(&frame, 2, 5), "│ x │");
+    assert_eq!(row_text(&frame, 3, 5), "└───┘");
+}
+
+#[test]
+fn a_floating_keyboard_leaves_the_grid_at_full_size() {
+    // The grid is the whole terminal when the keyboard floats, so a position
+    // under the keyboard is still a real grid position.
+    let size = tuinix::Size { rows: 4, cols: 5 };
+    let layout = single_key_layout(3, 5);
+    let anchor = tuinix::Position { row: 3, col: 0 };
+    let state = tuke::State::new(layout, size, Some(anchor));
+
+    assert!(state.is_overlay());
+    assert_eq!(state.grid_size(), size);
 }
 
 #[test]
@@ -112,7 +151,7 @@ fn the_keyboard_is_drawn_inside_the_screen_at_any_size() -> noprop::TestResult {
             rows: terminal_rows,
             cols: terminal_cols,
         };
-        let state = tuke::State::new(single_key_layout(key_rows, key_cols), size);
+        let state = tuke::State::new(single_key_layout(key_rows, key_cols), size, None);
         let terminal = termnix::TerminalState::new(termnix_size(terminal_rows, terminal_cols));
         let frame = tuke::screen_frame(&state, &terminal, size);
 
