@@ -1,18 +1,31 @@
 [
   // A compact QWERTY keyboard for narrow screens: every key in this layout
   // fits within 80 columns. It carries the keys a shell needs most often and
-  // leaves the rest (the extra symbols, Shift, Alt) to a fuller layout chosen
-  // by hand.
+  // leaves the rest (Shift, Alt) to a fuller layout chosen by hand.
   //
   // The keys are four columns wide, which is narrow but still wide enough to
-  // read a one-character label without the key looking cramped. The rows are
-  // laid out so the keys a thumb reaches for - Ctrl, Space, Enter, BSpace -
-  // sit near the bottom centre, and the arrow cluster sits at the right end
-  // of its own row.
+  // read a one-character label without the key looking cramped. The rows run
+  // top to bottom: symbols, digits, then the three letter rows, and finally
+  // the arrows and the thumb keys.
 
-  // Number row: digits with the symbols that need no Shift on the right.
+  // Symbol row: every symbol this layout carries, gathered up here so the
+  // letter rows stay narrow. It is centred over the rows below.
   {"base_position": {"row": 0, "column": 0}},
-  {"default_size": {"width": 4, "height": 3}},
+  {"default_size": {"width": 5, "height": 3}},
+  {"blank": 13},
+  {"key": "-"},
+  {"key": "_"},
+  {"key": "/"},
+  {"key": "."},
+  {"key": ","},
+  {"key": "?"},
+  {"key": "~"},
+  {"key": "\""},
+  {"key": "("},
+  {"key": ")"},
+  {"newline": 1},
+
+  // Number row.
   {"key": "Esc", "size": {"width": 6, "height": 3}},
   {"key": "1"},
   {"key": "2"},
@@ -24,13 +37,9 @@
   {"key": "8"},
   {"key": "9"},
   {"key": "0"},
-  {"key": "-"},
-  {"key": "."},
-  {"key": "_"},
-  {"key": "/"},
   {"newline": 1},
 
-  // Upper letter row, with its symbols on the right.
+  // Upper letter row.
   {"key": "Tab", "size": {"width": 6, "height": 3}},
   {"key": "q"},
   {"key": "w"},
@@ -42,13 +51,9 @@
   {"key": "i"},
   {"key": "o"},
   {"key": "p"},
-  {"key": "?"},
-  {"key": ","},
-  {"key": "~"},
-  {"key": "\""},
   {"newline": 1},
 
-  // Home row, indented by one key and closed with Backspace.
+  // Home row, indented by one key.
   {"blank": 4},
   {"key": "a"},
   {"key": "s"},
@@ -59,13 +64,11 @@
   {"key": "j"},
   {"key": "k"},
   {"key": "l"},
-  {"key": "("},
-  {"key": ")"},
-  {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
-  // Bottom row: the thumb keys sit under the middle of the letters.
-  {"blank": 8},
+  // Lower row: Ctrl to the left of z, and the up arrow above the down arrow,
+  // out at the right of the letters.
+  {"key": "C-", "size": {"width": 8, "height": 3}},
   {"key": "z"},
   {"key": "x"},
   {"key": "c"},
@@ -73,16 +76,18 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  {"blank": 1},
-  {"key": "C-", "size": {"width": 4, "height": 3}},
-  {"key": " ", "size": {"width": 13, "height": 3}},
-  {"key": "Enter", "size": {"width": 7, "height": 3}},
+  {"blank": 6},
+  {"key": "Up", "size": {"width": 7, "height": 3}},
   {"newline": 1},
 
-  // Arrow row, out at the right end where it does not crowd the letters.
-  {"blank": 44},
+  // Thumb row, directly under the letters: Backspace to the left of Space,
+  // Enter to the right, and the rest of the arrow cluster under Up.
+  {"blank": 1},
+  {"key": "BSpace", "size": {"width": 9, "height": 3}},
+  {"key": " ", "size": {"width": 19, "height": 3}},
+  {"key": "Enter", "size": {"width": 9, "height": 3}},
+  {"blank": 8},
   {"key": "Left", "size": {"width": 7, "height": 3}},
   {"key": "Down", "size": {"width": 7, "height": 3}},
-  {"key": "Up", "size": {"width": 7, "height": 3}},
   {"key": "Right", "size": {"width": 7, "height": 3}},
 ]

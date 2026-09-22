@@ -223,6 +223,40 @@ fn mini_carries_the_keys_a_shell_needs() {
         assert!(has(code), "missing {code}");
     }
 
+    // The arrows form the inverted T: Up sits directly above Down, and Left
+    // and Right sit either side of Down on its own row.
+    let arrow = |code: tuke::KeyCode| {
+        layout
+            .keys
+            .iter()
+            .find(|k| k.code == code)
+            .map(|k| k.region)
+            .unwrap_or_else(|| panic!("missing {code}"))
+    };
+    let up = arrow(tuke::KeyCode::Up);
+    let down = arrow(tuke::KeyCode::Down);
+    let left = arrow(tuke::KeyCode::Left);
+    let right = arrow(tuke::KeyCode::Right);
+
+    assert_eq!(up.position.col, down.position.col, "Up is not above Down");
+    assert!(down.position.row > up.position.row, "Down is not below Up");
+    assert_eq!(
+        left.position.row, down.position.row,
+        "Left is not on Down's row"
+    );
+    assert_eq!(
+        right.position.row, down.position.row,
+        "Right is not on Down's row"
+    );
+    assert!(
+        left.position.col + left.size.cols <= down.position.col,
+        "Left is not left of Down"
+    );
+    assert!(
+        right.position.col >= down.position.col + down.size.cols,
+        "Right is not right of Down"
+    );
+
     // Shift and Alt are deliberately absent: a compact layout carries only the
     // modifier a shell cannot do without.
     assert!(!has(tuke::KeyCode::Shift), "mini should not carry Shift");
