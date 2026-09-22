@@ -248,6 +248,249 @@ fn shift_selects_the_shift_label() {
     assert_eq!(key.code, termnix::KeyCode::Char('B'));
 }
 
+/// The host mouse event a test sends, with no modifiers unless given.
+fn host_mouse(kind: tuinix::MouseInputKind, row: usize, col: usize) -> tuke::Event {
+    tuke::Event::Mouse {
+        kind,
+        position: tuinix::Position { row, col },
+        ctrl: false,
+        alt: false,
+        shift: false,
+    }
+}
+
+/// The mouse event an action list sends, if it sends exactly one.
+fn sent_mouse(actions: &[tuke::Action]) -> Option<&termnix::MouseEvent> {
+    match actions {
+        [tuke::Action::SendMouse(mouse)] => Some(mouse),
+        _ => None,
+    }
+}
+
+#[test]
+fn a_mouse_press_in_the_grid_goes_to_the_child() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 4, 9));
+
+    let mouse = sent_mouse(&actions).expect("a click in the grid is forwarded");
+    assert_eq!(
+        mouse.kind,
+        termnix::MouseEventKind::Press(termnix::MouseButton::Left)
+    );
+    // Row 4, column 9 is already a grid position: the grid starts at the
+    // screen's top-left corner, so only the keyboard is indented.
+    assert_eq!(mouse.position, termnix::Position { row: 4, col: 9 });
+}
+
+#[test]
+fn a_mouse_release_outside_the_keyboard_goes_to_the_child() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    // The keyboard starts at row 31, so row 4 is in the grid: the release
+    // pairs with the press above rather than pressing a soft key.
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftRelease, 4, 9));
+
+    let mouse = sent_mouse(&actions).expect("a release in the grid is forwarded");
+    assert_eq!(
+        mouse.kind,
+        termnix::MouseEventKind::Release(termnix::MouseButton::Left)
+    );
+}
+
+#[test]
+fn a_click_on_a_key_never_reaches_the_child() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+    let centre = screen_centre(&state, 3, 0);
+
+    // The whole gesture is the keyboard's: the child's reporting would
+    // otherwise see a press it never painted a target for.
+    for kind in [
+        tuinix::MouseInputKind::LeftPress,
+        tuinix::MouseInputKind::LeftRelease,
+        tuinix::MouseInputKind::Drag,
+        tuinix::MouseInputKind::ScrollUp,
+    ] {
+        let actions = state.update(host_mouse(kind, centre.row, centre.col));
+        assert!(
+            sent_mouse(&actions).is_none(),
+            "{kind:?} on a key reached the child: {actions:?}"
+        );
+    }
+}
+
+#[test]
+fn a_left_release_on_a_key_presses_it() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+    let centre = screen_centre(&state, 3, 0);
+
+    let actions = state.update(host_mouse(
+        tuinix::MouseInputKind::LeftRelease,
+        centre.row,
+        centre.col,
+    ));
+
+    let key = sent_key(&actions).expect("releasing on a key presses it");
+    assert_eq!(key.code, termnix::KeyCode::Char('b'));
+}
+
+#[test]
+fn a_drag_reports_the_button_held_by_the_preceding_press() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    // The host's drag does not name the button, so the core has to remember
+    // the press: a guest told "moved" with no button cannot draw a selection.
+    state.update(host_mouse(tuinix::MouseInputKind::RightPress, 4, 9));
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::Drag, 5, 10));
+
+    let mouse = sent_mouse(&actions).expect("a drag in the grid is forwarded");
+    assert_eq!(
+        mouse.kind,
+        termnix::MouseEventKind::Motion {
+            button: Some(termnix::MouseButton::Right)
+        }
+    );
+    assert_eq!(mouse.position, termnix::Position { row: 5, col: 10 });
+}
+
+#[test]
+fn a_drag_with_no_button_held_is_a_bare_move() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    // A move the host reports without a press is not a drag: guessing a button
+    // would make the child select text the user never selected.
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::Drag, 5, 10));
+
+    let mouse = sent_mouse(&actions).expect("a bare move in the grid is forwarded");
+    assert_eq!(mouse.kind, termnix::MouseEventKind::Motion { button: None });
+}
+
+#[test]
+fn the_held_button_is_forgotten_at_release() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 4, 9));
+    state.update(host_mouse(tuinix::MouseInputKind::LeftRelease, 4, 9));
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::Drag, 6, 11));
+
+    let mouse = sent_mouse(&actions).expect("a move after release is forwarded");
+    assert_eq!(
+        mouse.kind,
+        termnix::MouseEventKind::Motion { button: None },
+        "the button was still held after its release"
+    );
+}
+
+#[test]
+fn the_wheel_is_sent_as_a_press_of_a_wheel_button() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    let up = state.update(host_mouse(tuinix::MouseInputKind::ScrollUp, 4, 9));
+    let down = state.update(host_mouse(tuinix::MouseInputKind::ScrollDown, 4, 9));
+
+    let up = sent_mouse(&up).expect("the wheel up is forwarded");
+    assert_eq!(
+        up.kind,
+        termnix::MouseEventKind::Press(termnix::MouseButton::WheelUp)
+    );
+    let down = sent_mouse(&down).expect("the wheel down is forwarded");
+    assert_eq!(
+        down.kind,
+        termnix::MouseEventKind::Press(termnix::MouseButton::WheelDown)
+    );
+}
+
+#[test]
+fn a_mouse_event_below_the_grid_is_dropped() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    // Row 35 is below the 31-row grid but above nothing on screen: the child
+    // never painted it, so sending it would point at a cell that is not there
+    // rather than at the nearest one.
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 35, 9));
+
+    assert!(actions.is_empty(), "expected no actions, got {actions:?}");
+}
+
+#[test]
+fn a_mouse_event_beside_the_keyboard_is_dropped() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    // Column 29 is right of the 3-column keyboard's keys but inside the 30
+    // column grid, so this is a grid click at the far right edge.
+    let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 20, 29));
+
+    let mouse = sent_mouse(&actions).expect("the grid spans the full width");
+    assert_eq!(mouse.position, termnix::Position { row: 20, col: 29 });
+}
+
+#[test]
+fn mouse_modifiers_are_copied_through() {
+    let mut state = tuke::State::new(test_layout(), test_size());
+
+    let actions = state.update(tuke::Event::Mouse {
+        kind: tuinix::MouseInputKind::LeftPress,
+        position: tuinix::Position { row: 4, col: 9 },
+        ctrl: true,
+        alt: true,
+        shift: true,
+    });
+
+    let mouse = sent_mouse(&actions).expect("a modified click in the grid is forwarded");
+    assert_eq!(
+        mouse.modifiers,
+        termnix::Modifiers {
+            ctrl: true,
+            alt: true,
+            shift: true,
+        }
+    );
+}
+
+#[test]
+fn the_grid_and_keyboard_split_every_mouse_position() -> noprop::TestResult {
+    let seed = noprop::seed_from_env_or_time("TUKE_SEED")?;
+    let reached_grid = Cell::new(0usize);
+    let reached_keyboard = Cell::new(0usize);
+    let mut runner = noprop::Runner::new(seed);
+    runner.run(256, |ctx| {
+        let rows = noprop::sample_usize_in(ctx, 9..=60);
+        let cols = noprop::sample_usize_in(ctx, 3..=80);
+        let size = tuinix::Size { rows, cols };
+        let mut state = tuke::State::new(test_layout(), size);
+        let row = noprop::sample_usize_in(ctx, 0..rows);
+        let col = noprop::sample_usize_in(ctx, 0..cols);
+
+        // A press is the clearest probe: it is forwarded inside the grid and
+        // swallowed anywhere tuke owns a key, and never both.
+        let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, row, col));
+        let forwarded = sent_mouse(&actions).is_some();
+        let inside_grid = row < state.grid_size().rows;
+        assert_eq!(
+            forwarded, inside_grid,
+            "({row}, {col}) on a {rows}x{cols} screen: forwarded={forwarded}"
+        );
+        if forwarded {
+            reached_grid.set(reached_grid.get() + 1);
+        } else {
+            reached_keyboard.set(reached_keyboard.get() + 1);
+        }
+        Ok(())
+    })?;
+
+    // Both branches have to be exercised: a generator that only produced grid
+    // positions would never test that a click on a key is swallowed.
+    assert!(
+        reached_grid.get() > 0,
+        "no case landed in the grid\n{runner}"
+    );
+    assert!(
+        reached_keyboard.get() > 0,
+        "no case landed on a key\n{runner}"
+    );
+    Ok(())
+}
+
 /// The host key event a test sends, with no modifiers unless given.
 fn host_key(code: tuinix::KeyCode, ctrl: bool, alt: bool) -> tuke::Event {
     tuke::Event::Key { code, ctrl, alt }
