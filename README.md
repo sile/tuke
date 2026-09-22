@@ -72,6 +72,11 @@ The keyboard shows the first layout it declares.
 ]
 ```
 
+A `switch_to` may name a layout declared later in the file, but it must name
+one the file declares somewhere: a name no layout uses is a load error, reported
+at the name that spelled it. A switch that could never fire is a typo rather
+than a key.
+
 To see what tuke reads out of a layout - every key's code, region, and label,
 plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect_layout.rs)
 example against it:

@@ -182,11 +182,17 @@ fn layout_from_a_file_matches_the_text() {
 #[test]
 fn a_switch_key_parses_its_target() {
     // A switch key spells its action as `{"switch_to": NAME}` under `key`,
-    // the same member a send key uses, so one key form covers both.
-    let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"switch_to": "minimal"}, "size": {"width": 5, "height": 5}}]"#,
-    ))
-    .expect("parse switch key");
+    // the same member a send key uses, so one key form covers both. The name
+    // has to exist for the file to load, so this declares the target too.
+    let set = parse_set(
+        r#"[
+            {"layout": "main"},
+            {"key": {"switch_to": "minimal"}, "size": {"width": 5, "height": 5}},
+            {"layout": "minimal"},
+            {"key": "a"}
+        ]"#,
+    );
+    let layout = set.get("main").expect("main layout");
 
     assert_eq!(layout.keys.len(), 1);
     assert_eq!(
@@ -201,13 +207,17 @@ fn a_switch_key_parses_its_target() {
 fn a_switch_key_ignores_the_shift_member() {
     // A switch key has no code to shift, so a `shift` beside it is not an
     // error but the switch is still the whole action.
-    let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"switch_to": "other"}, "shift": "a"}]"#,
-    ))
-    .expect("parse switch key with a stray shift");
+    let set = parse_set(
+        r#"[
+            {"layout": "main"},
+            {"key": {"switch_to": "other"}, "shift": "a"},
+            {"layout": "other"},
+            {"key": "b"}
+        ]"#,
+    );
 
     assert_eq!(
-        layout.keys[0].action,
+        set.get("main").expect("main layout").keys[0].action,
         tuke::KeyAction::Switch {
             to: "other".to_string()
         }
@@ -215,16 +225,58 @@ fn a_switch_key_ignores_the_shift_member() {
 }
 
 #[test]
-fn a_switch_to_a_missing_layout_is_still_a_key() {
-    // The target is resolved at press time, not load time, so a layout that
-    // names a layout it does not define still loads: the key is simply inert
-    // rather than a file that fails to open.
-    let set = parse_set(r#"[{"layout": "only"}, {"key": {"switch_to": "nowhere"}}]"#);
+fn a_switch_to_a_missing_layout_is_rejected() {
+    // The target is resolved when the file is read, not when the key is
+    // pressed, so a switch that names a layout the file does not define fails
+    // to load: an inert key the user cannot see is a typo, not a feature.
+    let result = tuke::LayoutSet::load_from_file(write_temp(
+        r#"[{"layout": "only"}, {"key": {"switch_to": "nowhere"}}]"#,
+    ));
+
+    assert!(
+        result.is_err(),
+        "a switch to a layout the file never declares is a load error"
+    );
+}
+
+#[test]
+fn a_switch_may_name_a_layout_declared_later() {
+    // The entries are read in order, so a switch can point forward: the whole
+    // file is read before its references are checked.
+    let set = parse_set(
+        r#"[
+            {"layout": "first"},
+            {"key": {"switch_to": "second"}},
+            {"layout": "second"},
+            {"key": {"switch_to": "first"}}
+        ]"#,
+    );
 
     assert_eq!(
-        set.get("only").expect("only layout").keys[0].action,
+        set.get("first").expect("first").keys[0].action,
         tuke::KeyAction::Switch {
-            to: "nowhere".to_string()
+            to: "second".to_string()
+        }
+    );
+    assert_eq!(
+        set.get("second").expect("second").keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "first".to_string()
+        }
+    );
+}
+
+#[test]
+fn a_switch_in_an_unnamed_file_may_name_default() {
+    // A file with no `{"layout": …}` entry is one layout called `default`,
+    // and that implicit name is a target like any other.
+    let set = parse_set(r#"[{"key": {"switch_to": "default"}}]"#);
+
+    assert_eq!(set.layouts().len(), 1);
+    assert_eq!(
+        set.first().keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "default".to_string()
         }
     );
 }
