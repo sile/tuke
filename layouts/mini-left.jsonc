@@ -1,0 +1,91 @@
+[
+  // A one-handed QWERTY keyboard for the left hand, using the vertical space a
+  // narrow screen leaves over. It is derived from mini.jsonc, but the digits
+  // are split over two rows, so the board is a row taller and each row is a
+  // little narrower. The whole board stays left of the screen's midpoint, so
+  // one hand can reach it without the other.
+  //
+  // The rows run top to bottom: symbols, two digit rows, then the three letter
+  // rows, and finally the arrows and the thumb keys.
+
+  // Symbol row: every symbol this layout carries, gathered up here so the
+  // letter rows stay narrow.
+  {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 5, "height": 3}},
+  {"key": "\""},
+  {"key": "."},
+  {"key": "/"},
+  {"key": "?"},
+  {"key": "("},
+  {"key": ")"},
+  {"key": "-"},
+  {"key": "_"},
+  {"newline": 1},
+
+  // Digit rows: Esc leads the top row, then the digits split five and five.
+  {"key": "Esc", "size": {"width": 9, "height": 3}},
+  {"key": "1"},
+  {"key": "2"},
+  {"key": "3"},
+  {"key": "4"},
+  {"key": "5"},
+  {"newline": 1},
+  {"blank": 5},
+  {"key": "6"},
+  {"key": "7"},
+  {"key": "8"},
+  {"key": "9"},
+  {"key": "0"},
+  {"newline": 1},
+
+  // Upper letter row: Tab to the left of q.
+  {"key": "Tab", "size": {"width": 9, "height": 3}},
+  {"key": "q"},
+  {"key": "w"},
+  {"key": "e"},
+  {"key": "r"},
+  {"key": "t"},
+  {"key": "y"},
+  {"key": "u"},
+  {"key": "i"},
+  {"key": "o"},
+  {"key": "p"},
+  {"newline": 1},
+
+  // Home row, indented by one key.
+  {"blank": 4},
+  {"key": "a"},
+  {"key": "s"},
+  {"key": "d"},
+  {"key": "f"},
+  {"key": "g"},
+  {"key": "h"},
+  {"key": "j"},
+  {"key": "k"},
+  {"key": "l"},
+  {"newline": 1},
+
+  // Lower row: Ctrl to the left of z, and the up arrow at the right of the
+  // letters, within the board's width.
+  {"key": "C-", "size": {"width": 9, "height": 3}},
+  {"key": "z"},
+  {"key": "x"},
+  {"key": "c"},
+  {"key": "v"},
+  {"key": "b"},
+  {"key": "n"},
+  {"key": "m"},
+  {"blank": 1},
+  {"key": "Up", "size": {"width": 7, "height": 3}},
+  {"newline": 1},
+
+  // Thumb row, directly under the letters: Backspace to the left of Space,
+  // Enter to the right, and the rest of the arrow cluster under Up.
+  {"blank": 3},
+  {"key": "BSpace", "size": {"width": 9, "height": 3}},
+  {"key": " ", "size": {"width": 19, "height": 3}},
+  {"key": "Enter", "size": {"width": 9, "height": 3}},
+  {"key": "Left", "size": {"width": 7, "height": 3}},
+  {"key": "Down", "size": {"width": 7, "height": 3}},
+  {"key": "Right", "size": {"width": 7, "height": 3}},
+]
