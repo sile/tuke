@@ -102,16 +102,17 @@
 
   // The way out of the full board: a press replaces it with `MIN`, the one-key
   // board below. It sits on its own row so it is never hit while reaching for
-  // a letter, and it runs the full width of the board so it is easy to find at
-  // the bottom-left.
-  {"key": {"switch_to": "MIN"}, "size": {"width": 35, "height": 3}},
+  // a letter. It is only as wide as its own label (the target's name, `MIN`),
+  // so it stays a small corner key rather than another full-width row.
+  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
 
   // --- MIN ---------------------------------------------------------------
 
-  // The minimized board: one wide key that puts `MAIN` back. A press on a
-  // switch key swaps the whole keyboard for its target, so this is the only
-  // thing `MIN` needs to carry, and the only thing it can carry.
+  // The minimized board: one key that puts `MAIN` back. A press on a switch
+  // key swaps the whole keyboard for its target, so this is the only thing
+  // `MIN` needs to carry, and the only thing it can carry. Like the key that
+  // got here, it is just wide enough for its own label (`MAIN`).
   {"layout": "MIN"},
   {"base_position": {"row": 0, "column": 0}},
-  {"key": {"switch_to": "MAIN"}, "size": {"width": 35, "height": 3}},
+  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}},
 ]
