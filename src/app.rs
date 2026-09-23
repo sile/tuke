@@ -13,6 +13,22 @@ use std::time::Duration;
 /// `ESC` byte as the Escape key.
 const ESCAPE_TIMEOUT: Duration = Duration::from_millis(50);
 
+/// Whether `TUKE_TRACE` is set, read once so the hot path only pays a bool.
+fn tracing() -> bool {
+    std::env::var_os("TUKE_TRACE").is_some()
+}
+
+/// Writes a trace line to stderr when `TUKE_TRACE` is set.
+///
+/// stderr is the only place the trace can go: stdout is the terminal tuke is
+/// drawing on, and mixing diagnostics into it would corrupt the screen being
+/// investigated.
+fn trace(args: std::fmt::Arguments<'_>) {
+    if tracing() {
+        eprintln!("[tuke] {args}");
+    }
+}
+
 /// The edge owns everything with a file descriptor.
 pub struct App {
     driver: tuinix::TerminalDriver,
@@ -191,6 +207,9 @@ impl App {
     }
 
     fn pump_session(&mut self) -> tuke::Result<()> {
+        // Snapshot the counters so the trace can report the bytes actually
+        // moved by this pump, not the running totals.
+        let before = self.session.counters().clone();
         // The first pump is unconditional. `needs_pump` is false right after a
         // `read` hit `WouldBlock`, so gating on it would skip the read
         // entirely and leave the fd readable: `poll` would then return
@@ -201,6 +220,18 @@ impl App {
             self.session.pump_io(termnix::PumpBudget::default())?;
             if !self.session.needs_pump() {
                 break;
+            }
+        }
+        if tracing() {
+            let after = self.session.counters();
+            let written = after.input_bytes_written - before.input_bytes_written;
+            let replies = after.reply_bytes_written - before.reply_bytes_written;
+            let read = after.pty_bytes_read - before.pty_bytes_read;
+            if written != 0 || replies != 0 || read != 0 {
+                trace(format_args!(
+                    "pump: guest_in {written} input + {replies} reply, guest_out {read} bytes, revision {}",
+                    self.session.terminal_state().revision()
+                ));
             }
         }
         // The child exiting is what ends tuke. The flag is set here rather
@@ -237,13 +268,17 @@ impl App {
                 alt: key.alt,
             }),
 
-            tuinix::Input::Mouse(mouse) => self.dispatch(tuke::Event::Mouse {
-                kind: mouse.kind,
-                position: mouse.position,
-                ctrl: mouse.ctrl,
-                alt: mouse.alt,
-                shift: mouse.shift,
-            }),
+            tuinix::Input::Mouse(mouse) => {
+                let event = tuke::Event::Mouse {
+                    kind: mouse.kind,
+                    position: mouse.position,
+                    ctrl: mouse.ctrl,
+                    alt: mouse.alt,
+                    shift: mouse.shift,
+                };
+                trace(format_args!("dispatch {event:?}"));
+                self.dispatch(event)
+            }
             tuinix::Input::Paste { bytes } => self.dispatch(tuke::Event::Paste { bytes }),
             tuinix::Input::Unrecognized { .. } => Ok(false),
         }
@@ -257,6 +292,9 @@ impl App {
     /// alongside this signal.
     fn dispatch(&mut self, event: tuke::Event) -> tuke::Result<bool> {
         let actions = self.state.update(event);
+        if tracing() && !actions.is_empty() {
+            trace(format_args!("  actions {actions:?}"));
+        }
         let mut redraw = false;
         for action in actions {
             match action {
@@ -302,6 +340,14 @@ impl App {
         let frame = tuke::screen_frame(&self.state, terminal, self.terminal_size);
         let cursor = tuke::screen_cursor(terminal, self.terminal_size);
         let out = frame.render(self.prev_frame.as_ref(), cursor);
+        if tracing() {
+            trace(format_args!(
+                "render: guest cursor {:?} modes {:?}, {} bytes to host",
+                terminal.cursor(),
+                terminal.modes(),
+                out.len(),
+            ));
+        }
         self.driver.write_all(&out)?;
         self.driver.flush()?;
         self.prev_frame = Some(frame);

@@ -10,9 +10,9 @@ checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
 name = "libc"
-version = "0.2.180"
+version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
+checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "memchr"
@@ -40,9 +40,9 @@ checksum = "4b59efba88ff29e9fb1fea914a60aa69aea73f02f2bcbd76b369f7a07cdda95a"
 
 [[package]]
 name = "termnix"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "712d85cf9a7ec1bacada9c84fa15dab36bcbea0ba26d0544cf524b1eab456821"
+checksum = "f69cc0f517c5e22f46d678e333afc02fad3c8e2f38aed514bcc55982402a6f4b"
 dependencies = [
  "libc",
  "unicode-width",
