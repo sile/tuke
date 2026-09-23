@@ -16,6 +16,8 @@
   // gathers everything else onto its own board, so `MAIN` stays small enough to
   // reach with one hand.
 
+  {"keyboard_pos": {"col": 6, "rows": 10}},
+
   // --- MAIN -------------------------------------------------------------
 
   // A file that opens with `{"layout": …}` has no unnamed layout, so this
