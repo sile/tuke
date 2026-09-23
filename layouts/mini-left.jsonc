@@ -89,7 +89,9 @@
 
   // Thumb row, directly under the letters: Backspace to the left of Space and
   // Enter to the right, all three flush with the rows above them. Backspace
-  // starts at the left edge, lining up with the letter rows above it.
+  // sits a few columns in from the left edge, where the thumb rests, rather
+  // than under the letter rows that start flush against it.
+  {"blank": 4},
   {"key": "BSpace", "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": " ", "size": {"width": 19, "height": 3}, "padding": 1},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
@@ -118,7 +120,7 @@
   // says to leave after itself.
   {"blank": 11},
   {"key": {"shortcut": {"label": "tell", "text": "attini tell "}},
-    "size": {"width": 7, "height": 3}, "padding": 1},
+    "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": {"shortcut": {"label": "approve", "text": "attini approve"}},
     "size": {"width": 9, "height": 3}},
   {"newline": 1},
@@ -144,10 +146,10 @@
   {"key": "4"},
   {"key": "5"},
   {"newline": 1},
-  // The blank still carries the first row's Esc and digits into the second,
-  // and it is counted in drawn columns, so it grows by the column each digit
-  // took.
-  {"blank": 15},
+  // The blank carries the first row's Esc and digits into the second, lining
+  // the second row's digits up under the first row's: Esc and its padding take
+  // ten columns, the width of the blank that stands in their place.
+  {"blank": 10},
   {"key": "6"},
   {"key": "7"},
   {"key": "8"},

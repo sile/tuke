@@ -70,16 +70,17 @@ fn describe(key: &tuke::Key) -> String {
 }
 
 #[test]
-fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
+fn mini_left_letter_rows_start_at_the_left_edge() {
     let layout = shipped_layout("mini-left.jsonc");
 
-    // The letter rows and the thumb row sit flush against the left edge, so a
-    // left hand resting on the board reaches every key without reaching right.
+    // The letter rows sit flush against the left edge, so a left hand resting
+    // on the board reaches every key without reaching right. The thumb row is
+    // the one row that does not start there: Backspace sits a few columns in,
+    // where the thumb actually rests.
     for code in [
         tuke::KeyCode::Char('q'),
         tuke::KeyCode::Char('a'),
         tuke::KeyCode::Ctrl,
-        tuke::KeyCode::Backspace,
     ] {
         let key = layout
             .keys
@@ -92,6 +93,16 @@ fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
             key.region.position.col
         );
     }
+
+    let backspace = layout
+        .keys
+        .iter()
+        .find(|k| send_code(k) == Some(tuke::KeyCode::Backspace))
+        .expect("missing Backspace");
+    assert!(
+        backspace.region.position.col > 0,
+        "Backspace starts at the left edge, under the letter rows that begin there"
+    );
 }
 
 #[test]
