@@ -423,7 +423,19 @@ impl State {
                 if self.layouts.get(to).is_some() {
                     self.current = to.clone();
                     self.show_current_layout();
-                    return vec![Action::Redraw];
+                    // The new layout can be a different size, and the keyboard
+                    // is anchored by its bottom edge: it keeps the bottom of
+                    // the screen and grows upward. Recomputing here resolves
+                    // the offset and the grid against the new extent, so a
+                    // taller board reaches up rather than the bottom edge
+                    // drifting off the screen.
+                    let previous_grid = self.grid_size;
+                    self.recompute_geometry();
+                    let mut actions = vec![Action::Redraw];
+                    if self.grid_size != previous_grid {
+                        actions.push(Action::ResizeSession(self.grid_size));
+                    }
+                    return actions;
                 }
                 return Vec::new();
             }

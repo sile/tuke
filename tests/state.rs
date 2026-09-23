@@ -191,6 +191,104 @@ fn a_switch_to_an_unknown_layout_does_nothing() {
 }
 
 #[test]
+fn a_switch_that_changes_the_height_keeps_the_bottom_edge() {
+    // The keyboard is anchored by its bottom edge, so a taller board grows
+    // upward: the bottom of the screen stays the bottom of the screen.
+    let set = tuke::LayoutSet::from_named(vec![
+        tuke::NamedLayout {
+            name: "default".to_string(),
+            layout: tuke::Layout {
+                keys: vec![tuke::Key {
+                    action: tuke::KeyAction::Switch {
+                        to: "tall".to_string(),
+                    },
+                    region: key_region(0, 0),
+                }],
+                preview: None,
+            },
+        },
+        tuke::NamedLayout {
+            name: "tall".to_string(),
+            layout: tuke::Layout {
+                keys: vec![
+                    key(tuke::KeyCode::Char('b'), 0, 0),
+                    key(tuke::KeyCode::Char('c'), 3, 0),
+                ],
+                preview: None,
+            },
+        },
+    ]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    press(&mut state, 0, 0);
+
+    // The taller board is 6 rows instead of 3, so the grid shrinks by 3 and
+    // the keyboard's top edge moves up: its bottom row is still 39.
+    assert_eq!(state.current_layout_name(), "tall");
+    let offset = state.offset();
+    let layout_rows = state.layout_size().rows;
+    assert_eq!(
+        offset.row + layout_rows,
+        test_size().rows,
+        "the keyboard's bottom edge left the bottom of the screen"
+    );
+    assert_eq!(state.grid_size().rows + layout_rows, test_size().rows);
+}
+
+#[test]
+fn a_switch_that_changes_the_grid_size_asks_the_session_to_resize() {
+    // The PTY has to be told too: the grid area shrank, so the child would
+    // otherwise paint into rows the keyboard covers.
+    let set = tuke::LayoutSet::from_named(vec![
+        tuke::NamedLayout {
+            name: "default".to_string(),
+            layout: tuke::Layout {
+                keys: vec![tuke::Key {
+                    action: tuke::KeyAction::Switch {
+                        to: "tall".to_string(),
+                    },
+                    region: key_region(0, 0),
+                }],
+                preview: None,
+            },
+        },
+        tuke::NamedLayout {
+            name: "tall".to_string(),
+            layout: tuke::Layout {
+                keys: vec![
+                    key(tuke::KeyCode::Char('b'), 0, 0),
+                    key(tuke::KeyCode::Char('c'), 3, 0),
+                ],
+                preview: None,
+            },
+        },
+    ]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    assert_eq!(
+        actions,
+        vec![
+            tuke::Action::Redraw,
+            tuke::Action::ResizeSession(state.grid_size()),
+        ],
+        "the switch changed the grid size, so the session must be resized"
+    );
+}
+
+#[test]
+fn a_switch_can_leave_the_grid_size_alone() {
+    // Boards of the same size need no resize: the grid is unchanged, so the
+    // press asks only for the repaint the new layout needs.
+    let mut state = tuke::State::new(switch_set(), test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    assert_eq!(actions, vec![tuke::Action::Redraw]);
+}
+
+#[test]
 fn resize_to_the_same_size_asks_for_nothing() {
     let mut state = tuke::State::new(layout_set(test_layout()), test_size(), None);
 
