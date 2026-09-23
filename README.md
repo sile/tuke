@@ -36,6 +36,30 @@ Features
 - Configurable key layout (see: [layouts/default.jsonc](layouts/default.jsonc))
 - Shortcut keys that type a configured string (see the same file)
 - Host keys and pastes are forwarded to the child untouched
+- Mouse events are forwarded to the child, except where the soft keyboard
+  claims them (see [Mouse](#mouse))
+
+Mouse
+-----
+
+The child's own mouse reporting is passed through, so programs that use the
+mouse work as they would without tuke in the way. The soft keyboard floats over
+the grid, though, so the two have to be told apart, and the rule is by area:
+
+| Where the pointer is | What happens |
+| --- | --- |
+| Over the grid (above or beside the keys) | Forwarded to the child |
+| Over a key, wheel | Forwarded to the child |
+| Over a key, any button or drag | The keyboard's: a left release presses the key, and nothing is forwarded |
+
+The wheel is the one exception over the keys: it always goes to the child,
+because a soft key has nothing to scroll and swallowing the wheel over the
+keyboard would make it dead over half the screen.
+
+A drag belongs to wherever it started: a drag that began in the grid keeps
+being the child's even once it crosses onto the keys, and one that began on the
+keys stays the keyboard's. Without this, selecting text in the child would stop
+the moment the pointer reached the keyboard.
 
 Limitations
 -----------

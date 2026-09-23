@@ -37,11 +37,14 @@ pub enum Event {
     /// A mouse event happened at `position`, in screen coordinates
     /// (zero-based, measured from the terminal's top-left corner).
     ///
-    /// tuke forwards nearly all of these to the child, so the child can use
-    /// its own mouse reporting: a click, a drag, and a wheel turn inside the
-    /// grid area belong to the child, not to the soft keyboard. Only what
-    /// lands on the keyboard belongs to tuke, and only a left-button release
-    /// does anything there (it presses the key under the pointer).
+    /// tuke forwards most of these to the child, so the child can use its own
+    /// mouse reporting: what lands on the grid belongs to the child, and so
+    /// does the wheel wherever it turns. What lands on a key belongs to the
+    /// keyboard: only a left-button release does anything there (it presses
+    /// the key under the pointer), and every other button and drag is
+    /// swallowed. A drag is the child's if the button went down outside the
+    /// keyboard, so a selection that starts in the grid survives the pointer
+    /// crossing onto the keys.
     ///
     /// The event is carried whole rather than pre-decided, because whether it
     /// is the keyboard's or the child's depends on the layout's extent, which

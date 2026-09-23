@@ -644,8 +644,8 @@ fn a_left_release_on_a_key_never_reaches_the_child() {
     let mut state = tuke::State::new(layout_set(test_layout()), test_size());
     let centre = screen_centre(&state, 3, 0);
 
-    // The left release is the keyboard's: it presses the key, and the child's
-    // reporting does not also get a release for a press it never saw.
+    // Every mouse gesture on a key is the keyboard's, so the child's
+    // reporting does not get a release for a press it never saw.
     let actions = state.update(host_mouse(
         tuinix::MouseInputKind::LeftRelease,
         centre.row,
@@ -739,10 +739,30 @@ fn the_wheel_is_sent_as_a_press_of_a_wheel_button() {
 }
 
 #[test]
-fn a_drag_over_a_key_is_the_childs() {
-    // The grid is the whole terminal, the keyboard floats over it, so a
-    // position over a key is still a grid position: a drag there is the
-    // child's, only the left release presses the key.
+fn a_press_on_a_key_never_reaches_the_child() {
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size());
+    let centre = screen_centre(&state, 3, 0);
+
+    // A press on a soft key is the keyboard's, not a click on whatever the
+    // child has under that cell: letting it through would both click the child
+    // and let the following release press a key.
+    let actions = state.update(host_mouse(
+        tuinix::MouseInputKind::LeftPress,
+        centre.row,
+        centre.col,
+    ));
+
+    assert!(
+        actions.is_empty(),
+        "a press on a key reached the child: {actions:?}"
+    );
+}
+
+#[test]
+fn a_drag_over_a_key_with_no_button_held_is_the_keyboards() {
+    // A drag the keyboard never saw a press for is not the child's in any
+    // sense: the child has no press of its own under way, so there is nothing
+    // for the move to continue.
     let size = tuinix::Size { rows: 40, cols: 30 };
     let pos = tuke::KeyboardPos { col: 13, rows: 0 };
     let mut state = tuke::State::new(layout_set(test_layout_at(pos)), size);
@@ -754,8 +774,67 @@ fn a_drag_over_a_key_is_the_childs() {
         centre.col,
     ));
 
-    let mouse = sent_mouse(&actions).expect("a drag over a key is forwarded");
-    assert_eq!(mouse.kind, termnix::MouseEventKind::Motion { button: None });
+    assert!(
+        actions.is_empty(),
+        "a drag over a key reached the child: {actions:?}"
+    );
+}
+
+#[test]
+fn a_drag_that_started_in_the_grid_stays_the_childs_over_a_key() {
+    // The gesture belongs to wherever it started: a drag from the grid keeps
+    // being the child's even once it crosses onto the keys, or the child would
+    // lose a selection the moment the pointer touched the keyboard.
+    let size = tuinix::Size { rows: 40, cols: 30 };
+    let pos = tuke::KeyboardPos { col: 13, rows: 0 };
+    let mut state = tuke::State::new(layout_set(test_layout_at(pos)), size);
+
+    state.update(host_mouse(tuinix::MouseInputKind::LeftPress, 4, 9));
+    let centre = screen_centre(&state, 3, 0);
+    let actions = state.update(host_mouse(
+        tuinix::MouseInputKind::Drag,
+        centre.row,
+        centre.col,
+    ));
+
+    let mouse = sent_mouse(&actions).expect("a drag that began in the grid stays the child's");
+    assert_eq!(
+        mouse.kind,
+        termnix::MouseEventKind::Motion {
+            button: Some(termnix::MouseButton::Left)
+        }
+    );
+}
+
+#[test]
+fn the_wheel_over_a_key_still_reaches_the_child() {
+    // The wheel has nothing to do with the keyboard, so it is the child's
+    // wherever it turns: swallowing it over the keys would make the wheel dead
+    // over half the screen.
+    let mut state = tuke::State::new(layout_set(test_layout()), test_size());
+    let centre = screen_centre(&state, 3, 0);
+
+    let up = state.update(host_mouse(
+        tuinix::MouseInputKind::ScrollUp,
+        centre.row,
+        centre.col,
+    ));
+    let down = state.update(host_mouse(
+        tuinix::MouseInputKind::ScrollDown,
+        centre.row,
+        centre.col,
+    ));
+
+    let up = sent_mouse(&up).expect("the wheel up over a key is forwarded");
+    assert_eq!(
+        up.kind,
+        termnix::MouseEventKind::Press(termnix::MouseButton::WheelUp)
+    );
+    let down = sent_mouse(&down).expect("the wheel down over a key is forwarded");
+    assert_eq!(
+        down.kind,
+        termnix::MouseEventKind::Press(termnix::MouseButton::WheelDown)
+    );
 }
 
 #[test]
@@ -865,35 +944,61 @@ fn mouse_modifiers_are_copied_through() {
 }
 
 #[test]
-fn every_mouse_position_belongs_to_the_child() -> noprop::TestResult {
+fn a_press_is_forwarded_exactly_when_it_misses_the_keyboard() -> noprop::TestResult {
     let seed = noprop::seed_from_env_or_time("TUKE_SEED")?;
     let reached_child = Cell::new(0usize);
+    let reached_keyboard = Cell::new(0usize);
     let mut runner = noprop::Runner::new(seed);
     runner.run(256, |ctx| {
-        let rows = noprop::sample_usize_in(ctx, 9..=60);
+        // The keyboard is nine rows tall, so the terminal has to be taller
+        // than that for any grid row to be left above it.
+        let rows = noprop::sample_usize_in(ctx, 10..=60);
         let cols = noprop::sample_usize_in(ctx, 3..=80);
         let size = tuinix::Size { rows, cols };
         let mut state = tuke::State::new(layout_set(test_layout()), size);
-        let row = noprop::sample_usize_in(ctx, 0..rows);
-        let col = noprop::sample_usize_in(ctx, 0..cols);
 
-        // The grid is the whole terminal and the keyboard only covers part of
-        // it, so every position is the child's: a press anywhere is
-        // forwarded unchanged.
-        let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, row, col));
-        let mouse = sent_mouse(&actions).expect("a press is always the child's");
+        // The keyboard is pinned to the bottom-left corner, so every row above
+        // its top edge is a grid row, and every column of the full width is
+        // either under a key or beside the keys, both of which are still the
+        // child's. A press in the grid is forwarded unchanged.
+        let grid_row = noprop::sample_usize_in(ctx, 0..state.offset().row);
+        let col = noprop::sample_usize_in(ctx, 0..cols);
+        let actions = state.update(host_mouse(tuinix::MouseInputKind::LeftPress, grid_row, col));
+        let mouse = sent_mouse(&actions).expect("a press that misses the keyboard is the child's");
         assert_eq!(
             mouse.position,
             termnix::Position {
-                row: row as u16,
+                row: grid_row as u16,
                 col: col as u16,
             }
         );
         reached_child.set(reached_child.get() + 1);
+
+        // A press on a key is the keyboard's and is swallowed: the same cell
+        // in screen coordinates is the child's only when it misses the keys.
+        let centre = screen_centre(&state, 3, 0);
+        let actions = state.update(host_mouse(
+            tuinix::MouseInputKind::LeftPress,
+            centre.row,
+            centre.col,
+        ));
+        assert!(
+            actions.is_empty(),
+            "a press on a key reached the child: {actions:?}"
+        );
+        reached_keyboard.set(reached_keyboard.get() + 1);
         Ok(())
     })?;
 
-    assert!(reached_child.get() > 0, "no case ran\n{runner}");
+    // Both branches have to be exercised for the property to mean anything.
+    assert!(
+        reached_child.get() > 0,
+        "no case missed the keyboard\n{runner}"
+    );
+    assert!(
+        reached_keyboard.get() > 0,
+        "no case hit the keyboard\n{runner}"
+    );
     Ok(())
 }
 

@@ -191,10 +191,31 @@ impl State {
             .is_some_and(|local| self.keys.iter().any(|ks| ks.key.region.contains(local)));
 
         // A left-button release on a key is the one mouse gesture the keyboard
-        // claims: it presses the key under the pointer. Every other gesture is
-        // the child's.
+        // claims: it presses the key under the pointer.
         if inside_key && event.mouse_kind() == Some(tuinix::MouseInputKind::LeftRelease) {
             return self.on_pointer_release(position);
+        }
+
+        // The wheel always belongs to the child, wherever the pointer is: a
+        // turn over the keyboard still scrolls the child's scrollback, because
+        // the soft keys have nothing to scroll and swallowing the turn would
+        // make the wheel dead over half the screen.
+        let wheel = matches!(
+            event.mouse_kind(),
+            Some(tuinix::MouseInputKind::ScrollUp | tuinix::MouseInputKind::ScrollDown)
+        );
+
+        // Everything else that lands on the keyboard is the keyboard's, not
+        // the child's, and is swallowed: a press or release on a key must not
+        // reach the child as a click, or a tap on a soft key would arrive as a
+        // click on whatever the child has under that cell as well as as a key.
+        // A drag whose button went down outside the keyboard is the exception:
+        // it belongs to wherever the gesture started, so it keeps being the
+        // child's even once it crosses onto the keys.
+        let childs_drag =
+            event.mouse_kind() == Some(tuinix::MouseInputKind::Drag) && self.held_button.is_some();
+        if inside_key && !wheel && !childs_drag {
+            return Vec::new();
         }
 
         if let Some(kind) = event.mouse_kind() {
