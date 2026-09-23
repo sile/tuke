@@ -28,7 +28,14 @@
   // reaches for either without leaving the row.
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
-  {"key": "Tab", "size": {"width": 9, "height": 3}},
+  // The board spends no column on gaps: the letters and the punctuation
+  // already have a column of their own around them (`i` sits in the middle of
+  // its key), so a gap between two keys is a column no key can use. The keys
+  // that stand out by being wider than the rest -- the modifiers, the thumbs,
+  // the switches -- keep the single column that separates them from what
+  // follows, which is why they set `padding` themselves.
+  {"default_padding": 0},
+  {"key": "Tab", "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": "\""},
   {"key": "."},
   {"key": "/"},
@@ -71,7 +78,7 @@
 
   // Lower row: Ctrl to the left of z, and the letters run to the right, as
   // they do on the rows above.
-  {"key": "C-", "size": {"width": 9, "height": 3}},
+  {"key": "C-", "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": "z"},
   {"key": "x"},
   {"key": "c"},
@@ -83,8 +90,8 @@
   // Thumb row, directly under the letters: Backspace to the left of Space and
   // Enter to the right, all three flush with the rows above them. Backspace
   // starts at the left edge, lining up with the letter rows above it.
-  {"key": "BSpace", "size": {"width": 9, "height": 3}},
-  {"key": " ", "size": {"width": 19, "height": 3}},
+  {"key": "BSpace", "size": {"width": 9, "height": 3}, "padding": 1},
+  {"key": " ", "size": {"width": 19, "height": 3}, "padding": 1},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
@@ -93,8 +100,13 @@
   // their own row so neither is hit while reaching for a letter, and each is
   // only as wide as its own label, so they stay small corner keys rather than
   // another full-width row.
-  {"key": {"switch_to": "SUB"}, "size": {"width": 7, "height": 3}},
-  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
+  //
+  // The row keeps its single columns: the shortcuts are right-aligned by
+  // counting the gap with a `blank`, and that count is a distance in the row
+  // as drawn, so a `padding` of zero would shift it by a column for every key
+  // before it.
+  {"key": {"switch_to": "SUB"}, "size": {"width": 7, "height": 3}, "padding": 1},
+  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}, "padding": 1},
 
   // Shortcut keys, sharing the row and right-aligned on it: the two commands
   // reached for often enough that spelling them out is a nuisance. They type
@@ -102,9 +114,11 @@
   // to press -- a key that ran a command outright could not be taken back when
   // a thumb lands on it by accident. Their own text is too long to draw
   // (`attini approve` spans eleven columns), so each shows its label.
-  {"blank": 12},
+  // The gap is counted in drawn columns, so it loses the column `MIN` now
+  // says to leave after itself.
+  {"blank": 11},
   {"key": {"shortcut": {"label": "tell", "text": "attini tell "}},
-    "size": {"width": 7, "height": 3}},
+    "size": {"width": 7, "height": 3}, "padding": 1},
   {"key": {"shortcut": {"label": "approve", "text": "attini approve"}},
     "size": {"width": 9, "height": 3}},
   {"newline": 1},
@@ -118,10 +132,12 @@
   {"layout": "SUB"},
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
+  {"default_padding": 0},
 
   // Digits: Esc leads the top row, and the ten digits split five and five, so
-  // the board stays as narrow as `MAIN`.
-  {"key": "Esc", "size": {"width": 9, "height": 3}},
+  // the board stays as narrow as `MAIN`. Esc is the one key wide enough to
+  // tell apart from the rest without a gap, so it keeps the single column.
+  {"key": "Esc", "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": "1"},
   {"key": "2"},
   {"key": "3"},
@@ -170,8 +186,10 @@
   {"newline": 1},
 
   // The way back: `MAIN` is where the hand lives, so it comes first, and `MIN`
-  // is reachable from here too rather than only from `MAIN`.
-  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}},
+  // is reachable from here too rather than only from `MAIN`. Both are wider
+  // than the keys above them, so they keep the single column that tells them
+  // apart.
+  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}, "padding": 1},
   {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
 
   // --- MIN ---------------------------------------------------------------
