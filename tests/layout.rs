@@ -575,17 +575,18 @@ fn a_size_below_the_minimum_is_rejected() {
 }
 
 #[test]
-fn mini_left_switches_between_main_and_min() {
-    // The shipped one-handed board carries two layouts: `MAIN`, the full board
-    // it starts on, and `MIN`, a one-key board whose only job is to put
-    // `MAIN` back. Both directions must resolve, or the file would not load
-    // (an unknown target is rejected), so this pins the shape the file is
-    // meant to have.
+fn mini_left_switches_form_a_closed_set() {
+    // The shipped one-handed board splits over three layouts: `MAIN`, the
+    // board it starts on; `SUB`, a second board carrying the keys `MAIN` gives
+    // up to stay compact; and `MIN`, a one-key board whose only job is to put
+    // `MAIN` back. Every switch must resolve, or the file would not load (an
+    // unknown target is rejected), so this pins the shape the file is meant to
+    // have.
     let set = shipped_layout_set("mini-left.jsonc");
 
     let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
-    assert_eq!(names, ["MAIN", "MIN"]);
-    assert_eq!(set.first_name(), "MAIN", "the full board starts up");
+    assert_eq!(names, ["MAIN", "SUB", "MIN"]);
+    assert_eq!(set.first_name(), "MAIN", "the everyday board starts up");
 
     // Every switch in the file, as (where it is, where it goes).
     let switches: Vec<(String, String)> = set
@@ -606,11 +607,20 @@ fn mini_left_switches_between_main_and_min() {
     assert_eq!(
         switches,
         [
+            ("MAIN".to_string(), "SUB".to_string()),
             ("MAIN".to_string(), "MIN".to_string()),
+            ("SUB".to_string(), "MAIN".to_string()),
+            ("SUB".to_string(), "MIN".to_string()),
             ("MIN".to_string(), "MAIN".to_string()),
         ],
-        "MAIN goes to MIN and MIN goes back to MAIN"
+        "MAIN and SUB both reach MIN, and MIN comes back to MAIN"
     );
+
+    // Every layout the switches name is one the file defines, so no press can
+    // land on a board that is not there.
+    for (_, to) in &switches {
+        assert!(set.get(to).is_some(), "switch targets unknown layout {to}");
+    }
 
     // `MIN` is minimized: one key, and it is the switch back.
     let min = set.get("MIN").expect("MIN layout");
@@ -625,7 +635,8 @@ fn mini_left_switches_between_main_and_min() {
 
 #[test]
 fn mini_left_main_still_carries_a_letter_board() {
-    // Adding the switch to `MIN` must not disturb the board itself.
+    // Splitting the board must not disturb its core: `MAIN` is the board a
+    // hand lives on, so the letters stay on it whatever else moves away.
     let set = shipped_layout_set("mini-left.jsonc");
     let main = set.get("MAIN").expect("MAIN layout");
     let has = |code: tuke::KeyCode| main.keys.iter().any(|k| code_of(k) == code);
@@ -633,7 +644,27 @@ fn mini_left_main_still_carries_a_letter_board() {
     for c in 'a'..='z' {
         assert!(has(tuke::KeyCode::Char(c)), "MAIN is missing letter {c}");
     }
+}
+
+#[test]
+fn mini_left_sub_carries_the_keys_main_gave_up() {
+    // The digits, the arrows and Esc left `MAIN` to stay small, and the
+    // second board is where they must have landed: a split that dropped them
+    // would still load, so this is what pins where they went.
+    let set = shipped_layout_set("mini-left.jsonc");
+    let sub = set.get("SUB").expect("SUB layout");
+    let has = |code: tuke::KeyCode| sub.keys.iter().any(|k| code_of(k) == code);
+
     for c in '0'..='9' {
-        assert!(has(tuke::KeyCode::Char(c)), "MAIN is missing digit {c}");
+        assert!(has(tuke::KeyCode::Char(c)), "SUB is missing digit {c}");
+    }
+    for code in [
+        tuke::KeyCode::Escape,
+        tuke::KeyCode::Left,
+        tuke::KeyCode::Down,
+        tuke::KeyCode::Up,
+        tuke::KeyCode::Right,
+    ] {
+        assert!(has(code), "SUB is missing {code}");
     }
 }

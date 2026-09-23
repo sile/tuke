@@ -1,17 +1,17 @@
 [
-  // A one-handed QWERTY keyboard for the left hand, using the vertical space a
-  // narrow screen leaves over. It is derived from mini.jsonc, but the digits
-  // are split over two rows, so the board is a row taller and each row is a
-  // little narrower. The whole board stays left of the screen's midpoint, so
-  // one hand can reach it without the other.
+  // A one-handed QWERTY keyboard for the left hand. The whole board stays left
+  // of the screen's midpoint, so one hand can reach it without the other.
   //
-  // The rows run top to bottom: symbols, two digit rows, then the three letter
-  // rows, and finally the arrows and the thumb keys.
+  // There are three layouts in this file: `MAIN`, the everyday board below (the
+  // first layout, so it is what starts up); `SUB`, a second board carrying the
+  // keys `MAIN` gives up to stay compact (the digits, the arrows, Esc and the
+  // parenthesised symbols); and `MIN`, a one-key board that gets the keyboard
+  // out of the way. A `switch_to` key names its target, so it is labelled with
+  // it.
   //
-  // There are two layouts in this file: `MAIN`, the full board below (the
-  // first layout, so it is what starts up), and `MIN`, a one-key board that
-  // gets the keyboard out of the way and switches back to `MAIN` on the next
-  // press. A `switch_to` key names its target, so it is labelled with it.
+  // `MAIN` runs top to bottom: a symbol row, the three letter rows, and the
+  // thumb row. `SUB` gathers everything else onto its own board, so `MAIN`
+  // stays small enough to reach with one hand.
 
   // --- MAIN -------------------------------------------------------------
 
@@ -19,35 +19,17 @@
   // first name is the one that starts up.
   {"layout": "MAIN"},
 
-  // Symbol row: every symbol this layout carries, gathered up here so the
-  // letter rows stay narrow.
+  // Symbol row: the symbols that stay on the everyday board, gathered up here
+  // so the letter rows stay narrow. The parenthesised ones are part of the
+  // punctuation a hand reaches for often, so they stay too; the digits leave
+  // for `SUB`.
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
   {"key": "\""},
   {"key": "."},
   {"key": "/"},
   {"key": "?"},
-  {"key": "("},
-  {"key": ")"},
   {"key": "-"},
-  {"key": "_"},
-  {"newline": 1},
-
-  // Digit rows: Esc leads the top row; Tab leads the bottom row, directly
-  // under Esc, and the digits split five and five.
-  {"key": "Esc", "size": {"width": 9, "height": 3}},
-  {"key": "1"},
-  {"key": "2"},
-  {"key": "3"},
-  {"key": "4"},
-  {"key": "5"},
-  {"newline": 1},
-  {"key": "Tab", "size": {"width": 9, "height": 3}},
-  {"key": "6"},
-  {"key": "7"},
-  {"key": "8"},
-  {"key": "9"},
-  {"key": "0"},
   {"newline": 1},
 
   // Upper letter row: the letters start at the left edge.
@@ -75,8 +57,8 @@
   {"key": "l"},
   {"newline": 1},
 
-  // Lower row: Ctrl to the left of z, and the up arrow at the right of the
-  // letters, within the board's width.
+  // Lower row: Ctrl to the left of z, Tab at the right of the letters, so the
+  // two board-wide modifiers sit on the row a thumb reaches for.
   {"key": "C-", "size": {"width": 9, "height": 3}},
   {"key": "z"},
   {"key": "x"},
@@ -86,24 +68,97 @@
   {"key": "n"},
   {"key": "m"},
   {"blank": 1},
-  {"key": "Up", "size": {"width": 7, "height": 3}},
+  {"key": "Tab", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
-  // Thumb row, directly under the letters: Backspace to the left of Space,
-  // Enter to the right, and the rest of the arrow cluster under Up. Backspace
+  // Thumb row, directly under the letters: Backspace to the left of Space and
+  // Enter to the right, all three flush with the rows above them. Backspace
   // starts at the left edge, lining up with the letter rows above it.
   {"key": "BSpace", "size": {"width": 9, "height": 3}},
   {"key": " ", "size": {"width": 19, "height": 3}},
   {"key": "Enter", "size": {"width": 9, "height": 3}},
-  {"key": "Left", "size": {"width": 7, "height": 3}},
-  {"key": "Down", "size": {"width": 7, "height": 3}},
-  {"key": "Right", "size": {"width": 7, "height": 3}},
   {"newline": 1},
 
-  // The way out of the full board: a press replaces it with `MIN`, the one-key
-  // board below. It sits on its own row so it is never hit while reaching for
-  // a letter. It is only as wide as its own label (the target's name, `MIN`),
-  // so it stays a small corner key rather than another full-width row.
+  // The switch row: the way to `SUB` for the keys this board gave up, and the
+  // way out to `MIN`. Both sit on their own row so neither is hit while
+  // reaching for a letter, and each is only as wide as its own label (the
+  // target's name), so they stay small corner keys rather than another
+  // full-width row.
+  {"key": {"switch_to": "SUB"}, "size": {"width": 7, "height": 3}},
+  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
+
+  // --- SUB ---------------------------------------------------------------
+
+  // The second board: everything `MAIN` gave up to stay compact, plus the
+  // symbols a shell reaches for less often. It runs top to bottom in the order
+  // a hand looks for them: Esc and the digits, then the arrows, then the
+  // symbols gathered over their own rows.
+  {"layout": "SUB"},
+  {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 5, "height": 3}},
+
+  // Digits: Esc leads the top row, and the ten digits split five and five, so
+  // the board stays as narrow as `MAIN`.
+  {"key": "Esc", "size": {"width": 9, "height": 3}},
+  {"key": "1"},
+  {"key": "2"},
+  {"key": "3"},
+  {"key": "4"},
+  {"key": "5"},
+  {"newline": 1},
+  {"key": "6"},
+  {"key": "7"},
+  {"key": "8"},
+  {"key": "9"},
+  {"key": "0"},
+  {"newline": 1},
+
+  // Arrow cluster: the four arrows in their familiar cross, gathered to the
+  // left edge so a hand finds them in the same place every time.
+  {"key": "Up", "size": {"width": 5, "height": 3}},
+  {"newline": 1},
+  {"key": "Left"},
+  {"key": "Down"},
+  {"key": "Right"},
+  {"newline": 1},
+
+  // Symbol rows: the rest of the punctuation, gathered here so `MAIN` does not
+  // carry it. `(`, `)` and `_` come along from the old symbol row, so nothing
+  // leaves the file.
+  {"key": "("},
+  {"key": ")"},
+  {"key": "_"},
+  {"key": "~"},
+  {"key": "["},
+  {"key": "]"},
+  {"key": "{"},
+  {"key": "}"},
+  {"key": "@"},
+  {"newline": 1},
+  {"key": "<"},
+  {"key": ">"},
+  {"key": "+"},
+  {"key": "="},
+  {"key": ":"},
+  {"key": ";"},
+  {"key": "*"},
+  {"key": "&"},
+  {"key": "^"},
+  {"newline": 1},
+  {"key": "#"},
+  {"key": "!"},
+  {"key": "|"},
+  {"key": "%"},
+  {"key": "$"},
+  {"key": ","},
+  {"key": "`"},
+  {"key": "'"},
+  {"key": "\\"},
+  {"newline": 1},
+
+  // The way back: `MAIN` is where the hand lives, so it comes first, and `MIN`
+  // is reachable from here too rather than only from `MAIN`.
+  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}},
   {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
 
   // --- MIN ---------------------------------------------------------------
