@@ -148,19 +148,26 @@ fn default_shift_code_uppercases_characters() {
 fn default_layout_loads_and_declares_its_keys() {
     let layout = tuke::Layout::default();
 
-    // The default layout has the preview row and the QWERTY letters.
-    assert!(layout.preview.is_some());
+    // The default layout is the board shown at startup: the first one the file
+    // declares. It carries letters and a space, which is the least a shell
+    // needs before any switch key is pressed.
     assert!(
         layout
             .keys
             .iter()
-            .any(|k| code_of(k) == tuke::KeyCode::Char('q'))
+            .filter_map(|k| match k.action {
+                tuke::KeyAction::Send { code, .. } => Some(code),
+                tuke::KeyAction::Switch { .. } | tuke::KeyAction::Shortcut { .. } => None,
+            })
+            .any(|code| code == tuke::KeyCode::Char('j')),
+        "the startup board carries the letters"
     );
     assert!(
         layout
             .keys
             .iter()
-            .any(|k| code_of(k) == tuke::KeyCode::Char(' '))
+            .any(|k| code_of(k) == tuke::KeyCode::Char(' ')),
+        "the startup board carries a space"
     );
 }
 
@@ -583,14 +590,16 @@ fn an_unknown_layout_name_is_not_found() {
 }
 
 #[test]
-fn the_shipped_default_layout_is_one_layout_named_default() {
-    // The shipped layouts have no `{"layout": …}` entry, so this is the shape
-    // the default file takes: one unnamed layout holding every key.
+fn the_shipped_default_layout_declares_the_one_handed_boards() {
+    // The default file names its boards, so `LayoutSet::default` has to read
+    // them all rather than only the first. The names are what the switch keys
+    // in the file refer to, so a renamed board would be a load error rather
+    // than a layout the user could reach.
     let set: tuke::LayoutSet = tuke::LayoutSet::default();
 
-    assert_eq!(set.layouts().len(), 1);
-    assert_eq!(set.layouts()[0].name, "default");
-    assert!(set.first().preview.is_some());
+    let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["MAIN", "SUB", "MIN"]);
+    assert_eq!(set.first_name(), "MAIN", "the everyday board starts up");
 }
 
 /// Loads a layout that ships with tuke, by file name under `layouts/`.
@@ -615,31 +624,52 @@ fn shipped_layout_set(name: &str) -> tuke::LayoutSet {
 }
 
 #[test]
-fn mini_fits_in_eighty_columns() {
-    let layout = shipped_layout("mini.jsonc");
+fn the_default_layout_fits_in_eighty_columns() {
+    let layout = shipped_layout("default.jsonc");
 
-    // The point of this layout is that it is usable on a narrow screen: an
-    // 80-column terminal must be able to show it without cropping.
+    // The point of the default layout is that it is usable on a narrow screen:
+    // an 80-column terminal must be able to show it without cropping.
     assert!(
         layout_cols(&layout) <= 80,
-        "mini is {} columns wide, over the 80-column budget",
+        "the default is {} columns wide, over the 80-column budget",
         layout_cols(&layout)
     );
 }
 
 #[test]
-fn mini_carries_the_keys_a_shell_needs() {
-    let layout = shipped_layout("mini.jsonc");
-    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| code_of(k) == code);
+fn the_default_layout_carries_the_keys_a_shell_needs() {
+    // The file splits the keyboard over several boards, so the keys a shell
+    // needs may live on one a switch key reaches rather than on the board
+    // shown at startup. What this pins is that a hand can reach them all from
+    // the keyboard as it ships, so it collects the codes from every board.
+    let set = shipped_layout_set("default.jsonc");
+    let everywhere: Vec<tuke::KeyCode> = set
+        .layouts()
+        .iter()
+        .flat_map(|named| named.layout.keys.iter())
+        .filter_map(|key| match key.action {
+            tuke::KeyAction::Send { code, .. } => Some(code),
+            tuke::KeyAction::Switch { .. } | tuke::KeyAction::Shortcut { .. } => None,
+        })
+        .collect();
 
     for c in 'a'..='z' {
-        assert!(has(tuke::KeyCode::Char(c)), "missing letter {c}");
+        assert!(
+            everywhere.contains(&tuke::KeyCode::Char(c)),
+            "missing letter {c}"
+        );
     }
     for c in '0'..='9' {
-        assert!(has(tuke::KeyCode::Char(c)), "missing digit {c}");
+        assert!(
+            everywhere.contains(&tuke::KeyCode::Char(c)),
+            "missing digit {c}"
+        );
     }
-    for c in ['.', '-', '_', '/', '?', '~', '"', '(', ')'] {
-        assert!(has(tuke::KeyCode::Char(c)), "missing symbol {c}");
+    for c in ['.', '-', '_', '/', '?', '"', '(', ')'] {
+        assert!(
+            everywhere.contains(&tuke::KeyCode::Char(c)),
+            "missing symbol {c}"
+        );
     }
     for code in [
         tuke::KeyCode::Ctrl,
@@ -648,95 +678,65 @@ fn mini_carries_the_keys_a_shell_needs() {
         tuke::KeyCode::Enter,
         tuke::KeyCode::Backspace,
         tuke::KeyCode::Char(' '),
-        tuke::KeyCode::Left,
-        tuke::KeyCode::Down,
-        tuke::KeyCode::Up,
-        tuke::KeyCode::Right,
     ] {
-        assert!(has(code), "missing {code}");
+        assert!(everywhere.contains(&code), "missing {code}");
     }
-
-    // The arrows form the inverted T: Up sits directly above Down, and Left
-    // and Right sit either side of Down on its own row.
-    let arrow = |code: tuke::KeyCode| {
-        layout
-            .keys
-            .iter()
-            .find(|k| code_of(k) == code)
-            .map(|k| k.region)
-            .unwrap_or_else(|| panic!("missing {code}"))
-    };
-    let up = arrow(tuke::KeyCode::Up);
-    let down = arrow(tuke::KeyCode::Down);
-    let left = arrow(tuke::KeyCode::Left);
-    let right = arrow(tuke::KeyCode::Right);
-
-    assert_eq!(up.position.col, down.position.col, "Up is not above Down");
-    assert!(down.position.row > up.position.row, "Down is not below Up");
-    assert_eq!(
-        left.position.row, down.position.row,
-        "Left is not on Down's row"
-    );
-    assert_eq!(
-        right.position.row, down.position.row,
-        "Right is not on Down's row"
-    );
-    assert!(
-        left.position.col + left.size.cols <= down.position.col,
-        "Left is not left of Down"
-    );
-    assert!(
-        right.position.col >= down.position.col + down.size.cols,
-        "Right is not right of Down"
-    );
-
-    // Shift and Alt are deliberately absent: a compact layout carries only the
-    // modifier a shell cannot do without.
-    assert!(!has(tuke::KeyCode::Shift), "mini should not carry Shift");
-    assert!(!has(tuke::KeyCode::Alt), "mini should not carry Alt");
 }
 
 #[test]
-fn mini_has_no_overlapping_keys() {
-    let layout = shipped_layout("mini.jsonc");
+fn the_default_layout_has_no_overlapping_keys() {
+    let set = shipped_layout_set("default.jsonc");
 
     // Overlapping keys would make a hit test ambiguous, and the JSONC cursor
     // rules already place them, so a collision means the layout moved a key by
-    // hand on top of another.
-    for (i, a) in layout.keys.iter().enumerate() {
-        for b in &layout.keys[i + 1..] {
-            let separated = a.region.position.col + a.region.size.cols <= b.region.position.col
-                || b.region.position.col + b.region.size.cols <= a.region.position.col
-                || a.region.position.row + a.region.size.rows <= b.region.position.row
-                || b.region.position.row + b.region.size.rows <= a.region.position.row;
-            assert!(
-                separated,
-                "keys {:?} at {:?} and {:?} at {:?} overlap",
-                code_of(a),
-                a.region,
-                code_of(b),
-                b.region
-            );
+    // hand on top of another. Every board is checked: a hand-edit lands on
+    // whichever one it was made in.
+    for named in set.layouts() {
+        let keys = &named.layout.keys;
+        for (i, a) in keys.iter().enumerate() {
+            for b in &keys[i + 1..] {
+                let separated = a.region.position.col + a.region.size.cols <= b.region.position.col
+                    || b.region.position.col + b.region.size.cols <= a.region.position.col
+                    || a.region.position.row + a.region.size.rows <= b.region.position.row
+                    || b.region.position.row + b.region.size.rows <= a.region.position.row;
+                assert!(
+                    separated,
+                    "{}: keys {:?} at {:?} and {:?} at {:?} overlap",
+                    named.name,
+                    code_of(a),
+                    a.region,
+                    code_of(b),
+                    b.region
+                );
+            }
         }
     }
 }
 
 #[test]
-fn mini_labels_fit_their_keys() {
-    let layout = shipped_layout("mini.jsonc");
+fn the_default_layout_labels_fit_their_keys() {
+    let set = shipped_layout_set("default.jsonc");
 
     // The renderer crops a label that is too long for its key, so a cramped
     // label is not an error - but `BSpace` in a three-column key would read
-    // `BSp`, which is a layout bug rather than a rendering one.
-    for key in &layout.keys {
-        let label = code_of(key).to_string();
-        let interior = key.region.size.cols.saturating_sub(2);
-        assert!(
-            label.chars().count() <= interior,
-            "label {label:?} needs {} columns but key {:?} has {interior}",
-            label.chars().count(),
-            code_of(key)
-        );
+    // `BSp`, which is a layout bug rather than a rendering one. A switch key
+    // draws the layout it goes to rather than a code, so the text checked here
+    // is the one the renderer derives from the key's own action.
+    for named in set.layouts() {
+        for key in &named.layout.keys {
+            let label = match &key.action {
+                tuke::KeyAction::Send { code, .. } => code.to_string(),
+                tuke::KeyAction::Switch { to } => to.clone(),
+                tuke::KeyAction::Shortcut { label, .. } => label.clone(),
+            };
+            let interior = key.region.size.cols.saturating_sub(2);
+            assert!(
+                label.chars().count() <= interior,
+                "{}: label {label:?} needs {} columns but the key has {interior}",
+                named.name,
+                label.chars().count(),
+            );
+        }
     }
 }
 
@@ -758,7 +758,7 @@ fn mini_left_switches_form_a_closed_set() {
     // `MAIN` back. Every switch must resolve, or the file would not load (an
     // unknown target is rejected), so this pins the shape the file is meant to
     // have.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
 
     let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
     assert_eq!(names, ["MAIN", "SUB", "MIN"]);
@@ -813,7 +813,7 @@ fn mini_left_switches_form_a_closed_set() {
 fn mini_left_main_still_carries_a_letter_board() {
     // Splitting the board must not disturb its core: `MAIN` is the board a
     // hand lives on, so the letters stay on it whatever else moves away.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
     let main = set.get("MAIN").expect("MAIN layout");
     let has = |code: tuke::KeyCode| main.keys.iter().any(|k| code_of(k) == code);
 
@@ -827,7 +827,7 @@ fn mini_left_sub_carries_the_keys_main_gave_up() {
     // The digits and Esc left `MAIN` to stay small, and the second board is
     // where they must have landed: a split that dropped them would still
     // load, so this is what pins where they went.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
     let sub = set.get("SUB").expect("SUB layout");
     let has = |code: tuke::KeyCode| sub.keys.iter().any(|k| code_of(k) == code);
 
@@ -841,7 +841,7 @@ fn mini_left_sub_carries_the_keys_main_gave_up() {
 fn mini_left_has_no_arrow_keys() {
     // The arrow cluster was taken off the board. A key that quietly came back
     // would widen the row it sits on, so the absence is what this pins.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
 
     for name in ["MAIN", "SUB", "MIN"] {
         let layout = set.get(name).expect("layout {name}");

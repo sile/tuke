@@ -34,7 +34,7 @@ Features
 - Embeds one child process in a PTY and drives it (no tmux required)
 - Software keyboard that turns mouse clicks into key presses
 - Configurable key layout (see: [layouts/default.jsonc](layouts/default.jsonc))
-- Shortcut keys that type a configured string (see: [layouts/mini-left.jsonc](layouts/mini-left.jsonc))
+- Shortcut keys that type a configured string (see the same file)
 - Host keys and pastes are forwarded to the child untouched
 
 Limitations
@@ -48,15 +48,14 @@ Layouts
 -------
 
 A layout is a JSONC file that places keys at absolute coordinates inside the
-keyboard region. Three are shipped:
+keyboard region. One is shipped, and it is the one tuke loads:
 
 | File | Size | Notes |
 | --- | --- | --- |
-| [layouts/default.jsonc](layouts/default.jsonc) | 144 cols | The full three-region keyboard |
-| [layouts/compact-right.jsonc](layouts/compact-right.jsonc) | 144 cols | Same, narrower clusters |
-| [layouts/mini.jsonc](layouts/mini.jsonc) | 69 cols | Fits in 80 columns; the keys a shell needs plus the arrows, no Shift/Alt |
+| [layouts/default.jsonc](layouts/default.jsonc) | 69 cols | One-handed board; fits in 80 columns, splits over `MAIN`, `SUB`, and `MIN` |
 
-The file to load is currently hard-coded, so `mini.jsonc` is not reachable yet.
+The file to load is currently hard-coded, so a layout you write yourself is not
+reachable yet.
 
 A key also does more than send: it can switch layouts. A key whose `key` is
 `{"switch_to": NAME}` instead of a code shows the layout named `NAME` in the
@@ -110,7 +109,7 @@ plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect
 example against it:
 
 ```console
-$ cargo run --example inspect_layout layouts/mini.jsonc
+$ cargo run --example inspect_layout layouts/default.jsonc
 ```
 
 That is also the worked example of reading a layout from Rust, and the extent
@@ -125,7 +124,8 @@ What is planned next, in the order it is meant to happen.
 
 Today the layout is loaded at startup and the terminal size only decides where
 the keyboard is drawn, not which one. The next step is to let the terminal size
-pick it. Three sizes exist; the small one must become reachable.
+pick it, so a narrow screen gets a compact board and a wide one gets a fuller
+keyboard.
 
 Agreed design:
 
@@ -142,6 +142,10 @@ terminal it fits in.** A switch key needs nothing more than its target name,
 which is settled; picking a layout by size needs each one to carry a size to
 compare against.
 
+A second board to pick between is also missing: the shipped file is the
+one-handed layout, and a fuller three-region keyboard will have to come back
+before the size can choose anything.
+
 ### 2. Positional keyboard
 
 A layout is currently a set of absolute coordinates, so an 80-column layout and
@@ -154,7 +158,6 @@ positionally (rows of key widths) and let tuke compute the coordinates.
 - The horizontal centring in [`src/geometry.rs`](src/geometry.rs) exists
   because layouts carry absolute columns; a positional format would make it
   unnecessary.
-- `mini.jsonc` keys are five columns wide (only 69 of the 80 columns are
-  used). `Esc`/`Tab` (9), `Ctrl` (9), `BSpace`/`Enter` (9) and the arrows (7)
-  are wider so their labels fit and so the keys that are used most often are
-  easier to hit.
+- The default layout's keys are five columns wide (only 69 of the 80 columns
+  are used). `Esc`/`Tab` (9), `Ctrl` (9) and `BSpace`/`Enter` (9) are wider so
+  their labels fit and so the keys that are used most often are easier to hit.

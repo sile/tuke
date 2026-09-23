@@ -142,13 +142,18 @@ fn a_zero_sized_key_is_rejected() {
 #[test]
 fn the_default_layout_parses_from_the_embedded_file() {
     // `Layout::default()` loads `layouts/default.jsonc`; if that file drifted
-    // out of the format, every run without `--layout-file` would fail.
+    // out of the format, every run with no layout file would fail. The file
+    // declares several boards, and the one shown at startup is the first.
     let layout = tuke::Layout::default();
 
-    assert!(layout.preview.is_some(), "the default layout has a preview");
     assert!(
-        layout.keys.len() >= 40,
-        "the default layout declares a full keyboard, got {}",
+        layout.keys.len() >= 20,
+        "the default layout's first board is a full keyboard, got {}",
         layout.keys.len()
     );
+
+    let set = tuke::LayoutSet::default();
+    let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["MAIN", "SUB", "MIN"]);
+    assert_eq!(set.first_name(), "MAIN", "the everyday board starts up");
 }

@@ -1,152 +1,211 @@
 [
-  // Right Region
-  {"base_position": {"row": 0, "column": 144}},
-  {"default_size": {"width": 9, "height": 4}},
-  {"key": "0"},
+  // A one-handed QWERTY keyboard for the left hand. The whole board stays left
+  // of the screen's midpoint, so one hand can reach it without the other.
+  //
+  // There are three layouts in this file: `MAIN`, the everyday board below (the
+  // first layout, so it is what starts up); `SUB`, a second board carrying the
+  // keys `MAIN` gives up to stay compact (the digits, the arrows, Esc and the
+  // parenthesised symbols); and `MIN`, a one-key board that gets the keyboard
+  // out of the way. A `switch_to` key names its target, so it is labelled with
+  // it.
+  //
+  // `MAIN` runs top to bottom: a symbol row, a row for the right-hand letters,
+  // the three left-hand letter rows, and the thumb row. Splitting the letters
+  // this way keeps every key within a thumb's reach of the left edge: the right
+  // hand's letters would otherwise end the rows far off to the right. `SUB`
+  // gathers everything else onto its own board, so `MAIN` stays small enough to
+  // reach with one hand.
+
+  {"keyboard_pos": {"col": 6, "rows": 10}},
+
+  // --- MAIN -------------------------------------------------------------
+
+  // A file that opens with `{"layout": …}` has no unnamed layout, so this
+  // first name is the one that starts up.
+  {"layout": "MAIN"},
+
+  // Top row: Tab leads it, flush with the left edge so it lines up under the
+  // hand already resting there, and the symbols that stay on the everyday
+  // board follow it. The comma stays right beside the hyphen, where a thumb
+  // reaches for either without leaving the row.
+  {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 6, "height": 3}},
+  // The board spends no column on gaps: a letter has a column of its own around
+  // it (`i` sits in the middle of its key), so a gap between two keys is a
+  // column no key can use. The keys that stand out by being wider than the rest
+  // -- the modifiers, the thumbs, the switches -- keep the single column that
+  // separates them from what follows, which is why they set `padding`
+  // themselves.
+  {"default_padding": 0},
+  {"key": "Tab", "size": {"width": 9, "height": 3}, "padding": 1},
+  {"key": "\""},
+  {"key": "."},
+  {"key": "/"},
+  {"key": "?"},
+  {"key": "-"},
+  {"key": ","},
+  {"newline": 1},
+
+  // Right-hand row: the letters of the right hand, gathered onto one row so a
+  // thumb reaches them without leaving the left half of the board. They keep
+  // their top-to-bottom order in the row's left-to-right one, so the hand that
+  // knows where `i` sits finds it at the row's left edge.
+  {"key": "i"},
+  {"key": "o"},
+  {"key": "p"},
+  {"key": "k"},
+  {"key": "l"},
+  {"key": "m"},
+  {"newline": 1},
+
+  // Upper letter row: the letters start at the left edge.
+  {"key": "q"},
+  {"key": "w"},
+  {"key": "e"},
+  {"key": "r"},
+  {"key": "t"},
+  {"key": "y"},
+  {"key": "u"},
+  {"newline": 1},
+
+  // Home row: the letters start at the left edge.
+  {"key": "a"},
+  {"key": "s"},
+  {"key": "d"},
+  {"key": "f"},
+  {"key": "g"},
+  {"key": "h"},
+  {"key": "j"},
+  {"newline": 1},
+
+  // Lower row: Ctrl to the left of z, and the letters run to the right, as
+  // they do on the rows above.
+  {"key": "C-", "size": {"width": 9, "height": 3}, "padding": 1},
+  {"key": "z"},
+  {"key": "x"},
+  {"key": "c"},
+  {"key": "v"},
+  {"key": "b"},
+  {"key": "n"},
+  {"newline": 1},
+
+  // Thumb row, directly under the letters: Backspace to the left of Space and
+  // Enter to the right, all three flush with the rows above them. Backspace
+  // sits a few columns in from the left edge, where the thumb rests, rather
+  // than under the letter rows that start flush against it.
+  {"blank": 4},
+  {"key": "BSpace", "size": {"width": 9, "height": 3}, "padding": 1},
+  {"key": " ", "size": {"width": 19, "height": 3}, "padding": 1},
+  {"key": "Enter", "size": {"width": 9, "height": 3}},
+  {"newline": 1},
+
+  // The last row: the way to `SUB` for the keys this board gave up, the way
+  // out to `MIN`, and the shortcut keys at the right edge. The switches sit on
+  // their own row so neither is hit while reaching for a letter, and each is
+  // only as wide as its own label, so they stay small corner keys rather than
+  // another full-width row.
+  //
+  // The row keeps its single columns: the shortcuts are right-aligned by
+  // counting the gap with a `blank`, and that count is a distance in the row
+  // as drawn, so a `padding` of zero would shift it by a column for every key
+  // before it.
+  {"key": {"switch_to": "SUB"}, "size": {"width": 7, "height": 3}, "padding": 1},
+  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}, "padding": 1},
+
+  // Shortcut keys, sharing the row and right-aligned on it: the two commands
+  // reached for often enough that spelling them out is a nuisance. They type
+  // their text and nothing more, so the Enter that runs it is still the user's
+  // to press -- a key that ran a command outright could not be taken back when
+  // a thumb lands on it by accident. Their own text is too long to draw
+  // (`attini approve` spans eleven columns), so each shows its label.
+  // The gap is counted in drawn columns, so it loses the column `MIN` now
+  // says to leave after itself.
+  {"blank": 11},
+  {"key": {"shortcut": {"label": "tell", "text": "attini tell "}},
+    "size": {"width": 9, "height": 3}, "padding": 1},
+  {"key": {"shortcut": {"label": "approve", "text": "attini approve"}},
+    "size": {"width": 9, "height": 3}},
+  {"newline": 1},
+
+  // --- SUB ---------------------------------------------------------------
+
+  // The second board: everything `MAIN` gave up to stay compact, plus the
+  // symbols a shell reaches for less often. It runs top to bottom in the order
+  // a hand looks for them: Esc and the digits, then the arrows, then the
+  // symbols gathered over their own rows.
+  {"layout": "SUB"},
+  {"base_position": {"row": 0, "column": 0}},
+  {"default_size": {"width": 6, "height": 3}},
+  {"default_padding": 0},
+
+  // Digits: Esc leads the top row, and the ten digits split five and five, so
+  // the board stays as narrow as `MAIN`. Esc is the one key wide enough to
+  // tell apart from the rest without a gap, so it keeps the single column.
+  {"key": "Esc", "size": {"width": 9, "height": 3}, "padding": 1},
   {"key": "1"},
   {"key": "2"},
   {"key": "3"},
   {"key": "4"},
-  {"newline": 1},
   {"key": "5"},
+  {"newline": 1},
+  // The blank carries the first row's Esc and digits into the second, lining
+  // the second row's digits up under the first row's: Esc and its padding take
+  // ten columns, the width of the blank that stands in their place.
+  {"blank": 10},
   {"key": "6"},
   {"key": "7"},
   {"key": "8"},
   {"key": "9"},
+  {"key": "0"},
   {"newline": 1},
 
-  {"default_size": {"width": 15, "height": 5}},
-  {"blank": 15},
-  {"key": "Up"},
-
-  {"newline": 1},
-  {"key": "Left"},
-  {"blank": 15},
-  {"key": "Right"},
-
-  {"newline": 1},
-  {"blank": 15},
-  {"key": "Down"},
-
-  // Left Region
-  {"base_position": {"row": 0, "column": 0}},
-  {"default_size": {"width": 9, "height": 3}},
-
-  {"key": "\\"},
-  {"key": "@"},
-  {"newline": 1},
-
-  {"key": "<"},
-  {"key": ">"},
+  // Symbol rows: the rest of the punctuation, gathered here so `MAIN` does not
+  // carry it. `(`, `)` and `_` come along from the old symbol row, so nothing
+  // leaves the file.
   {"key": "("},
   {"key": ")"},
-  {"key": "-"},
-  {"newline": 1},
-
+  {"key": "_"},
+  {"key": "~"},
   {"key": "["},
   {"key": "]"},
   {"key": "{"},
   {"key": "}"},
-  {"key": "_"},
-  {"newline": 2},
-
+  {"key": "@"},
+  {"newline": 1},
+  {"key": "<"},
+  {"key": ">"},
   {"key": "+"},
   {"key": "="},
   {"key": ":"},
-  {"key": "/"},
-  {"key": "."},
-  {"newline": 1},
-
+  {"key": ";"},
   {"key": "*"},
   {"key": "&"},
-  {"key": ";"},
-  {"key": "~"},
-  {"key": ","},
-  {"newline": 2},
-
   {"key": "^"},
+  {"newline": 1},
   {"key": "#"},
   {"key": "!"},
   {"key": "|"},
-  {"key": "\""},
-  {"newline": 1},
-
   {"key": "%"},
   {"key": "$"},
-  {"key": "?"},
   {"key": "`"},
   {"key": "'"},
-
-  // Center Region
-  {"base_position": {"row": 0, "column": 48}},
-  {"default_size": {"width": 9, "height": 4}},
-
-  {"blank": 7},
-  {"preview": {"width": 80}},
+  {"key": "\\"},
   {"newline": 1},
 
-  // QWERT... Row
-  {"default_size": {"width": 9, "height": 4}},
-  {"key": "q"},
-  {"key": "w"},
-  {"key": "e"},
-  {"blank": 1},
-  {"key": "r"},
-  {"key": "t"},
-  {"blank": 2},
-  {"key": "y"},
-  {"key": "u"},
-  {"blank": 1},
-  {"key": "i"},
-  {"key": "o"},
-  {"key": "p"},
-  {"newline": 1},
+  // The way back: `MAIN` is where the hand lives, so it comes first, and `MIN`
+  // is reachable from here too rather than only from `MAIN`. Both are wider
+  // than the keys above them, so they keep the single column that tells them
+  // apart.
+  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}, "padding": 1},
+  {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
 
-  // ASDF... Row
-  {"blank": 4},
-  {"key": "a"},
-  {"key": "s"},
-  {"blank": 1},
-  {"key": "d"},
-  {"key": "f"},
-  {"key": "g"},
-  {"blank": 2},
-  {"key": "h"},
-  {"key": "j"},
-  {"blank": 1},
-  {"key": "k"},
-  {"key": "l"},
-  {"newline": 1},
+  // --- MIN ---------------------------------------------------------------
 
-  // ZXCV... Row
-  {"blank": 9},
-  {"key": "z"},
-  {"key": "x"},
-  {"blank": 1},
-  {"key": "c"},
-  {"key": "v"},
-  {"blank": 2},
-  {"key": "b"},
-  {"key": "n"},
-  {"blank": 1},
-  {"key": "m"},
-  {"newline": 1},
-
-  // Spacebar and control keys Rows
-  {"default_size": {"width": 30, "height": 5}},
-  {"key": "C-"},
-  {"blank": 2},
-  {"key": " "},
-  {"blank": 2},
-  {"key": "Enter"},
-  {"newline": 1},
-
-  {"default_size": {"width": 18, "height": 5}},
-  {"key": "Tab"},
-  {"blank": 2},
-  {"key": "S-"},
-  {"key": "M-"},
-  {"blank": 2},
-  {"key": "BSpace"},
-  {"key": "Delete"},
+  // The minimized board: one key that puts `MAIN` back. A press on a switch
+  // key swaps the whole keyboard for its target, so this is the only thing
+  // `MIN` needs to carry, and the only thing it can carry. Like the key that
+  // got here, it is just wide enough for its own label (`MAIN`).
+  {"layout": "MIN"},
+  {"base_position": {"row": 0, "column": 0}},
+  {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}},
 ]

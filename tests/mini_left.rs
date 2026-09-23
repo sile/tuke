@@ -1,4 +1,7 @@
 //! Tests for the shipped one-handed left layout.
+//!
+//! It is the layout tuke ships as its default, so these are the tests that
+//! pin what a user gets out of the box.
 
 /// The rightmost column any key or the preview extends to, in layout cells.
 fn layout_cols(layout: &tuke::Layout) -> usize {
@@ -71,7 +74,7 @@ fn describe(key: &tuke::Key) -> String {
 
 #[test]
 fn mini_left_letter_rows_start_at_the_left_edge() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     // The letter rows sit flush against the left edge, so a left hand resting
     // on the board reaches every key without reaching right. The thumb row is
@@ -107,20 +110,20 @@ fn mini_left_letter_rows_start_at_the_left_edge() {
 
 #[test]
 fn mini_left_fits_a_narrow_screen() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     // The point of a one-handed board is that it stays out of the other hand's
     // way, so it must not reach the middle of an 80-column terminal.
     assert!(
         layout_cols(&layout) <= 70,
-        "mini-left is {} columns wide, over the one-handed budget",
+        "the default board is {} columns wide, over the one-handed budget",
         layout_cols(&layout)
     );
 }
 
 #[test]
 fn mini_left_gathers_the_right_hand_letters_onto_one_row() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     // The right hand's letters end the QWERTY rows far off to the right, where
     // a left hand cannot reach them without leaving the board's compact
@@ -177,21 +180,20 @@ fn mini_left_gathers_the_right_hand_letters_onto_one_row() {
 }
 
 #[test]
-fn mini_left_keeps_its_boards_no_wider_than_mini() {
-    let set = shipped_layout_set("mini-left.jsonc");
-    let mini = shipped_layout("mini.jsonc");
+fn mini_left_keeps_its_boards_within_the_one_handed_budget() {
+    let set = shipped_layout_set("default.jsonc");
 
-    // Splitting the board over `MAIN` and `SUB` must not make either one wider
-    // than the compact board it is meant to be a one-handed alternative to:
-    // the point of the split is to stay reachable by one hand, so a wider
-    // board would defeat it.
+    // Every board the file declares has to stay reachable by one hand: the
+    // point of the split is to keep each board narrow, so one that grew back
+    // past the budget would defeat it. The number is the width the keyboard
+    // was designed around; every board is centred within it.
+    const BUDGET: usize = 69;
     for named in set.layouts() {
         assert!(
-            layout_cols(&named.layout) <= layout_cols(&mini),
-            "{} is {} columns wide, over mini's {}",
+            layout_cols(&named.layout) <= BUDGET,
+            "{} is {} columns wide, over the {BUDGET}-column one-handed budget",
             named.name,
             layout_cols(&named.layout),
-            layout_cols(&mini)
         );
     }
 }
@@ -202,7 +204,7 @@ fn mini_left_carries_the_keys_a_shell_needs() {
     // letters and the keys a hand wants constantly, and `SUB` takes the rest.
     // What matters is that the file as a whole still carries what a shell
     // needs, so this looks at every layout rather than only `MAIN`.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
 
     for c in 'a'..='z' {
         assert!(any_has(&set, tuke::KeyCode::Char(c)), "missing letter {c}");
@@ -231,7 +233,7 @@ fn mini_left_main_keeps_the_everyday_keys() {
     // must carry the letters and the keys pressed constantly, and leave the
     // rest to `SUB`. Moving the letters away would make the everyday board
     // useless even though the file as a whole still carried them.
-    let set = shipped_layout_set("mini-left.jsonc");
+    let set = shipped_layout_set("default.jsonc");
     let main = set.get("MAIN").expect("MAIN layout");
     let has = |code: tuke::KeyCode| main.keys.iter().any(|k| send_code(k) == Some(code));
 
@@ -265,7 +267,7 @@ fn mini_left_main_keeps_the_everyday_keys() {
 
 #[test]
 fn mini_left_has_no_overlapping_keys() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     for (i, a) in layout.keys.iter().enumerate() {
         for b in &layout.keys[i + 1..] {
@@ -287,7 +289,7 @@ fn mini_left_has_no_overlapping_keys() {
 
 #[test]
 fn mini_left_carries_the_configured_shortcuts() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     // The two commands reached for often enough that spelling them out is a
     // nuisance. They ship with the board, so a rename here is a change to the
@@ -312,7 +314,7 @@ fn mini_left_carries_the_configured_shortcuts() {
 
 #[test]
 fn mini_left_puts_the_shortcuts_on_the_bottom_row_at_the_right_edge() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     let shortcut_regions: Vec<tuinix::Region> = layout
         .keys
@@ -375,7 +377,7 @@ fn mini_left_puts_the_shortcuts_on_the_bottom_row_at_the_right_edge() {
 
 #[test]
 fn mini_left_labels_fit_their_keys() {
-    let layout = shipped_layout("mini-left.jsonc");
+    let layout = shipped_layout("default.jsonc");
 
     for key in &layout.keys {
         // A switch key is labelled with where it goes, and a shortcut key is

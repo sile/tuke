@@ -3,7 +3,7 @@
 //! Run it against a file you are writing, or against a shipped layout:
 //!
 //! ```console
-//! $ cargo run --example inspect_layout layouts/mini.jsonc
+//! $ cargo run --example inspect_layout layouts/default.jsonc
 //! ```
 //!
 //! It prints one line per key (code, region, label) and then the summary a
