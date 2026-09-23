@@ -22,6 +22,7 @@ fn key(code: tuke::KeyCode, row: usize, col: usize, rows: usize, cols: usize) ->
             position: tuinix::Position { row, col },
             size: tuinix::Size { rows, cols },
         },
+        padding: 1,
     }
 }
 

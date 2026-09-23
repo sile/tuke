@@ -18,6 +18,7 @@ fn key(code: tuke::KeyCode, row: usize, col: usize) -> tuke::Key {
             shift_code: code.default_shift_code(),
         },
         region: key_region(row, col),
+        padding: 1,
     }
 }
 
@@ -124,6 +125,7 @@ fn switch_set() -> tuke::LayoutSet {
                         to: "other".to_string(),
                     },
                     region: key_region(0, 0),
+                    padding: 1,
                 }],
                 preview: None,
             },
@@ -179,6 +181,7 @@ fn a_switch_to_an_unknown_layout_does_nothing() {
                     to: "missing".to_string(),
                 },
                 region: key_region(0, 0),
+                padding: 1,
             }],
             preview: None,
         },
@@ -200,6 +203,7 @@ fn shortcut_layout(label: &str, text: &str) -> tuke::Layout {
                 text: text.to_string(),
             },
             region: key_region(0, 0),
+            padding: 1,
         }],
         preview: None,
     }
@@ -273,6 +277,7 @@ fn a_shortcut_is_the_same_text_whatever_the_modifiers_hold() {
                         text: "attini tell".to_string(),
                     },
                     region: key_region(3, 0),
+                    padding: 1,
                 },
                 key(tuke::KeyCode::Char('b'), 6, 0),
             ],
@@ -335,6 +340,7 @@ fn a_switch_that_changes_the_height_keeps_the_bottom_edge() {
                         to: "tall".to_string(),
                     },
                     region: key_region(0, 0),
+                    padding: 1,
                 }],
                 preview: None,
             },
@@ -380,6 +386,7 @@ fn a_switch_that_changes_the_grid_size_asks_the_session_to_resize() {
                         to: "tall".to_string(),
                     },
                     region: key_region(0, 0),
+                    padding: 1,
                 }],
                 preview: None,
             },

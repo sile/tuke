@@ -258,6 +258,7 @@ struct LayoutBuilder {
     preview: Option<Preview>,
     next_newline_rows: usize,
     default_size: tuinix::Size,
+    default_padding: usize,
     position: tuinix::Position,
     base_col: usize,
 }
@@ -269,6 +270,7 @@ impl Default for LayoutBuilder {
             preview: None,
             next_newline_rows: 1,
             default_size: tuinix::Size { rows: 3, cols: 3 },
+            default_padding: 1,
             position: tuinix::Position::ORIGIN,
             base_col: 0,
         }
@@ -305,6 +307,10 @@ impl LayoutBuilder {
             self.default_size = parse_size(default_size_value)?;
             return Ok(true);
         }
+        if let Some(default_padding_value) = entry.to_member("default_padding")?.optional() {
+            self.default_padding = default_padding_value.try_into()?;
+            return Ok(true);
+        }
         if let Some(preview_value) = entry.to_member("preview")?.optional() {
             let width = preview_value.to_member("width")?.required()?.try_into()?;
             let region = tuinix::Region {
@@ -333,10 +339,16 @@ impl LayoutBuilder {
             return Ok(());
         }
 
-        let key = Key::parse(entry, self.position, self.default_size)?;
+        let key = Key::parse(
+            entry,
+            self.position,
+            self.default_size,
+            self.default_padding,
+        )?;
+        let padding = key.padding;
 
         self.position = region_top_right(key.region);
-        self.position.col += 1;
+        self.position.col += padding;
         self.next_newline_rows = self.next_newline_rows.max(key.region.size.rows);
 
         self.keys.push(key);
@@ -473,6 +485,18 @@ pub struct Key {
     pub action: KeyAction,
     /// The key's rectangle, in layout coordinates.
     pub region: tuinix::Region,
+    /// How many columns to leave before the next key on the row.
+    ///
+    /// A key is placed against the previous one plus this many columns, so a
+    /// layout that writes `{"padding": 0}` puts the next key flush against
+    /// this one and a wider value spreads the row out. It is separate from
+    /// [`region`](Self::region) because the gap is not part of the key: a soft
+    /// key is drawn inside its own rectangle, and the columns after it are
+    /// only a hole in the row.
+    ///
+    /// The default comes from the layout's `default_padding`, so a compact
+    /// board only has to say so once.
+    pub padding: usize,
 }
 
 /// What pressing a soft key does.
@@ -525,6 +549,7 @@ impl Key {
         value: nojson::RawJsonValue<'_, '_>,
         position: tuinix::Position,
         default_size: tuinix::Size,
+        default_padding: usize,
     ) -> Result<Self, nojson::JsonParseError> {
         let key_value = value.to_member("key")?.required()?;
         let action = if key_value.kind().is_object() {
@@ -570,9 +595,21 @@ impl Key {
             .map(parse_size)?
             .unwrap_or(default_size);
 
+        // Zero is the point of the member, so it is read as a plain count
+        // rather than a `NonZeroUsize`.
+        let padding = if let Some(padding_value) = value.to_member("padding")?.optional() {
+            padding_value.try_into()?
+        } else {
+            default_padding
+        };
+
         let region = tuinix::Region { position, size };
 
-        Ok(Self { action, region })
+        Ok(Self {
+            action,
+            region,
+            padding,
+        })
     }
 }
 

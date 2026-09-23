@@ -368,6 +368,102 @@ fn a_shortcut_keeps_its_size() {
     assert_eq!(layout.keys[0].region.size.rows, 3);
 }
 
+#[test]
+fn keys_are_a_padding_apart_by_default() {
+    // One column is the long-standing gap, so a layout that says nothing
+    // keeps the spacing it always had.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"key": "a"},
+            {"key": "b"}]"#,
+    ))
+    .expect("two keys load");
+
+    assert_eq!(layout.keys[0].padding, 1);
+    assert_eq!(layout.keys[1].region.position.col, 4);
+}
+
+#[test]
+fn a_padding_of_zero_puts_the_next_key_flush() {
+    // The point of the member: the gap is not part of the key, so a layout
+    // that wants the columns can have them.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"key": "a", "padding": 0},
+            {"key": "b"}]"#,
+    ))
+    .expect("two keys load");
+
+    assert_eq!(layout.keys[0].padding, 0);
+    assert_eq!(layout.keys[1].region.position.col, 3);
+}
+
+#[test]
+fn the_padding_member_can_be_set_for_the_whole_layout() {
+    // A compact board writes one entry rather than one per key.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"default_padding": 0},
+            {"key": "a"},
+            {"key": "b"}]"#,
+    ))
+    .expect("two keys load");
+
+    assert_eq!(layout.keys[1].region.position.col, 3);
+}
+
+#[test]
+fn a_padding_on_one_key_overrides_the_layout_default() {
+    // The two members are independent: the default only fills in the keys
+    // that say nothing, and a key may widen a row the layout made compact.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"default_padding": 0},
+            {"key": "a"},
+            {"key": "b", "padding": 2},
+            {"key": "c"}]"#,
+    ))
+    .expect("three keys load");
+
+    assert_eq!(layout.keys[1].region.position.col, 3);
+    assert_eq!(layout.keys[2].region.position.col, 8);
+}
+
+#[test]
+fn a_padding_wider_than_the_screen_is_read_as_written() {
+    // The loader does not know the terminal, so it records the gap and lets
+    // the keyboard be drawn past the edge and cropped, as a wide layout is.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"key": "a", "padding": 100},
+            {"key": "b"}]"#,
+    ))
+    .expect("two keys load");
+
+    assert_eq!(layout.keys[1].region.position.col, 103);
+}
+
+#[test]
+fn a_negative_padding_is_rejected() {
+    let result = tuke::Layout::load_from_file(write_temp(r#"[{"key": "a", "padding": -1}]"#));
+
+    assert!(result.is_err(), "a padding below zero is not a count");
+}
+
+#[test]
+fn a_padding_on_a_switch_key_is_honoured() {
+    // Padding belongs to the key, not to the kind of thing it does.
+    let set = parse_set(
+        r#"[{"default_size": {"width": 3, "height": 3}},
+            {"key": {"switch_to": "default"}, "padding": 4},
+            {"key": "a"}]"#,
+    );
+    let layout = &set.layouts()[0].layout;
+
+    assert_eq!(layout.keys[0].padding, 4);
+    assert_eq!(layout.keys[1].region.position.col, 7);
+}
+
 /// The rightmost column any key or the preview extends to, in layout cells.
 fn layout_cols(layout: &tuke::Layout) -> usize {
     layout
