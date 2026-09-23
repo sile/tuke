@@ -50,6 +50,29 @@ fn render_single_key(rows: usize, cols: usize) -> tuinix::Frame {
     tuke::screen_frame(&state, &terminal, size)
 }
 
+/// A frame with a floating full-width key over `rows` rows, and a terminal
+/// whose first row holds `line` with the cursor left where `csi` puts it.
+///
+/// The keyboard covers the whole width, so every cell of the grid is behind it
+/// and the only grid text that survives is what the cursor's clearance window
+/// re-paints.
+fn render_over_grid(rows: usize, cols: usize, line: &[u8], csi: &[u8]) -> tuinix::Frame {
+    let size = tuinix::Size { rows, cols };
+    // Pin the keyboard's bottom edge one row above the terminal's, so the
+    // keyboard covers row 0 (where the fed text sits) and the clearance window
+    // is the only way the text can show through.
+    let anchor = tuke::KeyboardPos { col: 0, rows: 1 };
+    let state = tuke::State::new(
+        layout_set(single_key_layout(rows - 1, cols)),
+        size,
+        Some(anchor),
+    );
+    let mut terminal = termnix::TerminalState::new(termnix_size(rows, cols));
+    terminal.feed(line);
+    terminal.feed(csi);
+    tuke::screen_frame(&state, &terminal, size)
+}
+
 /// The characters of `frame` on `row`, as a `String` (blanks included).
 fn row_text(frame: &tuinix::Frame, row: usize, cols: usize) -> String {
     let mut cells = vec![' '; cols];
@@ -187,4 +210,102 @@ fn the_keyboard_is_drawn_inside_the_screen_at_any_size() -> noprop::TestResult {
 
     assert!(reached.get() > 0, "no case rendered a frame\n{runner}");
     Ok(())
+}
+
+#[test]
+fn a_floating_keyboard_keeps_the_text_around_the_cursor_visible() {
+    // A 24-column line with the cursor at column 12 (it prints 12 `x` then the
+    // cursor is at column 12). The keyboard covers rows 1.., and its clearance
+    // window must bring the grid's own text back around the cursor so the user
+    // can read what they are editing.
+    let cols = 24;
+    let frame = render_over_grid(4, cols, b"xxxxxxxxxxxxxxxxxxxxxxxx", b"\x1b[1;13H");
+
+    let row = row_text(&frame, 0, cols);
+    // The cursor is at column 12, so the window is columns 4..=20: the grid's
+    // `x` shows across it, and the keyboard's border is gone from the row.
+    assert_eq!(row, "┌───xxxxxxxxxxxxxxxxx──┐");
+}
+
+#[test]
+fn a_floating_keyboard_hides_the_text_outside_the_cursor_clearance() {
+    // The keyboard is drawn over the whole grid, so text far from the cursor
+    // stays hidden: the clearance window is a window, not the whole row.
+    let cols = 40;
+    let frame = render_over_grid(
+        4,
+        cols,
+        b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        b"\x1b[1;21H",
+    );
+
+    let row = row_text(&frame, 0, cols);
+    let cursor = 20;
+    let clearance = tuke::CURSOR_CLEARANCE;
+
+    // Just inside the window the grid shows; just outside it the keyboard's
+    // own top border does.
+    let inside_left = row.chars().nth(cursor - clearance);
+    let inside_right = row.chars().nth(cursor + clearance);
+    let outside_left = row.chars().nth(cursor - clearance - 1);
+    let outside_right = row.chars().nth(cursor + clearance + 1);
+    assert_eq!(inside_left, Some('x'));
+    assert_eq!(inside_right, Some('x'));
+    assert_eq!(
+        outside_left,
+        Some('─'),
+        "a column outside the window should be the keyboard's border: {row:?}"
+    );
+    assert_eq!(outside_right, Some('─'));
+}
+
+#[test]
+fn the_cursor_clearance_window_is_clipped_at_the_edges() {
+    // A cursor at column 0 cannot show clearance to the left, and the window
+    // must not run off the screen or wrap to the other side.
+    let cols = 24;
+    let frame = render_over_grid(4, cols, b"xxxxxxxxxxxxxxxxxxxxxxxx", b"\x1b[1;1H");
+
+    let row = row_text(&frame, 0, cols);
+    let clearance = tuke::CURSOR_CLEARANCE;
+
+    // The cursor's column and its right clearance are kept; there is nothing
+    // to the left of column 0, so the window starts there and the keyboard's
+    // border resumes just past the cursor's right clearance.
+    assert_eq!(row.chars().next(), Some('x'));
+    assert_eq!(row.chars().nth(clearance), Some('x'));
+    assert_eq!(row.chars().nth(clearance + 1), Some('─'));
+}
+
+#[test]
+fn a_docked_keyboard_leaves_the_whole_grid_visible() {
+    // With the keyboard docked below the grid there is nothing to cover, so
+    // the grid's own text shows everywhere, cursor or no cursor.
+    let size = tuinix::Size { rows: 6, cols: 24 };
+    let state = tuke::State::new(layout_set(single_key_layout(3, 24)), size, None);
+    let mut terminal = termnix::TerminalState::new(termnix_size(6, 24));
+    terminal.feed(b"xxxxxxxxxxxxxxxxxxxxxxxx");
+
+    let frame = tuke::screen_frame(&state, &terminal, size);
+
+    assert!(!state.is_overlay());
+    assert_eq!(row_text(&frame, 0, 24), "xxxxxxxxxxxxxxxxxxxxxxxx");
+}
+
+#[test]
+fn a_hidden_cursor_keeps_the_keyboard_over_the_grid() {
+    // With no visible cursor there is no window to open, so the keyboard stays
+    // over the grid's text.
+    let cols = 24;
+    let frame = render_over_grid(4, cols, b"xxxxxxxxxxxxxxxxxxxxxxxx", b"\x1b[?25l");
+
+    let row = row_text(&frame, 0, cols);
+    assert!(
+        !row.contains('x'),
+        "a hidden cursor must not open a clearance window: {row:?}"
+    );
+    assert!(
+        row.contains('─'),
+        "the keyboard's border should show: {row:?}"
+    );
 }

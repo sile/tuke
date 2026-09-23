@@ -31,5 +31,5 @@ pub use geometry::{
 pub use layout::{
     Key, KeyAction, KeyCode, KeyPressState, KeyState, Layout, LayoutSet, NamedLayout, Preview,
 };
-pub use render::{screen_cursor, screen_frame};
+pub use render::{CURSOR_CLEARANCE, screen_cursor, screen_frame};
 pub use state::{KeyboardPos, State};

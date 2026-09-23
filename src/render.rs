@@ -20,6 +20,11 @@ use crate::State;
 /// of that, and finally the border is drawn around the whole keyboard.
 ///
 /// `terminal_size` is the physical terminal size.
+///
+/// Finally, when the keyboard floats over the cursor's row, the grid is
+/// re-painted over a window of columns to either side of the cursor, so the
+/// text the user is editing shows through the keyboard. See
+/// [`CURSOR_CLEARANCE`].
 pub fn screen_frame(
     state: &State,
     terminal: &termnix::TerminalState,
@@ -27,7 +32,12 @@ pub fn screen_frame(
 ) -> tuinix::Frame {
     let mut frame = tuinix::Frame::new(terminal_size);
 
-    draw_grid(&mut frame, terminal);
+    draw_grid(
+        &mut frame,
+        terminal,
+        0..terminal_size.rows,
+        0..terminal_size.cols,
+    );
 
     let shift = state.is_shift_active();
     let offset = state.offset();
@@ -58,7 +68,40 @@ pub fn screen_frame(
         );
     }
 
+    // The keyboard is drawn over the whole grid, so on the row where the
+    // cursor sits it can cover the text being edited. Paint that row back over
+    // a window around the cursor, but only where the keyboard actually sits:
+    // with the keyboard docked below the grid the grid already won, and this
+    // re-paint is a no-op.
+    if state.is_overlay()
+        && let Some(cursor) = visible_cursor(terminal)
+    {
+        let columns = cursor_clearance_columns(cursor.col, terminal_size.cols);
+        draw_grid(&mut frame, terminal, cursor.row..cursor.row + 1, columns);
+    }
+
     frame
+}
+
+/// How many columns of the grid's own text are kept visible on each side of
+/// the cursor while the keyboard floats over it.
+///
+/// A cursor alone is not enough to read what is being edited: the word around
+/// it is what tells the user where they are. Eight columns on each side is a
+/// wide enough window to hold a typical word's tail and head without opening a
+/// hole in the keyboard the size of the whole row.
+pub const CURSOR_CLEARANCE: usize = 8;
+
+/// The columns of a cursor's row to keep clear of the keyboard: the cursor's
+/// own column plus [`CURSOR_CLEARANCE`] columns to either side, clipped to a
+/// `terminal_cols`-wide terminal.
+///
+/// The cursor column is always included, so a cursor near an edge still shows
+/// even when its clearance is clipped away.
+fn cursor_clearance_columns(cursor_col: usize, terminal_cols: usize) -> std::ops::Range<usize> {
+    let start = cursor_col.saturating_sub(CURSOR_CLEARANCE);
+    let end = (cursor_col + CURSOR_CLEARANCE + 1).min(terminal_cols);
+    start..end
 }
 
 /// Fills the keyboard's bounding box with blanks and outlines it, so the grid
@@ -127,14 +170,7 @@ pub fn screen_cursor(
     terminal: &termnix::TerminalState,
     terminal_size: tuinix::Size,
 ) -> Option<tuinix::Position> {
-    if !terminal.modes().cursor_visible {
-        return None;
-    }
-    let pos = terminal.cursor();
-    let position = tuinix::Position {
-        row: pos.row as usize,
-        col: pos.col as usize,
-    };
+    let position = visible_cursor(terminal)?;
     if position.row < terminal_size.rows && position.col < terminal_size.cols {
         Some(position)
     } else {
@@ -142,9 +178,40 @@ pub fn screen_cursor(
     }
 }
 
+/// The child terminal's cursor in screen coordinates, when the child has the
+/// cursor visible.
+///
+/// Unlike [`screen_cursor`], the position is not checked against the terminal
+/// size: a caller that draws by clipping (such as [`screen_frame`]) wants the
+/// cursor even when it sits just past the edge, so the clearance window around
+/// it can still be computed.
+fn visible_cursor(terminal: &termnix::TerminalState) -> Option<tuinix::Position> {
+    if !terminal.modes().cursor_visible {
+        return None;
+    }
+    let pos = terminal.cursor();
+    Some(tuinix::Position {
+        row: pos.row as usize,
+        col: pos.col as usize,
+    })
+}
+
 /// Paints the child terminal's cells into the top-left of `frame`.
-fn draw_grid(frame: &mut tuinix::Frame, terminal: &termnix::TerminalState) {
+///
+/// Only the cells in the `rows` and `cols` windows are considered, so a caller
+/// can paint one row (or part of one) again over something drawn on top of it.
+/// The column cursor still walks the whole row, so a wide glyph that straddles
+/// the window's left edge is skipped rather than truncated into it.
+fn draw_grid(
+    frame: &mut tuinix::Frame,
+    terminal: &termnix::TerminalState,
+    rows: std::ops::Range<usize>,
+    cols: std::ops::Range<usize>,
+) {
     for (row, cells) in terminal.rows().enumerate() {
+        if !rows.contains(&row) {
+            continue;
+        }
         let mut col = 0;
         for cell in cells {
             if cell.width == 0 {
@@ -152,11 +219,14 @@ fn draw_grid(frame: &mut tuinix::Frame, terminal: &termnix::TerminalState) {
                 // already covers it.
                 continue;
             }
-            let ch = termnix_char(cell);
-            if frame.fits(tuinix::Position { row, col }, ch) {
-                frame.put_char(tuinix::Position { row, col }, ch);
+            let width = cell.width as usize;
+            if cols.contains(&col) {
+                let ch = termnix_char(cell);
+                if frame.fits(tuinix::Position { row, col }, ch) {
+                    frame.put_char(tuinix::Position { row, col }, ch);
+                }
             }
-            col += cell.width as usize;
+            col += width;
         }
     }
 }
