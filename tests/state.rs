@@ -79,12 +79,13 @@ fn sent_key(actions: &[tuke::Action]) -> Option<&termnix::KeyEvent> {
 
 /// The code of the state's soft key at index `index`.
 ///
-/// These tests only build send keys when they read a code back, so a switch
-/// key is a mistake in the test rather than a case to handle.
+/// These tests only build send keys when they read a code back, so a key of
+/// any other kind is a mistake in the test rather than a case to handle.
 fn code_of_state_key(state: &tuke::State, index: usize) -> tuke::KeyCode {
     match state.keys()[index].key.action {
         tuke::KeyAction::Send { code, .. } => code,
-        tuke::KeyAction::Switch { .. } => panic!("expected a send key"),
+        tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+        tuke::KeyAction::Shortcut { .. } => panic!("expected a send key, got a shortcut key"),
     }
 }
 
@@ -188,6 +189,137 @@ fn a_switch_to_an_unknown_layout_does_nothing() {
 
     assert!(actions.is_empty(), "expected no actions, got {actions:?}");
     assert_eq!(state.current_layout_name(), "only");
+}
+
+/// A layout whose only key is a shortcut around `text`, labelled `label`.
+fn shortcut_layout(label: &str, text: &str) -> tuke::Layout {
+    tuke::Layout {
+        keys: vec![tuke::Key {
+            action: tuke::KeyAction::Shortcut {
+                label: label.to_string(),
+                text: text.to_string(),
+            },
+            region: key_region(0, 0),
+        }],
+        preview: None,
+    }
+}
+
+#[test]
+fn pressing_a_shortcut_key_asks_for_its_text() {
+    let set = tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout: shortcut_layout("tell", "attini tell"),
+    }]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    // The text travels whole, with no Enter: the user presses Enter
+    // themselves once they have read the line back.
+    assert_eq!(
+        actions,
+        vec![
+            tuke::Action::SendShortcut("attini tell".to_string()),
+            tuke::Action::Redraw
+        ]
+    );
+}
+
+#[test]
+fn a_shortcut_is_not_held_down() {
+    // A shortcut types a string, so it has no press state to keep: after the
+    // press the key is neutral again and a second press types it again rather
+    // than being treated as a repeat of a held key.
+    let set = tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout: shortcut_layout("tell", "attini tell"),
+    }]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    press(&mut state, 0, 0);
+    assert_eq!(
+        state.keys()[0].press,
+        tuke::KeyPressState::Neutral,
+        "a shortcut key should not stay pressed"
+    );
+
+    let actions = press(&mut state, 0, 0);
+    assert_eq!(
+        actions,
+        vec![
+            tuke::Action::SendShortcut("attini tell".to_string()),
+            tuke::Action::Redraw
+        ],
+        "a second press types the same text again"
+    );
+}
+
+#[test]
+fn a_shortcut_is_the_same_text_whatever_the_modifiers_hold() {
+    // The text does not depend on the modifier keys the way a single code does
+    // (`C-a` is not `Ctrl` applied to a string), so an armed Ctrl neither
+    // changes what a shortcut types nor is consumed by it. The armed Ctrl is
+    // observed through its effect on the next ordinary key, which is the only
+    // way it becomes visible: it still carries Ctrl.
+    let set = tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout: tuke::Layout {
+            keys: vec![
+                key(tuke::KeyCode::Ctrl, 0, 0),
+                tuke::Key {
+                    action: tuke::KeyAction::Shortcut {
+                        label: "tell".to_string(),
+                        text: "attini tell".to_string(),
+                    },
+                    region: key_region(3, 0),
+                },
+                key(tuke::KeyCode::Char('b'), 6, 0),
+            ],
+            preview: None,
+        },
+    }]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    press(&mut state, 0, 0); // arm Ctrl
+    let actions = press(&mut state, 3, 0);
+
+    assert_eq!(
+        actions,
+        vec![
+            tuke::Action::SendShortcut("attini tell".to_string()),
+            tuke::Action::Redraw
+        ]
+    );
+
+    let actions = press(&mut state, 6, 0);
+    let key = sent_key(&actions).expect("the key after the shortcut is sent");
+    assert!(
+        key.modifiers.ctrl,
+        "Ctrl leaked past the shortcut key: {key:?}"
+    );
+}
+
+#[test]
+fn a_shortcut_that_types_nothing_is_still_a_press() {
+    // The text is the user's, so an empty one is a layout that spells nothing.
+    // It is carried through rather than being dropped in the core, because
+    // there is no key press to send and no marker to add either way.
+    let set = tuke::LayoutSet::from_named(vec![tuke::NamedLayout {
+        name: "default".to_string(),
+        layout: shortcut_layout("none", ""),
+    }]);
+    let mut state = tuke::State::new(set, test_size(), None);
+
+    let actions = press(&mut state, 0, 0);
+
+    assert_eq!(
+        actions,
+        vec![
+            tuke::Action::SendShortcut(String::new()),
+            tuke::Action::Redraw
+        ]
+    );
 }
 
 #[test]

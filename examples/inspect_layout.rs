@@ -72,6 +72,7 @@ fn label(key: &Key) -> String {
             other => other.to_owned(),
         },
         KeyAction::Switch { to } => format!("-> {to}"),
+        KeyAction::Shortcut { label, text } => format!("{label} -> {text:?}"),
     }
 }
 
@@ -80,6 +81,7 @@ fn code_text(key: &Key) -> String {
     match key.action {
         KeyAction::Send { code, .. } => code.to_string(),
         KeyAction::Switch { .. } => "(switch)".to_owned(),
+        KeyAction::Shortcut { .. } => "(shortcut)".to_owned(),
     }
 }
 

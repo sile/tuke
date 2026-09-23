@@ -282,6 +282,20 @@ impl App {
                 tuke::Action::SendPaste(text) => {
                     self.session.enqueue_input(termnix::Input::Paste(&text))?;
                 }
+                tuke::Action::SendShortcut(text) => {
+                    // The core carries the text, not the key presses it
+                    // spells, so each character becomes a key here. A `Char`
+                    // key is what the session turns into the bytes the child's
+                    // current modes call for, so the shortcut types what the
+                    // user would have typed.
+                    for c in text.chars() {
+                        let key = termnix::KeyEvent {
+                            code: termnix::KeyCode::Char(c),
+                            modifiers: termnix::Modifiers::new(),
+                        };
+                        self.session.enqueue_input(termnix::Input::Key(key))?;
+                    }
+                }
                 tuke::Action::ResizeSession(size) => {
                     if let Some(size) = tuke::to_termnix_size(size) {
                         self.session.resize(size)?;

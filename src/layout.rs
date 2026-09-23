@@ -477,10 +477,12 @@ pub struct Key {
 
 /// What pressing a soft key does.
 ///
-/// A key either types something (the common case) or changes which layout the
-/// keyboard shows. Both are declared under the same `key` member, so a layout
-/// spells them the same way and only the key's value tells them apart: a
-/// string is a code to send, and a `{"switch_to": NAME}` object is a switch.
+/// A key types something (the common case), changes which layout the keyboard
+/// shows, or types a whole string the user configured. All three are declared
+/// under the same `key` member, so a layout spells them the same way and only
+/// the key's value tells them apart: a string is a code to send, a
+/// `{"switch_to": NAME}` object is a switch, and a `{"shortcut": …}` object is
+/// a configured string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyAction {
     /// Send a key to the child when this key is pressed.
@@ -495,6 +497,27 @@ pub enum KeyAction {
         /// The name of the layout to show, as declared by `{"layout": NAME}`.
         to: String,
     },
+    /// Type a configured string into the child when this key is pressed.
+    ///
+    /// The string is typed the way pressing its keys on the host keyboard
+    /// would type it, so it carries no Enter: the user reads it back on the
+    /// child's screen and decides what happens next. A key that ran a command
+    /// outright could not be taken back, which is the wrong shape for a soft
+    /// key, because a soft key is easy to hit by accident.
+    ///
+    /// It exists so a frequent command line can be one press rather than a
+    /// dozen. The command is the user's, so tuke only carries the text.
+    Shortcut {
+        /// The label drawn on the key.
+        ///
+        /// The text itself is usually too long to draw (`attini approve` spans
+        /// eleven columns), so the key shows this instead. It is required
+        /// rather than derived from `text`, because the first word of two
+        /// shortcuts can be the same and the labels would be indistinguishable.
+        label: String,
+        /// The text typed into the child, exactly as written.
+        text: String,
+    },
 }
 
 impl Key {
@@ -505,12 +528,33 @@ impl Key {
     ) -> Result<Self, nojson::JsonParseError> {
         let key_value = value.to_member("key")?.required()?;
         let action = if key_value.kind().is_object() {
-            let to = key_value
-                .to_member("switch_to")?
-                .required()?
-                .to_unquoted_string_str()?
-                .to_string();
-            KeyAction::Switch { to }
+            if let Some(shortcut) = key_value.to_member("shortcut")?.optional() {
+                // A shortcut types a string, which has no shifted form to
+                // choose between, so a `shift` beside it names something that
+                // cannot happen. Reporting it rather than ignoring it keeps a
+                // layout from claiming a behaviour it does not have.
+                if let Some(shift) = value.to_member("shift")?.optional() {
+                    return Err(shift.invalid("a shortcut key cannot have a shift code"));
+                }
+                let label = shortcut
+                    .to_member("label")?
+                    .required()?
+                    .to_unquoted_string_str()?
+                    .to_string();
+                let text = shortcut
+                    .to_member("text")?
+                    .required()?
+                    .to_unquoted_string_str()?
+                    .to_string();
+                KeyAction::Shortcut { label, text }
+            } else {
+                let to = key_value
+                    .to_member("switch_to")?
+                    .required()?
+                    .to_unquoted_string_str()?
+                    .to_string();
+                KeyAction::Switch { to }
+            }
         } else {
             let code: KeyCode = key_value.try_into()?;
             let shift_code = if let Some(shift) = value.to_member("shift")?.optional() {

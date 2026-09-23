@@ -34,6 +34,7 @@ Features
 - Embeds one child process in a PTY and drives it (no tmux required)
 - Software keyboard that turns mouse clicks into key presses
 - Configurable key layout (see: [layouts/default.jsonc](layouts/default.jsonc))
+- Shortcut keys that type a configured string (see: [layouts/mini-left.jsonc](layouts/mini-left.jsonc))
 - Host keys and pastes are forwarded to the child untouched
 
 Limitations
@@ -76,6 +77,19 @@ A `switch_to` may name a layout declared later in the file, but it must name
 one the file declares somewhere: a name no layout uses is a load error, reported
 at the name that spelled it. A switch that could never fire is a typo rather
 than a key.
+
+A key can also type a whole string, so a long command line is one press rather
+than a dozen. The `key` is a `{"shortcut": …}` object with the string in `text`
+and the name to draw on the key in `label` (the text is usually too long to
+draw, so the label is required and the two are not derived from each other).
+The text is typed the way pressing its keys would type it and carries no Enter,
+so the user reads the line back and decides what happens next - a key that ran a
+command outright could not be taken back when a thumb lands on it by accident.
+
+```jsonc
+{"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
+  "size": {"width": 7, "height": 3}}
+```
 
 To see what tuke reads out of a layout - every key's code, region, and label,
 plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect_layout.rs)

@@ -88,13 +88,26 @@
   {"key": "Enter", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
-  // The switch row: the way to `SUB` for the keys this board gave up, and the
-  // way out to `MIN`. Both sit on their own row so neither is hit while
-  // reaching for a letter, and each is only as wide as its own label (the
-  // target's name), so they stay small corner keys rather than another
-  // full-width row.
+  // The last row: the way to `SUB` for the keys this board gave up, the way
+  // out to `MIN`, and the shortcut keys at the right edge. The switches sit on
+  // their own row so neither is hit while reaching for a letter, and each is
+  // only as wide as its own label, so they stay small corner keys rather than
+  // another full-width row.
   {"key": {"switch_to": "SUB"}, "size": {"width": 7, "height": 3}},
   {"key": {"switch_to": "MIN"}, "size": {"width": 7, "height": 3}},
+
+  // Shortcut keys, sharing the row and right-aligned on it: the two commands
+  // reached for often enough that spelling them out is a nuisance. They type
+  // their text and nothing more, so the Enter that runs it is still the user's
+  // to press -- a key that ran a command outright could not be taken back when
+  // a thumb lands on it by accident. Their own text is too long to draw
+  // (`attini approve` spans eleven columns), so each shows its label.
+  {"blank": 13},
+  {"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
+    "size": {"width": 7, "height": 3}},
+  {"key": {"shortcut": {"label": "approve", "text": "attini approve"}},
+    "size": {"width": 9, "height": 3}},
+  {"newline": 1},
 
   // --- SUB ---------------------------------------------------------------
 

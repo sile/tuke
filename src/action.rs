@@ -29,6 +29,19 @@ pub enum Action {
     /// asked for as bytes).
     SendBytes(Vec<u8>),
 
+    /// Type a configured string into the child's PTY.
+    ///
+    /// It is the text of a shortcut key (a [`KeyAction::Shortcut`]), typed the
+    /// way pressing its keys on the host keyboard would type it, and it
+    /// carries no Enter: the user decides what happens once the text is there.
+    ///
+    /// The payload is the text alone, not the key events it spells, so the
+    /// core writes no `termnix` key code and the child's modes decide how each
+    /// character reaches it. The edge turns each character into a key press.
+    ///
+    /// [`KeyAction::Shortcut`]: crate::layout::KeyAction::Shortcut
+    SendShortcut(String),
+
     /// Resize the child's PTY to the grid area's size.
     ResizeSession(tuinix::Size),
 

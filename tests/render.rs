@@ -134,6 +134,29 @@ fn a_label_narrower_than_the_key_stays_inside_the_borders() {
 }
 
 #[test]
+fn a_shortcut_key_draws_its_label_not_its_text() {
+    // The text a shortcut types is usually far too long for a key
+    // (`attini approve` spans eleven columns), so the key shows the label the
+    // layout gave it and the text stays out of the drawing.
+    let mut layout = single_key_layout(3, 9);
+    layout.keys[0].action = tuke::KeyAction::Shortcut {
+        label: "tell".to_string(),
+        text: "attini tell".to_string(),
+    };
+    let size = tuinix::Size { rows: 3, cols: 9 };
+    let state = tuke::State::new(layout_set(layout), size, None);
+    let terminal = termnix::TerminalState::new(termnix_size(3, 9));
+    let frame = tuke::screen_frame(&state, &terminal, size);
+
+    assert_eq!(row_text(&frame, 1, 9), "│ tell  │");
+    let drawn: String = frame.chars().map(|(_, ch)| ch.value()).collect();
+    assert!(
+        !drawn.contains("attini"),
+        "the shortcut's text leaked into the drawing: {drawn:?}"
+    );
+}
+
+#[test]
 fn a_floating_keyboard_is_painted_over_the_grid() {
     // One three-row key at the layout origin, floating with its bottom edge on
     // the terminal's last row. A grid cell the keyboard covers holds a letter,

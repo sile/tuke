@@ -309,6 +309,9 @@ fn key_frame(key_state: &KeyState, shift: bool) -> tuinix::Frame {
         // the only thing a press on it can mean, so its name is what the user
         // needs to see.
         crate::layout::KeyAction::Switch { to } => to.clone(),
+        // A shortcut key is labelled with its own label: the text it types is
+        // usually too long to draw, and the label is what the user named it.
+        crate::layout::KeyAction::Shortcut { label, .. } => label.clone(),
     };
 
     // A box needs a column for each side border and an inner row for the

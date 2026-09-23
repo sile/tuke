@@ -28,6 +28,7 @@ fn code_of(key: &tuke::Key) -> tuke::KeyCode {
     match key.action {
         tuke::KeyAction::Send { code, .. } => code,
         tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+        tuke::KeyAction::Shortcut { .. } => panic!("expected a send key, got a shortcut key"),
     }
 }
 

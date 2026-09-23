@@ -412,9 +412,22 @@ impl State {
     /// press state to hold and no code to send. The switch happens on the
     /// press itself, not on a later key, so the new layout is what the user
     /// sees as soon as the key is released.
+    ///
+    /// A shortcut key is handled here as well: its text does not depend on the
+    /// modifier keys the way a single code does (`C-a` is not `Ctrl` applied
+    /// to a string), so it is handed to the edge whole rather than being run
+    /// through the shift/Ctrl/Alt state below, and it holds no press state.
     fn press_normal(&mut self, index: usize) -> Vec<Action> {
         let (code, shift_code) = match &self.keys[index].key.action {
             KeyAction::Send { code, shift_code } => (*code, *shift_code),
+            KeyAction::Shortcut { text, .. } => {
+                // The text is taken before the press state is cleared: the
+                // `match` still borrows the key it came from, so mutating the
+                // keys here would need it while the borrow is live.
+                let text = text.clone();
+                self.reset_pressed_keys();
+                return vec![Action::SendShortcut(text), Action::Redraw];
+            }
             KeyAction::Switch { to } => {
                 // A set read from a file has already checked every switch, so
                 // this only misses for a set built by `LayoutSet::from_named`,

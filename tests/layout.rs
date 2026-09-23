@@ -27,13 +27,14 @@ fn parse_code(literal: &str) -> Result<tuke::KeyCode, nojson::JsonParseError> {
 
 /// The code a send key sends when Shift is not active.
 ///
-/// A key is either a send key or a switch key; these tests only build send
-/// keys, so this unwraps the code rather than threading a `Result` through
-/// every assertion.
+/// A key sends a code, switches layouts, or types a shortcut; these tests only
+/// build send keys here, so this unwraps the code rather than threading a
+/// `Result` through every assertion.
 fn code_of(key: &tuke::Key) -> tuke::KeyCode {
     match key.action {
         tuke::KeyAction::Send { code, .. } => code,
         tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+        tuke::KeyAction::Shortcut { .. } => panic!("expected a send key, got a shortcut key"),
     }
 }
 
@@ -286,6 +287,85 @@ fn a_switch_without_a_target_is_rejected() {
     let result = tuke::Layout::load_from_file(write_temp(r#"[{"key": {"other": 1}}]"#));
 
     assert!(result.is_err(), "a switch object needs a switch_to member");
+}
+
+#[test]
+fn a_shortcut_key_carries_its_label_and_text() {
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}}]"#,
+    ))
+    .expect("a shortcut key loads");
+
+    assert_eq!(
+        layout.keys[0].action,
+        tuke::KeyAction::Shortcut {
+            label: "tell".to_string(),
+            text: "attini tell".to_string(),
+        }
+    );
+}
+
+#[test]
+fn a_shortcut_keeps_its_text_verbatim() {
+    // The text is a command line the user typed, so tuke carries it as
+    // written: the spaces inside it are part of it, and a label is not a
+    // prefix of it that could stand in.
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"shortcut": {"label": "ap", "text": "attini  approve --now"}}}]"#,
+    ))
+    .expect("a shortcut key loads");
+
+    assert_eq!(
+        layout.keys[0].action,
+        tuke::KeyAction::Shortcut {
+            label: "ap".to_string(),
+            text: "attini  approve --now".to_string(),
+        }
+    );
+}
+
+#[test]
+fn a_shortcut_without_a_label_is_rejected() {
+    // The label is what the key draws, and the text is usually too long to
+    // draw, so a shortcut that names no label has nothing to show.
+    let result = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"shortcut": {"text": "attini tell"}}}]"#,
+    ));
+
+    assert!(result.is_err(), "a shortcut needs a label");
+}
+
+#[test]
+fn a_shortcut_without_a_text_is_rejected() {
+    let result =
+        tuke::Layout::load_from_file(write_temp(r#"[{"key": {"shortcut": {"label": "tell"}}}]"#));
+
+    assert!(result.is_err(), "a shortcut needs a text");
+}
+
+#[test]
+fn a_shortcut_with_a_shift_code_is_rejected() {
+    // A shortcut types a string, which has no shifted form to choose between,
+    // so a `shift` beside it names something that cannot happen. It is
+    // reported rather than ignored, so a layout cannot claim a behaviour it
+    // does not have.
+    let result = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}, "shift": "a"}]"#,
+    ));
+
+    assert!(result.is_err(), "a shortcut cannot carry a shift code");
+}
+
+#[test]
+fn a_shortcut_keeps_its_size() {
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
+            "size": {"width": 7, "height": 3}}]"#,
+    ))
+    .expect("a shortcut key loads");
+
+    assert_eq!(layout.keys[0].region.size.cols, 7);
+    assert_eq!(layout.keys[0].region.size.rows, 3);
 }
 
 /// The rightmost column any key or the preview extends to, in layout cells.
@@ -599,7 +679,7 @@ fn mini_left_switches_form_a_closed_set() {
                 .iter()
                 .filter_map(|key| match &key.action {
                     tuke::KeyAction::Switch { to } => Some((named.name.clone(), to.clone())),
-                    tuke::KeyAction::Send { .. } => None,
+                    tuke::KeyAction::Send { .. } | tuke::KeyAction::Shortcut { .. } => None,
                 })
         })
         .collect();

@@ -47,22 +47,25 @@ fn any_has(set: &tuke::LayoutSet, code: tuke::KeyCode) -> bool {
 }
 
 /// The code a send key sends when Shift is not active, or `None` for a key
-/// that does not send a code (a layout switch).
+/// that does not send a code (a layout switch or a shortcut).
 ///
-/// The shipped board carries a switch key (the way out to `MIN`), so tests that
-/// look for a code must step over it rather than unwrap.
+/// The shipped board carries switch keys (the ways out to `SUB` and `MIN`) and
+/// shortcut keys, so tests that look for a code must step over them rather
+/// than unwrap.
 fn send_code(key: &tuke::Key) -> Option<tuke::KeyCode> {
     match key.action {
         tuke::KeyAction::Send { code, .. } => Some(code),
-        tuke::KeyAction::Switch { .. } => None,
+        tuke::KeyAction::Switch { .. } | tuke::KeyAction::Shortcut { .. } => None,
     }
 }
 
-/// What a key is, for a failure message: its code, or where a switch goes.
+/// What a key is, for a failure message: its code, where a switch goes, or the
+/// text a shortcut types.
 fn describe(key: &tuke::Key) -> String {
     match &key.action {
         tuke::KeyAction::Send { code, .. } => code.to_string(),
         tuke::KeyAction::Switch { to } => format!("switch to {to}"),
+        tuke::KeyAction::Shortcut { label, text } => format!("shortcut {label:?} -> {text:?}"),
     }
 }
 
@@ -276,15 +279,105 @@ fn mini_left_has_no_overlapping_keys() {
 }
 
 #[test]
+fn mini_left_carries_the_configured_shortcuts() {
+    let layout = shipped_layout("mini-left.jsonc");
+
+    // The two commands reached for often enough that spelling them out is a
+    // nuisance. They ship with the board, so a rename here is a change to the
+    // user's own command line and should be deliberate.
+    let shortcuts: Vec<(String, String)> = layout
+        .keys
+        .iter()
+        .filter_map(|key| match &key.action {
+            tuke::KeyAction::Shortcut { label, text } => Some((label.clone(), text.clone())),
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(
+        shortcuts,
+        [
+            ("tell".to_string(), "attini tell".to_string()),
+            ("approve".to_string(), "attini approve".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn mini_left_puts_the_shortcuts_on_the_bottom_row_at_the_right_edge() {
+    let layout = shipped_layout("mini-left.jsonc");
+
+    let shortcut_regions: Vec<tuinix::Region> = layout
+        .keys
+        .iter()
+        .filter(|key| matches!(key.action, tuke::KeyAction::Shortcut { .. }))
+        .map(|key| key.region)
+        .collect();
+    assert_eq!(shortcut_regions.len(), 2, "expected both shortcuts");
+
+    // They share the bottom row with the switches, and that row is the
+    // keyboard's lowest: nothing is drawn below it, so the shortcuts sit on
+    // the board's last row rather than on one of their own.
+    let switch_rows: Vec<usize> = layout
+        .keys
+        .iter()
+        .filter_map(|key| match &key.action {
+            tuke::KeyAction::Switch { .. } => Some(key.region.position.row),
+            _ => None,
+        })
+        .filter(|row| *row == shortcut_regions[0].position.row)
+        .collect();
+    assert!(
+        !switch_rows.is_empty(),
+        "the shortcuts are on their own row, not the switches' row"
+    );
+
+    let bottom = layout
+        .keys
+        .iter()
+        .map(|key| key.region.position.row + key.region.size.rows)
+        .max()
+        .expect("the layout has keys");
+    for region in &shortcut_regions {
+        assert_eq!(
+            region.position.row + region.size.rows,
+            bottom,
+            "a shortcut key is not on the bottom row: {region:?}"
+        );
+    }
+
+    // They are right of every key on their row (the switches), so the row's
+    // right edge is where the shortcuts end and a thumb finds them there.
+    let row = shortcut_regions[0].position.row;
+    let leftmost_shortcut = shortcut_regions
+        .iter()
+        .map(|r| r.position.col)
+        .min()
+        .expect("two shortcuts");
+    for key in layout.keys.iter().filter(|k| k.region.position.row == row) {
+        if matches!(key.action, tuke::KeyAction::Shortcut { .. }) {
+            continue;
+        }
+        assert!(
+            key.region.position.col + key.region.size.cols <= leftmost_shortcut,
+            "{:?} is not left of the shortcut keys",
+            describe(key)
+        );
+    }
+}
+
+#[test]
 fn mini_left_labels_fit_their_keys() {
     let layout = shipped_layout("mini-left.jsonc");
 
     for key in &layout.keys {
-        // A switch key is labelled with where it goes, so its label is the
-        // destination name; every other key shows its code.
+        // A switch key is labelled with where it goes, and a shortcut key is
+        // labelled with the name the layout gave it; every other key shows its
+        // code.
         let label = match &key.action {
             tuke::KeyAction::Send { code, .. } => code.to_string(),
             tuke::KeyAction::Switch { to } => to.clone(),
+            tuke::KeyAction::Shortcut { label, .. } => label.clone(),
         };
         let interior = key.region.size.cols.saturating_sub(2);
         assert!(
