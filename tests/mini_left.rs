@@ -105,6 +105,64 @@ fn mini_left_fits_a_narrow_screen() {
 }
 
 #[test]
+fn mini_left_gathers_the_right_hand_letters_onto_one_row() {
+    let layout = shipped_layout("mini-left.jsonc");
+
+    // The right hand's letters end the QWERTY rows far off to the right, where
+    // a left hand cannot reach them without leaving the board's compact
+    // columns. `MAIN` gathers them onto their own row, ordered the way the rows
+    // they came from ran top to bottom, so the whole row is reachable.
+    let right_hand = ['i', 'o', 'p', 'k', 'l', 'm'];
+    let rows: Vec<(usize, usize)> = right_hand
+        .iter()
+        .map(|c| {
+            let key = layout
+                .keys
+                .iter()
+                .find(|k| send_code(k) == Some(tuke::KeyCode::Char(*c)))
+                .unwrap_or_else(|| panic!("missing {c}"));
+            (key.region.position.row, key.region.position.col)
+        })
+        .collect();
+
+    // All on one row...
+    let row = rows[0].0;
+    assert!(
+        rows.iter().all(|(r, _)| *r == row),
+        "the right-hand letters are on rows {:?}, not one row",
+        rows.iter().map(|(r, _)| *r).collect::<Vec<_>>()
+    );
+
+    // ...in the order they were in, running left to right...
+    let cols: Vec<usize> = rows.iter().map(|(_, c)| *c).collect();
+    assert!(
+        cols.windows(2).all(|w| w[0] < w[1]),
+        "the right-hand letters run {cols:?}, not left to right in order"
+    );
+
+    // ...and left of every key that was on the rows they left behind, so the
+    // row is the board's rightmost reach rather than an extension of it.
+    let widest_left = layout
+        .keys
+        .iter()
+        .filter(|k| k.region.position.row != row)
+        .map(|k| k.region.position.col + k.region.size.cols)
+        .max()
+        .unwrap_or_default();
+    let right_edge = cols.last().copied().unwrap_or_default()
+        + layout
+            .keys
+            .iter()
+            .find(|k| send_code(k) == Some(tuke::KeyCode::Char('m')))
+            .map(|k| k.region.size.cols)
+            .unwrap_or_default();
+    assert!(
+        right_edge < widest_left,
+        "the right-hand row reaches column {right_edge}, not left of the {widest_left}-column rows"
+    );
+}
+
+#[test]
 fn mini_left_keeps_its_boards_no_wider_than_mini() {
     let set = shipped_layout_set("mini-left.jsonc");
     let mini = shipped_layout("mini.jsonc");

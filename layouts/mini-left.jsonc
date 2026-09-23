@@ -9,9 +9,12 @@
   // out of the way. A `switch_to` key names its target, so it is labelled with
   // it.
   //
-  // `MAIN` runs top to bottom: a symbol row, the three letter rows, and the
-  // thumb row. `SUB` gathers everything else onto its own board, so `MAIN`
-  // stays small enough to reach with one hand.
+  // `MAIN` runs top to bottom: a symbol row, a row for the right-hand letters,
+  // the three left-hand letter rows, and the thumb row. Splitting the letters
+  // this way keeps every key within a thumb's reach of the left edge: the right
+  // hand's letters would otherwise end the rows far off to the right. `SUB`
+  // gathers everything else onto its own board, so `MAIN` stays small enough to
+  // reach with one hand.
 
   // --- MAIN -------------------------------------------------------------
 
@@ -34,6 +37,18 @@
   {"key": ","},
   {"newline": 1},
 
+  // Right-hand row: the letters of the right hand, gathered onto one row so a
+  // thumb reaches them without leaving the left half of the board. They keep
+  // their top-to-bottom order in the row's left-to-right one, so the hand that
+  // knows where `i` sits finds it at the row's left edge.
+  {"key": "i"},
+  {"key": "o"},
+  {"key": "p"},
+  {"key": "k"},
+  {"key": "l"},
+  {"key": "m"},
+  {"newline": 1},
+
   // Upper letter row: the letters start at the left edge.
   {"key": "q"},
   {"key": "w"},
@@ -42,9 +57,6 @@
   {"key": "t"},
   {"key": "y"},
   {"key": "u"},
-  {"key": "i"},
-  {"key": "o"},
-  {"key": "p"},
   {"newline": 1},
 
   // Home row: the letters start at the left edge.
@@ -55,8 +67,6 @@
   {"key": "g"},
   {"key": "h"},
   {"key": "j"},
-  {"key": "k"},
-  {"key": "l"},
   {"newline": 1},
 
   // Lower row: Ctrl to the left of z, and the letters run to the right, as
@@ -68,7 +78,6 @@
   {"key": "v"},
   {"key": "b"},
   {"key": "n"},
-  {"key": "m"},
   {"newline": 1},
 
   // Thumb row, directly under the letters: Backspace to the left of Space and
