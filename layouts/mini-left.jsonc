@@ -102,8 +102,8 @@
   // to press -- a key that ran a command outright could not be taken back when
   // a thumb lands on it by accident. Their own text is too long to draw
   // (`attini approve` spans eleven columns), so each shows its label.
-  {"blank": 13},
-  {"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
+  {"blank": 12},
+  {"key": {"shortcut": {"label": "tell", "text": "attini tell "}},
     "size": {"width": 7, "height": 3}},
   {"key": {"shortcut": {"label": "approve", "text": "attini approve"}},
     "size": {"width": 9, "height": 3}},
@@ -128,20 +128,12 @@
   {"key": "4"},
   {"key": "5"},
   {"newline": 1},
+  {"blank": 10},
   {"key": "6"},
   {"key": "7"},
   {"key": "8"},
   {"key": "9"},
   {"key": "0"},
-  {"newline": 1},
-
-  // Arrow cluster: the four arrows in their familiar cross, gathered to the
-  // left edge so a hand finds them in the same place every time.
-  {"key": "Up", "size": {"width": 5, "height": 3}},
-  {"newline": 1},
-  {"key": "Left"},
-  {"key": "Down"},
-  {"key": "Right"},
   {"newline": 1},
 
   // Symbol rows: the rest of the punctuation, gathered here so `MAIN` does not

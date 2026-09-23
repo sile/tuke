@@ -728,9 +728,9 @@ fn mini_left_main_still_carries_a_letter_board() {
 
 #[test]
 fn mini_left_sub_carries_the_keys_main_gave_up() {
-    // The digits, the arrows and Esc left `MAIN` to stay small, and the
-    // second board is where they must have landed: a split that dropped them
-    // would still load, so this is what pins where they went.
+    // The digits and Esc left `MAIN` to stay small, and the second board is
+    // where they must have landed: a split that dropped them would still
+    // load, so this is what pins where they went.
     let set = shipped_layout_set("mini-left.jsonc");
     let sub = set.get("SUB").expect("SUB layout");
     let has = |code: tuke::KeyCode| sub.keys.iter().any(|k| code_of(k) == code);
@@ -738,13 +738,30 @@ fn mini_left_sub_carries_the_keys_main_gave_up() {
     for c in '0'..='9' {
         assert!(has(tuke::KeyCode::Char(c)), "SUB is missing digit {c}");
     }
-    for code in [
-        tuke::KeyCode::Escape,
-        tuke::KeyCode::Left,
-        tuke::KeyCode::Down,
-        tuke::KeyCode::Up,
-        tuke::KeyCode::Right,
-    ] {
-        assert!(has(code), "SUB is missing {code}");
+    assert!(has(tuke::KeyCode::Escape), "SUB is missing Escape");
+}
+
+#[test]
+fn mini_left_has_no_arrow_keys() {
+    // The arrow cluster was taken off the board. A key that quietly came back
+    // would widen the row it sits on, so the absence is what this pins.
+    let set = shipped_layout_set("mini-left.jsonc");
+
+    for name in ["MAIN", "SUB", "MIN"] {
+        let layout = set.get(name).expect("layout {name}");
+        for key in &layout.keys {
+            if let tuke::KeyAction::Send { code, .. } = key.action {
+                assert!(
+                    !matches!(
+                        code,
+                        tuke::KeyCode::Up
+                            | tuke::KeyCode::Down
+                            | tuke::KeyCode::Left
+                            | tuke::KeyCode::Right
+                    ),
+                    "{name} carries arrow key {code}"
+                );
+            }
+        }
     }
 }

@@ -209,10 +209,6 @@ fn mini_left_carries_the_keys_a_shell_needs() {
         tuke::KeyCode::Enter,
         tuke::KeyCode::Backspace,
         tuke::KeyCode::Char(' '),
-        tuke::KeyCode::Left,
-        tuke::KeyCode::Down,
-        tuke::KeyCode::Up,
-        tuke::KeyCode::Right,
     ] {
         assert!(any_has(&set, code), "missing {code}");
     }
@@ -297,7 +293,7 @@ fn mini_left_carries_the_configured_shortcuts() {
     assert_eq!(
         shortcuts,
         [
-            ("tell".to_string(), "attini tell".to_string()),
+            ("tell".to_string(), "attini tell ".to_string()),
             ("approve".to_string(), "attini approve".to_string()),
         ]
     );
