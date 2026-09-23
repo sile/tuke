@@ -50,7 +50,6 @@ fn test_layout_at(keyboard_pos: tuke::KeyboardPos) -> tuke::Layout {
             key(tuke::KeyCode::Char('b'), 3, 0),
             key(tuke::KeyCode::Char('c'), 6, 0),
         ],
-        preview: None,
         keyboard_pos,
     }
 }
@@ -137,7 +136,6 @@ fn switch_set() -> tuke::LayoutSet {
                     region: key_region(0, 0),
                     padding: 1,
                 }],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },
@@ -145,7 +143,6 @@ fn switch_set() -> tuke::LayoutSet {
             name: "other".to_string(),
             layout: tuke::Layout {
                 keys: vec![key(tuke::KeyCode::Char('z'), 0, 0)],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },
@@ -195,7 +192,6 @@ fn a_switch_to_an_unknown_layout_does_nothing() {
                 region: key_region(0, 0),
                 padding: 1,
             }],
-            preview: None,
             keyboard_pos: tuke::KeyboardPos::ORIGIN,
         },
     }]);
@@ -218,7 +214,6 @@ fn shortcut_layout(label: &str, text: &str) -> tuke::Layout {
             region: key_region(0, 0),
             padding: 1,
         }],
-        preview: None,
         keyboard_pos: tuke::KeyboardPos::ORIGIN,
     }
 }
@@ -295,7 +290,6 @@ fn a_shortcut_is_the_same_text_whatever_the_modifiers_hold() {
                 },
                 key(tuke::KeyCode::Char('b'), 6, 0),
             ],
-            preview: None,
             keyboard_pos: tuke::KeyboardPos::ORIGIN,
         },
     }]);
@@ -357,7 +351,6 @@ fn a_switch_that_changes_the_height_keeps_the_bottom_edge() {
                     region: key_region(0, 0),
                     padding: 1,
                 }],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },
@@ -368,7 +361,6 @@ fn a_switch_that_changes_the_height_keeps_the_bottom_edge() {
                     key(tuke::KeyCode::Char('b'), 0, 0),
                     key(tuke::KeyCode::Char('c'), 3, 0),
                 ],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },
@@ -406,7 +398,6 @@ fn a_switch_that_keeps_the_grid_size_asks_for_only_a_redraw() {
                     region: key_region(0, 0),
                     padding: 1,
                 }],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },
@@ -417,7 +408,6 @@ fn a_switch_that_keeps_the_grid_size_asks_for_only_a_redraw() {
                     key(tuke::KeyCode::Char('b'), 0, 0),
                     key(tuke::KeyCode::Char('c'), 3, 0),
                 ],
-                preview: None,
                 keyboard_pos: tuke::KeyboardPos::ORIGIN,
             },
         },

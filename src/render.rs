@@ -5,7 +5,6 @@
 //! (I/O-free) [`termnix::TerminalState`] and receives a frame to diff and write.
 
 use crate::KeyState;
-use crate::Preview;
 use crate::State;
 
 /// Builds the full-screen frame.
@@ -15,8 +14,8 @@ use crate::State;
 ///
 /// The keyboard is not just its keys: the area of its bounding box is filled
 /// in and outlined first, so the grid does not show through the gaps between
-/// keys. The keys and the preview are pasted on top of that, and finally the
-/// border is drawn around the whole keyboard.
+/// keys. The keys are pasted on top of that, and finally the border is drawn
+/// around the whole keyboard.
 ///
 /// `terminal_size` is the physical terminal size.
 ///
@@ -50,17 +49,6 @@ pub fn screen_frame(
                 col: offset.col + key_state.key.region.position.col,
             },
             &key_frame,
-        );
-    }
-
-    if let Some(preview) = state.preview() {
-        let preview_frame = preview_frame(preview);
-        frame.put_frame(
-            tuinix::Position {
-                row: offset.row + preview.region.position.row,
-                col: offset.col + preview.region.position.col,
-            },
-            &preview_frame,
         );
     }
 
@@ -380,14 +368,6 @@ fn fill(frame: &mut tuinix::Frame, width: usize, height: usize, label: &str, sty
         };
         put_text(frame, tuinix::Position { row, col: 0 }, &text, style);
     }
-}
-
-/// Renders the send preview.
-///
-/// The preview keeps its own rendering (it is pure layout data), so this just
-/// delegates to [`Preview::to_frame`].
-fn preview_frame(preview: &Preview) -> tuinix::Frame {
-    preview.to_frame()
 }
 
 /// Writes `text` into `frame` starting at `at`, advancing one column per

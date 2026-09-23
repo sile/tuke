@@ -3,18 +3,12 @@
 //! It is the layout tuke ships as its default, so these are the tests that
 //! pin what a user gets out of the box.
 
-/// The rightmost column any key or the preview extends to, in layout cells.
+/// The rightmost column any key extends to, in layout cells.
 fn layout_cols(layout: &tuke::Layout) -> usize {
     layout
         .keys
         .iter()
         .map(|k| k.region.position.col + k.region.size.cols)
-        .chain(
-            layout
-                .preview
-                .iter()
-                .map(|p| p.region.position.col + p.region.size.cols),
-        )
         .max()
         .unwrap_or_default()
 }

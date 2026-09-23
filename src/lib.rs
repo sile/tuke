@@ -28,7 +28,6 @@ pub use event::Event;
 pub use geometry::{from_termnix_size, to_termnix_size};
 pub use layout::{
     Key, KeyAction, KeyCode, KeyPressState, KeyState, KeyboardPos, Layout, LayoutSet, NamedLayout,
-    Preview,
 };
 pub use render::{CURSOR_CLEARANCE, screen_cursor, screen_frame};
 pub use state::State;

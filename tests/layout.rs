@@ -184,7 +184,6 @@ fn layout_from_a_file_matches_the_text() {
         layout.keys[0].region.size,
         tuinix::Size { rows: 5, cols: 5 }
     );
-    assert!(layout.preview.is_none());
 }
 
 #[test]
@@ -471,18 +470,12 @@ fn a_padding_on_a_switch_key_is_honoured() {
     assert_eq!(layout.keys[1].region.position.col, 7);
 }
 
-/// The rightmost column any key or the preview extends to, in layout cells.
+/// The rightmost column any key extends to, in layout cells.
 fn layout_cols(layout: &tuke::Layout) -> usize {
     layout
         .keys
         .iter()
         .map(|k| k.region.position.col + k.region.size.cols)
-        .chain(
-            layout
-                .preview
-                .iter()
-                .map(|p| p.region.position.col + p.region.size.cols),
-        )
         .max()
         .unwrap_or_default()
 }

@@ -47,7 +47,6 @@ fn single_key_layout(rows: usize, cols: usize) -> tuke::Layout {
 fn single_key_layout_at(rows: usize, cols: usize, keyboard_pos: tuke::KeyboardPos) -> tuke::Layout {
     tuke::Layout {
         keys: vec![key(tuke::KeyCode::Char('x'), 0, 0, rows, cols)],
-        preview: None,
         keyboard_pos,
     }
 }

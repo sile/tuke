@@ -1,13 +1,13 @@
 //! The Sans I/O core: soft-keyboard state and its transition function.
 //!
-//! [`State`] owns the loaded layout, the per-key press state, and the send
-//! preview. [`State::update`] is a pure transition (`Event` in, `Vec<Action>`
-//! out) that never performs I/O; the edge carries the returned actions out
-//! against the real PTY and terminal.
+//! [`State`] owns the loaded layout and the per-key press state.
+//! [`State::update`] is a pure transition (`Event` in, `Vec<Action>` out) that
+//! never performs I/O; the edge carries the returned actions out against the
+//! real PTY and terminal.
 
 use crate::action::Action;
 use crate::event::Event;
-use crate::layout::{KeyAction, KeyCode, KeyPressState, KeyState, KeyboardPos, LayoutSet, Preview};
+use crate::layout::{KeyAction, KeyCode, KeyPressState, KeyState, KeyboardPos, LayoutSet};
 
 /// The soft keyboard's state and its pure transition function.
 #[derive(Debug)]
@@ -17,7 +17,6 @@ pub struct State {
     /// The name of the layout currently shown.
     current: String,
     keys: Vec<KeyState>,
-    preview: Option<Preview>,
     terminal_size: tuinix::Size,
     /// Where the layout's origin sits in screen coordinates.
     offset: tuinix::Position,
@@ -52,7 +51,6 @@ impl State {
             layouts,
             current,
             keys: Vec::new(),
-            preview: None,
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
@@ -64,11 +62,11 @@ impl State {
         state
     }
 
-    /// Rebuilds the keys and preview from the current layout.
+    /// Rebuilds the keys from the current layout.
     ///
     /// Switching layouts replaces the whole keyboard, so this is what both
     /// startup and a `switch_to` press go through: the new layout's keys start
-    /// neutral and its own preview is the one that will be drawn.
+    /// neutral.
     fn show_current_layout(&mut self) {
         let layout = self
             .layouts
@@ -79,7 +77,6 @@ impl State {
             .iter()
             .map(|key| KeyState::new(key.clone()))
             .collect();
-        self.preview = layout.preview.clone();
         self.keyboard_pos = layout.keyboard_pos;
     }
 
@@ -93,11 +90,6 @@ impl State {
         &self.keys
     }
 
-    /// The send preview, if the layout defines one.
-    pub fn preview(&self) -> Option<&Preview> {
-        self.preview.as_ref()
-    }
-
     /// The screen position of the layout's origin (top-left corner).
     pub fn offset(&self) -> tuinix::Position {
         self.offset
@@ -108,7 +100,7 @@ impl State {
         self.grid_size
     }
 
-    /// The keyboard's bounding box: the extent of every key and the preview.
+    /// The keyboard's bounding box: the extent of every key.
     pub fn layout_size(&self) -> tuinix::Size {
         tuinix::Size {
             rows: self.layout_rows(),
@@ -129,23 +121,21 @@ impl State {
         })
     }
 
-    /// The largest bottom edge (`row + rows`) over the keys and the preview.
+    /// The largest bottom edge (`row + rows`) over the keys.
     fn layout_rows(&self) -> usize {
         self.keys
             .iter()
             .map(|k| k.key.region)
-            .chain(self.preview.iter().map(|p| p.region))
             .map(|r| r.position.row + r.size.rows)
             .max()
             .unwrap_or_default()
     }
 
-    /// The largest right edge (`col + cols`) over the keys and the preview.
+    /// The largest right edge (`col + cols`) over the keys.
     fn layout_cols(&self) -> usize {
         self.keys
             .iter()
             .map(|k| k.key.region)
-            .chain(self.preview.iter().map(|p| p.region))
             .map(|r| r.position.col + r.size.cols)
             .max()
             .unwrap_or_default()
@@ -404,10 +394,6 @@ impl State {
         // BackTab is the shifted form of Tab, so the child needs Shift set.
         if code == KeyCode::BackTab {
             modifiers = modifiers.shift();
-        }
-
-        if let Some(preview) = &mut self.preview {
-            preview.on_key_sent(code, ctrl, alt);
         }
 
         vec![

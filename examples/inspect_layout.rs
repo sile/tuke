@@ -51,16 +51,6 @@ fn main() -> ExitCode {
     // Where the keyboard floats, from this layout's `keyboard_pos`.
     let pos = layout.keyboard_pos;
     println!("keyboard_pos: col={} rows={}", pos.col, pos.rows);
-    if let Some(preview) = &layout.preview {
-        println!(
-            "preview: row={} col={} {}x{}",
-            preview.region.position.row,
-            preview.region.position.col,
-            preview.region.size.cols,
-            preview.region.size.rows,
-        );
-    }
-
     ExitCode::SUCCESS
 }
 
@@ -100,17 +90,13 @@ fn shift_text(key: &Key) -> String {
 }
 
 /// The keyboard's extent in layout cells: the largest right and bottom edge
-/// over every key and the preview.
+/// over every key.
 ///
 /// This is exactly what a layout chooser compares against the terminal size:
 /// the columns must fit the terminal, and the rows are the keyboard's claim on
 /// the bottom of the screen.
 fn extent(layout: &Layout) -> (usize, usize) {
-    let regions = layout
-        .keys
-        .iter()
-        .map(|key| key.region)
-        .chain(layout.preview.iter().map(|preview| preview.region));
+    let regions = layout.keys.iter().map(|key| key.region);
 
     regions.fold((0, 0), |(cols, rows), region| {
         (

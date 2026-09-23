@@ -1,4 +1,4 @@
-//! The software keyboard layout: JSONC parsing and the key/preview model.
+//! The software keyboard layout: JSONC parsing and the key model.
 
 use std::path::Path;
 
@@ -50,13 +50,11 @@ impl Default for KeyboardPos {
     }
 }
 
-/// A software keyboard layout: the keys to draw and an optional send preview.
+/// A software keyboard layout: the keys to draw.
 #[derive(Debug)]
 pub struct Layout {
     /// The keys, in the order the layout declares them.
     pub keys: Vec<Key>,
-    /// The send preview, when the layout declares one.
-    pub preview: Option<Preview>,
     /// Where the keyboard floats, from the layout's `keyboard_pos` entry.
     pub keyboard_pos: KeyboardPos,
 }
@@ -82,7 +80,7 @@ pub struct LayoutSet {
 pub struct NamedLayout {
     /// The name a `switch_to` refers to it by.
     pub name: String,
-    /// The keys and preview to draw while it is showing.
+    /// The keys to draw while it is showing.
     pub layout: Layout,
 }
 
@@ -311,7 +309,6 @@ impl<'text, 'raw> LayoutSetBuilder<'text, 'raw> {
 #[derive(Debug)]
 struct LayoutBuilder {
     keys: Vec<Key>,
-    preview: Option<Preview>,
     next_newline_rows: usize,
     default_size: tuinix::Size,
     default_padding: usize,
@@ -324,7 +321,6 @@ impl Default for LayoutBuilder {
     fn default() -> Self {
         Self {
             keys: Vec::new(),
-            preview: None,
             next_newline_rows: 1,
             default_size: tuinix::Size { rows: 3, cols: 3 },
             default_padding: 1,
@@ -381,22 +377,6 @@ impl LayoutBuilder {
             self.keyboard_pos = KeyboardPos { col, rows };
             return Ok(true);
         }
-        if let Some(preview_value) = entry.to_member("preview")?.optional() {
-            let width = preview_value.to_member("width")?.required()?.try_into()?;
-            let region = tuinix::Region {
-                position: self.position,
-                size: tuinix::Size {
-                    rows: 1,
-                    cols: width,
-                },
-            };
-            self.preview = Some(Preview {
-                region,
-                history: Vec::new(),
-            });
-            self.position = region_top_right(region);
-            return Ok(true);
-        }
         Ok(false)
     }
 
@@ -425,127 +405,21 @@ impl LayoutBuilder {
         Ok(())
     }
 
-    /// Whether no entry has placed a key or defined a preview yet.
+    /// Whether no entry has placed a key yet.
     ///
     /// A `{"layout": …}` entry that opens a file ends the placeholder layout
     /// before it, and an empty one is dropped: a layout with nothing in it is
     /// not something the user asked for.
     fn is_empty(&self) -> bool {
-        self.keys.is_empty() && self.preview.is_none()
+        self.keys.is_empty()
     }
 
     /// Finishes the layout being built.
     fn finish(self) -> Layout {
         Layout {
             keys: self.keys,
-            preview: self.preview,
             keyboard_pos: self.keyboard_pos,
         }
-    }
-}
-
-/// One key the user sent, as recorded by the preview.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SentKey {
-    /// The layout key code that was sent.
-    code: KeyCode,
-    /// Whether Ctrl was applied.
-    ctrl: bool,
-    /// Whether Alt was applied.
-    alt: bool,
-}
-
-impl SentKey {
-    fn is_visible(&self) -> bool {
-        !(self.ctrl || self.alt || !self.code.is_char())
-    }
-}
-
-/// The send preview: a row that shows the keys most recently sent.
-#[derive(Debug, Clone)]
-pub struct Preview {
-    /// Where the preview is drawn, in layout coordinates.
-    pub region: tuinix::Region,
-    /// The keys sent so far, in order; cleared when the display would change
-    /// shape (a visible run followed by an invisible one, or vice versa).
-    history: Vec<SentKey>,
-}
-
-impl Preview {
-    /// Records a key sent to the child, updating the preview's history.
-    pub fn on_key_sent(&mut self, code: KeyCode, ctrl: bool, alt: bool) {
-        let sent_key = SentKey { code, ctrl, alt };
-        if sent_key.is_visible() {
-            if self.history.last().is_some_and(|k| !k.is_visible()) {
-                self.history.clear();
-            }
-            self.history.push(sent_key);
-        } else {
-            if self.history.last() != Some(&sent_key) {
-                self.history.clear();
-            }
-            self.history.push(sent_key);
-        }
-    }
-
-    /// Renders the preview into a frame the size of its region.
-    pub fn to_frame(&self) -> tuinix::Frame {
-        let mut frame = tuinix::Frame::new(self.region.size);
-        let mut at = put_text(
-            &mut frame,
-            tuinix::Position::ORIGIN,
-            "> ",
-            tuinix::Style::new(),
-        );
-
-        if let Some(k) = self.history.last()
-            && !k.is_visible()
-        {
-            let style = tuinix::Style::new().italic().bold();
-
-            let mut label = String::new();
-            if k.ctrl {
-                label.push_str("C-");
-            }
-            if k.alt {
-                label.push_str("M-");
-            }
-            label.push_str(&k.code.to_string());
-
-            let repeat_count = self.history.len();
-            if repeat_count > 1 {
-                label.push_str(&format!(" (x{repeat_count})"));
-            }
-
-            at = put_text(&mut frame, at, &label, style);
-        } else if !self.history.is_empty() {
-            let style = tuinix::Style::new().bold();
-            for k in &self.history {
-                at = put_text(&mut frame, at, &k.code.to_string(), style);
-            }
-            at = put_text(&mut frame, at, " ", style.reverse());
-        }
-
-        // Fill the rest of the row with blanks so the counter sits at the right
-        // edge, marked by the trailing `>`.
-        let padding = self.region.size.cols.saturating_sub(at.col + 1);
-        put_text(
-            &mut frame,
-            at,
-            &" ".repeat(padding + 1),
-            tuinix::Style::RESET,
-        );
-        put_text(
-            &mut frame,
-            tuinix::Position {
-                row: 0,
-                col: self.region.size.cols.saturating_sub(1),
-            },
-            ">",
-            tuinix::Style::RESET,
-        );
-
-        frame
     }
 }
 
@@ -886,27 +760,4 @@ fn region_top_right(region: tuinix::Region) -> tuinix::Position {
         row: region.position.row,
         col: region.position.col + region.size.cols,
     }
-}
-
-/// Writes `text` into `frame` starting at `at`, advancing one column per
-/// character, and returns the position just past the last written character.
-///
-/// A newline moves to the start of the next row, mirroring the `write!`-based
-/// drawing this replaced.
-fn put_text(
-    frame: &mut tuinix::Frame,
-    at: tuinix::Position,
-    text: &str,
-    style: tuinix::Style,
-) -> tuinix::Position {
-    let mut at = at;
-    for c in text.chars() {
-        if c == '\n' {
-            at = at.next_line();
-            continue;
-        }
-        let ch = tuinix::Char::new(c, 1, style).expect("not a control character");
-        at = frame.put_char(at, ch);
-    }
-    at
 }
