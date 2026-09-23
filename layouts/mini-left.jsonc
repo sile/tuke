@@ -19,17 +19,19 @@
   // first name is the one that starts up.
   {"layout": "MAIN"},
 
-  // Symbol row: the symbols that stay on the everyday board, gathered up here
-  // so the letter rows stay narrow. The parenthesised ones are part of the
-  // punctuation a hand reaches for often, so they stay too; the digits leave
-  // for `SUB`.
+  // Top row: Tab leads it, flush with the left edge so it lines up under the
+  // hand already resting there, and the symbols that stay on the everyday
+  // board follow it. The comma stays right beside the hyphen, where a thumb
+  // reaches for either without leaving the row.
   {"base_position": {"row": 0, "column": 0}},
   {"default_size": {"width": 5, "height": 3}},
+  {"key": "Tab", "size": {"width": 9, "height": 3}},
   {"key": "\""},
   {"key": "."},
   {"key": "/"},
   {"key": "?"},
   {"key": "-"},
+  {"key": ","},
   {"newline": 1},
 
   // Upper letter row: the letters start at the left edge.
@@ -57,8 +59,8 @@
   {"key": "l"},
   {"newline": 1},
 
-  // Lower row: Ctrl to the left of z, Tab at the right of the letters, so the
-  // two board-wide modifiers sit on the row a thumb reaches for.
+  // Lower row: Ctrl to the left of z, and the letters run to the right, as
+  // they do on the rows above.
   {"key": "C-", "size": {"width": 9, "height": 3}},
   {"key": "z"},
   {"key": "x"},
@@ -67,8 +69,6 @@
   {"key": "b"},
   {"key": "n"},
   {"key": "m"},
-  {"blank": 1},
-  {"key": "Tab", "size": {"width": 9, "height": 3}},
   {"newline": 1},
 
   // Thumb row, directly under the letters: Backspace to the left of Space and
@@ -150,7 +150,6 @@
   {"key": "|"},
   {"key": "%"},
   {"key": "$"},
-  {"key": ","},
   {"key": "`"},
   {"key": "'"},
   {"key": "\\"},
