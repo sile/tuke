@@ -418,11 +418,23 @@ fn the_shipped_default_layout_is_one_layout_named_default() {
 }
 
 /// Loads a layout that ships with tuke, by file name under `layouts/`.
+///
+/// A file with several layouts loads as its first one, which is the layout a
+/// single-board file has and the one shown at startup.
 fn shipped_layout(name: &str) -> tuke::Layout {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("layouts")
         .join(name);
     tuke::Layout::load_from_file(&path)
+        .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()))
+}
+
+/// Loads every layout a shipped file defines, in declaration order.
+fn shipped_layout_set(name: &str) -> tuke::LayoutSet {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("layouts")
+        .join(name);
+    tuke::LayoutSet::load_from_file(&path)
         .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()))
 }
 
@@ -560,4 +572,68 @@ fn a_size_below_the_minimum_is_rejected() {
     let _ = std::fs::remove_file(&path);
 
     assert!(result.is_err(), "a 2-column key is too small to draw");
+}
+
+#[test]
+fn mini_left_switches_between_main_and_min() {
+    // The shipped one-handed board carries two layouts: `MAIN`, the full board
+    // it starts on, and `MIN`, a one-key board whose only job is to put
+    // `MAIN` back. Both directions must resolve, or the file would not load
+    // (an unknown target is rejected), so this pins the shape the file is
+    // meant to have.
+    let set = shipped_layout_set("mini-left.jsonc");
+
+    let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["MAIN", "MIN"]);
+    assert_eq!(set.first_name(), "MAIN", "the full board starts up");
+
+    // Every switch in the file, as (where it is, where it goes).
+    let switches: Vec<(String, String)> = set
+        .layouts()
+        .iter()
+        .flat_map(|named| {
+            named
+                .layout
+                .keys
+                .iter()
+                .filter_map(|key| match &key.action {
+                    tuke::KeyAction::Switch { to } => Some((named.name.clone(), to.clone())),
+                    tuke::KeyAction::Send { .. } => None,
+                })
+        })
+        .collect();
+
+    assert_eq!(
+        switches,
+        [
+            ("MAIN".to_string(), "MIN".to_string()),
+            ("MIN".to_string(), "MAIN".to_string()),
+        ],
+        "MAIN goes to MIN and MIN goes back to MAIN"
+    );
+
+    // `MIN` is minimized: one key, and it is the switch back.
+    let min = set.get("MIN").expect("MIN layout");
+    assert_eq!(min.keys.len(), 1, "MIN should be a single key");
+    assert_eq!(
+        min.keys[0].action,
+        tuke::KeyAction::Switch {
+            to: "MAIN".to_string()
+        }
+    );
+}
+
+#[test]
+fn mini_left_main_still_carries_a_letter_board() {
+    // Adding the switch to `MIN` must not disturb the board itself.
+    let set = shipped_layout_set("mini-left.jsonc");
+    let main = set.get("MAIN").expect("MAIN layout");
+    let has = |code: tuke::KeyCode| main.keys.iter().any(|k| code_of(k) == code);
+
+    for c in 'a'..='z' {
+        assert!(has(tuke::KeyCode::Char(c)), "MAIN is missing letter {c}");
+    }
+    for c in '0'..='9' {
+        assert!(has(tuke::KeyCode::Char(c)), "MAIN is missing digit {c}");
+    }
 }

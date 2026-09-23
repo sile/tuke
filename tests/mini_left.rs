@@ -41,11 +41,23 @@ fn shipped_layout(name: &str) -> tuke::Layout {
         .unwrap_or_else(|e| panic!("failed to load {}: {e}", path.display()))
 }
 
-/// The code a send key sends when Shift is not active.
-fn code_of(key: &tuke::Key) -> tuke::KeyCode {
+/// The code a send key sends when Shift is not active, or `None` for a key
+/// that does not send a code (a layout switch).
+///
+/// The shipped board carries a switch key (the way out to `MIN`), so tests that
+/// look for a code must step over it rather than unwrap.
+fn send_code(key: &tuke::Key) -> Option<tuke::KeyCode> {
     match key.action {
-        tuke::KeyAction::Send { code, .. } => code,
-        tuke::KeyAction::Switch { .. } => panic!("expected a send key, got a switch key"),
+        tuke::KeyAction::Send { code, .. } => Some(code),
+        tuke::KeyAction::Switch { .. } => None,
+    }
+}
+
+/// What a key is, for a failure message: its code, or where a switch goes.
+fn describe(key: &tuke::Key) -> String {
+    match &key.action {
+        tuke::KeyAction::Send { code, .. } => code.to_string(),
+        tuke::KeyAction::Switch { to } => format!("switch to {to}"),
     }
 }
 
@@ -65,7 +77,7 @@ fn mini_left_letter_and_thumb_rows_start_at_the_left_edge() {
         let key = layout
             .keys
             .iter()
-            .find(|k| code_of(k) == code)
+            .find(|k| send_code(k) == Some(code))
             .unwrap_or_else(|| panic!("missing {code}"));
         assert_eq!(
             key.region.position.col, 0,
@@ -104,7 +116,7 @@ fn mini_left_is_taller_than_mini() {
 #[test]
 fn mini_left_carries_the_keys_a_shell_needs() {
     let layout = shipped_layout("mini-left.jsonc");
-    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| code_of(k) == code);
+    let has = |code: tuke::KeyCode| layout.keys.iter().any(|k| send_code(k) == Some(code));
 
     for c in 'a'..='z' {
         assert!(has(tuke::KeyCode::Char(c)), "missing letter {c}");
@@ -144,9 +156,9 @@ fn mini_left_has_no_overlapping_keys() {
             assert!(
                 separated,
                 "keys {:?} at {:?} and {:?} at {:?} overlap",
-                code_of(a),
+                describe(a),
                 a.region,
-                code_of(b),
+                describe(b),
                 b.region
             );
         }
@@ -158,13 +170,18 @@ fn mini_left_labels_fit_their_keys() {
     let layout = shipped_layout("mini-left.jsonc");
 
     for key in &layout.keys {
-        let label = code_of(key).to_string();
+        // A switch key is labelled with where it goes, so its label is the
+        // destination name; every other key shows its code.
+        let label = match &key.action {
+            tuke::KeyAction::Send { code, .. } => code.to_string(),
+            tuke::KeyAction::Switch { to } => to.clone(),
+        };
         let interior = key.region.size.cols.saturating_sub(2);
         assert!(
             label.chars().count() <= interior,
             "label {label:?} needs {} columns but key {:?} has {interior}",
             label.chars().count(),
-            code_of(key)
+            describe(key)
         );
     }
 }
