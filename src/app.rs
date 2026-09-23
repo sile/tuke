@@ -30,22 +30,12 @@ pub struct App {
 
 impl App {
     /// Spawns the child command and takes over the terminal.
-    ///
-    /// `keyboard_pos` floats the keyboard: it is the position of the
-    /// keyboard's bottom-left corner, measured from the terminal's bottom-left
-    /// corner (column from the left, rows from the bottom). It is handed to
-    /// the core unresolved, so a resize can resolve it again against the new
-    /// size.
-    pub fn new(
-        layouts: tuke::LayoutSet,
-        command: &mut Command,
-        keyboard_pos: Option<tuke::KeyboardPos>,
-    ) -> tuke::Result<Self> {
+    pub fn new(layouts: tuke::LayoutSet, command: &mut Command) -> tuke::Result<Self> {
         let mut driver = tuinix::TerminalDriver::new()?;
         driver.enable_mouse_reporting()?;
 
         let terminal_size = driver.size();
-        let state = tuke::State::new(layouts, terminal_size, keyboard_pos);
+        let state = tuke::State::new(layouts, terminal_size);
 
         let session_size = tuke::to_termnix_size(state.grid_size())
             .ok_or_else(|| tuke::Error::message("terminal too small to fit the keyboard layout"))?;

@@ -25,11 +25,10 @@ mod state;
 pub use action::Action;
 pub use error::{Error, Result};
 pub use event::Event;
-pub use geometry::{
-    from_termnix_size, grid_rows, keyboard_offset_col, keyboard_rows, to_termnix_size,
-};
+pub use geometry::{from_termnix_size, to_termnix_size};
 pub use layout::{
-    Key, KeyAction, KeyCode, KeyPressState, KeyState, Layout, LayoutSet, NamedLayout, Preview,
+    Key, KeyAction, KeyCode, KeyPressState, KeyState, KeyboardPos, Layout, LayoutSet, NamedLayout,
+    Preview,
 };
 pub use render::{CURSOR_CLEARANCE, screen_cursor, screen_frame};
-pub use state::{KeyboardPos, State};
+pub use state::State;

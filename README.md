@@ -78,6 +78,20 @@ one the file declares somewhere: a name no layout uses is a load error, reported
 at the name that spelled it. A switch that could never fire is a typo rather
 than a key.
 
+The keyboard floats over the whole terminal, and where it sits comes from the
+layout: a `{"keyboard_pos": {"col": C, "rows": R}}` entry pins the keyboard's
+bottom-left corner `C` columns from the terminal's left edge and `R` rows up
+from its bottom edge. The entry is positional like the others, so it stays in
+force for the layouts declared after it; a layout that names no position gets
+the terminal's bottom-left corner.
+
+```jsonc
+[
+  {"keyboard_pos": {"col": 0, "rows": 1}},
+  {"key": "a"}
+]
+```
+
 A key can also type a whole string, so a long command line is one press rather
 than a dozen. The `key` is a `{"shortcut": …}` object with the string in `text`
 and the name to draw on the key in `label` (the text is usually too long to

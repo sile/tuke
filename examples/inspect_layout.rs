@@ -48,6 +48,9 @@ fn main() -> ExitCode {
 
     let (cols, rows) = extent(&layout);
     println!("extent: {cols} cols x {rows} rows");
+    // Where the keyboard floats, from this layout's `keyboard_pos`.
+    let pos = layout.keyboard_pos;
+    println!("keyboard_pos: col={} rows={}", pos.col, pos.rows);
     if let Some(preview) = &layout.preview {
         println!(
             "preview: row={} col={} {}x{}",

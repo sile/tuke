@@ -861,3 +861,89 @@ fn mini_left_has_no_arrow_keys() {
         }
     }
 }
+
+#[test]
+fn a_layout_without_a_keyboard_pos_uses_the_corner() {
+    let layout = tuke::Layout::load_from_file(write_temp(r#"[{"key": "a"}]"#))
+        .expect("load a layout with no keyboard_pos");
+
+    assert_eq!(layout.keyboard_pos, tuke::KeyboardPos::ORIGIN);
+    assert_eq!(layout.keyboard_pos.col, 0);
+    assert_eq!(layout.keyboard_pos.rows, 0);
+}
+
+#[test]
+fn a_keyboard_pos_sets_where_the_keyboard_floats() {
+    let layout = tuke::Layout::load_from_file(write_temp(
+        r#"[
+            {"keyboard_pos": {"col": 12, "rows": 2}},
+            {"key": "a"}
+        ]"#,
+    ))
+    .expect("load a layout with a keyboard_pos");
+
+    assert_eq!(layout.keyboard_pos, tuke::KeyboardPos { col: 12, rows: 2 });
+}
+
+#[test]
+fn a_keyboard_pos_carries_over_to_the_layouts_after_it() {
+    // The entry is positional, like `base_position` and `default_size`: it
+    // stays in force until another `keyboard_pos` replaces it, so one board can
+    // pin several layouts to the same corner with a single entry.
+    let set = tuke::LayoutSet::load_from_file(write_temp(
+        r#"[
+            {"layout": "first"},
+            {"keyboard_pos": {"col": 5, "rows": 1}},
+            {"key": "a"},
+            {"layout": "second"},
+            {"key": "b"}
+        ]"#,
+    ))
+    .expect("load a set with one keyboard_pos");
+
+    assert_eq!(
+        set.get("first").expect("first").keyboard_pos,
+        tuke::KeyboardPos { col: 5, rows: 1 }
+    );
+    assert_eq!(
+        set.get("second").expect("second").keyboard_pos,
+        tuke::KeyboardPos { col: 5, rows: 1 },
+        "the second layout inherited the first's position"
+    );
+}
+
+#[test]
+fn a_later_keyboard_pos_replaces_an_earlier_one() {
+    let set = tuke::LayoutSet::load_from_file(write_temp(
+        r#"[
+            {"layout": "first"},
+            {"keyboard_pos": {"col": 5, "rows": 1}},
+            {"key": "a"},
+            {"layout": "second"},
+            {"keyboard_pos": {"col": 0, "rows": 0}},
+            {"key": "b"}
+        ]"#,
+    ))
+    .expect("load a set with two keyboard_pos entries");
+
+    assert_eq!(
+        set.get("first").expect("first").keyboard_pos,
+        tuke::KeyboardPos { col: 5, rows: 1 }
+    );
+    assert_eq!(
+        set.get("second").expect("second").keyboard_pos,
+        tuke::KeyboardPos::ORIGIN
+    );
+}
+
+#[test]
+fn a_keyboard_pos_missing_a_member_is_rejected() {
+    let result = tuke::Layout::load_from_file(write_temp(
+        r#"[
+            {"keyboard_pos": {"col": 1}},
+            {"key": "a"}
+        ]"#,
+    ));
+
+    assert!(result.is_err(), "`rows` is required when `col` is given");
+}

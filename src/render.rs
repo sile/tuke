@@ -10,21 +10,19 @@ use crate::State;
 
 /// Builds the full-screen frame.
 ///
-/// The grid is painted first, over the rows the child owns. When the keyboard
-/// docks to the bottom those are the rows above it; when it floats they are
-/// the whole terminal, and the keyboard is then painted *over* the grid.
+/// The grid is painted first, over the whole terminal, and the keyboard is
+/// then painted *over* it.
 ///
-/// In the floating case the keyboard is not just its keys: the area of its
-/// bounding box is filled in and outlined first, so the grid does not show
-/// through the gaps between keys. The keys and the preview are pasted on top
-/// of that, and finally the border is drawn around the whole keyboard.
+/// The keyboard is not just its keys: the area of its bounding box is filled
+/// in and outlined first, so the grid does not show through the gaps between
+/// keys. The keys and the preview are pasted on top of that, and finally the
+/// border is drawn around the whole keyboard.
 ///
 /// `terminal_size` is the physical terminal size.
 ///
-/// Finally, when the keyboard floats over the cursor's row, the grid is
-/// re-painted over a window of columns to either side of the cursor, so the
-/// text the user is editing shows through the keyboard. See
-/// [`CURSOR_CLEARANCE`].
+/// Finally, when the keyboard covers the cursor's row, the grid is re-painted
+/// over a window of columns to either side of the cursor, so the text the user
+/// is editing shows through the keyboard. See [`CURSOR_CLEARANCE`].
 pub fn screen_frame(
     state: &State,
     terminal: &termnix::TerminalState,
@@ -42,9 +40,7 @@ pub fn screen_frame(
     let shift = state.is_shift_active();
     let offset = state.offset();
 
-    if state.is_overlay() {
-        draw_keyboard_background(&mut frame, state, offset);
-    }
+    draw_keyboard_background(&mut frame, state, offset);
 
     for key_state in state.keys() {
         let key_frame = key_frame(key_state, shift);
@@ -70,12 +66,8 @@ pub fn screen_frame(
 
     // The keyboard is drawn over the whole grid, so on the row where the
     // cursor sits it can cover the text being edited. Paint that row back over
-    // a window around the cursor, but only where the keyboard actually sits:
-    // with the keyboard docked below the grid the grid already won, and this
-    // re-paint is a no-op.
-    if state.is_overlay()
-        && let Some(cursor) = visible_cursor(terminal)
-    {
+    // a window around the cursor.
+    if let Some(cursor) = visible_cursor(terminal) {
         let columns = cursor_clearance_columns(cursor.col, terminal_size.cols);
         draw_grid(&mut frame, terminal, cursor.row..cursor.row + 1, columns);
     }

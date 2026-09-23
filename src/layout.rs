@@ -2,6 +2,54 @@
 
 use std::path::Path;
 
+/// Where the layout file asked the floating keyboard to sit.
+///
+/// The coordinates are the terminal's bottom-left corner as the origin: `col`
+/// counts columns from the left, and `rows` counts rows up from the bottom to
+/// the keyboard's bottom edge. They are kept as given rather than resolved
+/// against a size, because the terminal can be resized: [`KeyboardPos::to_screen`]
+/// resolves them again whenever the terminal size changes, so the keyboard
+/// keeps its offset from the corner it was pinned to.
+///
+/// A layout that declares no `keyboard_pos` gets the default: the bottom-left
+/// corner, [`KeyboardPos::ORIGIN`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyboardPos {
+    /// Columns from the terminal's left edge to the keyboard's left edge.
+    pub col: usize,
+    /// Rows from the terminal's bottom edge to the keyboard's bottom edge.
+    pub rows: usize,
+}
+
+impl KeyboardPos {
+    /// The origin of the coordinate system: the terminal's bottom-left corner.
+    pub const ORIGIN: Self = Self { col: 0, rows: 0 };
+
+    /// Resolves the position to the anchor the keyboard is laid out from, for
+    /// a `terminal_size`-sized terminal.
+    ///
+    /// The anchor is the screen position of the keyboard's bottom-left corner:
+    /// its last row and its leftmost column. `rows` counts up from the
+    /// terminal's bottom row, so `rows` 0 puts the keyboard against the bottom
+    /// edge. A `rows` past the top is clamped to the top row, so the anchor
+    /// always names a row the terminal has.
+    pub fn to_screen(self, terminal_size: tuinix::Size) -> tuinix::Position {
+        tuinix::Position {
+            row: terminal_size
+                .rows
+                .saturating_sub(1)
+                .saturating_sub(self.rows),
+            col: self.col,
+        }
+    }
+}
+
+impl Default for KeyboardPos {
+    fn default() -> Self {
+        Self::ORIGIN
+    }
+}
+
 /// A software keyboard layout: the keys to draw and an optional send preview.
 #[derive(Debug)]
 pub struct Layout {
@@ -9,6 +57,8 @@ pub struct Layout {
     pub keys: Vec<Key>,
     /// The send preview, when the layout declares one.
     pub preview: Option<Preview>,
+    /// Where the keyboard floats, from the layout's `keyboard_pos` entry.
+    pub keyboard_pos: KeyboardPos,
 }
 
 /// The layouts a layout file defines, in the order they are declared.
@@ -181,6 +231,12 @@ impl<'text, 'raw> LayoutSetBuilder<'text, 'raw> {
         // an empty `default` in front of the named layouts.
         let previous_name = self.current_name.replace(name);
         let previous = std::mem::take(&mut self.current);
+        // A `keyboard_pos` is positional and stays in force for the layouts
+        // declared after it, so the new layout starts with the one the
+        // previous layout ended on rather than the default corner. The cursor
+        // and the other settings reset, because they describe a board rather
+        // than where the board sits.
+        self.current.keyboard_pos = previous.keyboard_pos;
         if previous_name.is_some() || !previous.is_empty() {
             self.layouts.push(NamedLayout {
                 name: previous_name.unwrap_or_else(|| "default".to_string()),
@@ -261,6 +317,7 @@ struct LayoutBuilder {
     default_padding: usize,
     position: tuinix::Position,
     base_col: usize,
+    keyboard_pos: KeyboardPos,
 }
 
 impl Default for LayoutBuilder {
@@ -273,6 +330,7 @@ impl Default for LayoutBuilder {
             default_padding: 1,
             position: tuinix::Position::ORIGIN,
             base_col: 0,
+            keyboard_pos: KeyboardPos::ORIGIN,
         }
     }
 }
@@ -309,6 +367,18 @@ impl LayoutBuilder {
         }
         if let Some(default_padding_value) = entry.to_member("default_padding")?.optional() {
             self.default_padding = default_padding_value.try_into()?;
+            return Ok(true);
+        }
+        if let Some(keyboard_pos_value) = entry.to_member("keyboard_pos")?.optional() {
+            let col = keyboard_pos_value
+                .to_member("col")?
+                .required()?
+                .try_into()?;
+            let rows = keyboard_pos_value
+                .to_member("rows")?
+                .required()?
+                .try_into()?;
+            self.keyboard_pos = KeyboardPos { col, rows };
             return Ok(true);
         }
         if let Some(preview_value) = entry.to_member("preview")?.optional() {
@@ -369,6 +439,7 @@ impl LayoutBuilder {
         Layout {
             keys: self.keys,
             preview: self.preview,
+            keyboard_pos: self.keyboard_pos,
         }
     }
 }

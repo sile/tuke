@@ -7,45 +7,7 @@
 
 use crate::action::Action;
 use crate::event::Event;
-use crate::geometry;
-use crate::layout::{KeyAction, KeyCode, KeyPressState, KeyState, LayoutSet, Preview};
-
-/// Where the user asked the floating keyboard to sit.
-///
-/// The coordinates are the ones the command line uses: the terminal's
-/// bottom-left corner is the origin, `col` counts columns from the left, and
-/// `rows` counts rows up from the bottom to the keyboard's bottom edge. They
-/// are kept as given rather than resolved against a size, because the terminal
-/// can be resized: [`KeyboardPos::to_screen`] resolves them again whenever the
-/// terminal size changes, so the keyboard keeps its offset from the corner it
-/// was pinned to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct KeyboardPos {
-    /// Columns from the terminal's left edge to the keyboard's left edge.
-    pub col: usize,
-    /// Rows from the terminal's bottom edge to the keyboard's bottom edge.
-    pub rows: usize,
-}
-
-impl KeyboardPos {
-    /// Resolves the position to the anchor [`State`] lays the keyboard out
-    /// from, for a `terminal_size`-sized terminal.
-    ///
-    /// The anchor is the screen position of the keyboard's bottom-left corner:
-    /// its last row and its leftmost column. `rows` counts up from the
-    /// terminal's bottom row, so `rows` 0 puts the keyboard against the bottom
-    /// edge. A `rows` past the top is clamped to the top row, so the anchor
-    /// always names a row the terminal has.
-    pub fn to_screen(self, terminal_size: tuinix::Size) -> tuinix::Position {
-        tuinix::Position {
-            row: terminal_size
-                .rows
-                .saturating_sub(1)
-                .saturating_sub(self.rows),
-            col: self.col,
-        }
-    }
-}
+use crate::layout::{KeyAction, KeyCode, KeyPressState, KeyState, KeyboardPos, LayoutSet, Preview};
 
 /// The soft keyboard's state and its pure transition function.
 #[derive(Debug)]
@@ -61,14 +23,12 @@ pub struct State {
     offset: tuinix::Position,
     /// The grid area the child's PTY should be sized to.
     grid_size: tuinix::Size,
-    /// Where the keyboard floats, when it is not docked to the bottom.
+    /// Where the keyboard floats, from the current layout's `keyboard_pos`.
     ///
-    /// It is kept as the user gave it (terminal bottom-left origin, not
+    /// It is kept as the layout file gave it (terminal bottom-left origin, not
     /// resolved against a size), so a resize can resolve it again and the
-    /// keyboard keeps its offset from the corner. When it is `None`, the
-    /// keyboard is bottom-aligned and centred, and the grid shrinks to the
-    /// rows above it.
-    keyboard_pos: Option<KeyboardPos>,
+    /// keyboard keeps its offset from the corner it was pinned to.
+    keyboard_pos: KeyboardPos,
     /// The mouse button currently held, as the guest was last told.
     ///
     /// The guest's protocol spells a drag as "moved while this button is
@@ -80,18 +40,13 @@ pub struct State {
 }
 
 impl State {
-    /// Builds the initial state from a layout and the current terminal size.
+    /// Builds the initial state from a layout set and the current terminal
+    /// size.
     ///
-    /// `keyboard_pos` floats the keyboard: when it is `Some`, its position is
-    /// taken as the screen position of the keyboard's bottom-left corner, the
-    /// grid keeps the whole terminal, and the keyboard is painted over it.
-    /// When it is `None`, the keyboard is bottom-aligned and centred, and the
-    /// grid gets the rows above it.
-    pub fn new(
-        layouts: LayoutSet,
-        terminal_size: tuinix::Size,
-        keyboard_pos: Option<KeyboardPos>,
-    ) -> Self {
+    /// The keyboard floats: its position comes from the first layout's
+    /// `keyboard_pos`, the grid keeps the whole terminal, and the keyboard is
+    /// painted over it.
+    pub fn new(layouts: LayoutSet, terminal_size: tuinix::Size) -> Self {
         let current = layouts.first_name().to_string();
         let mut state = Self {
             layouts,
@@ -101,7 +56,7 @@ impl State {
             terminal_size,
             offset: tuinix::Position::ORIGIN,
             grid_size: tuinix::Size::default(),
-            keyboard_pos,
+            keyboard_pos: KeyboardPos::ORIGIN,
             held_button: None,
         };
         state.show_current_layout();
@@ -125,6 +80,7 @@ impl State {
             .map(|key| KeyState::new(key.clone()))
             .collect();
         self.preview = layout.preview.clone();
+        self.keyboard_pos = layout.keyboard_pos;
     }
 
     /// The name of the layout currently shown.
@@ -197,54 +153,23 @@ impl State {
 
     /// Recomputes the keyboard offset and the grid size from the terminal size
     /// and the layout's extent.
+    ///
+    /// The keyboard floats: the grid keeps the whole terminal, and the
+    /// keyboard is anchored at the corner `keyboard_pos` names. The anchor is
+    /// resolved against the current terminal size, so a resize moves the
+    /// keyboard with the corner it was pinned to.
     fn recompute_geometry(&mut self) {
         let layout_rows = self.layout_rows();
-        let layout_cols = self.layout_cols();
-
-        match self.keyboard_pos {
-            // The keyboard floats: the grid keeps the whole terminal, and the
-            // keyboard is anchored at its bottom-left corner. The anchor is
-            // resolved against the current terminal size, so a resize moves
-            // the keyboard with the corner it was pinned to.
-            Some(pos) => {
-                let anchor = pos.to_screen(self.terminal_size);
-                // `anchor.row` is the keyboard's last row, so the origin is
-                // `layout_rows - 1` rows above it. Subtracting the whole
-                // `layout_rows` would put the origin one row too high and the
-                // keyboard one row above the anchor.
-                self.offset = tuinix::Position {
-                    row: anchor.row.saturating_add(1).saturating_sub(layout_rows),
-                    col: anchor.col,
-                };
-                self.grid_size = self.terminal_size;
-            }
-            // The keyboard docks to the bottom: the grid gets the rows above
-            // it, and the keyboard is centred horizontally.
-            None => {
-                let keyboard_rows = geometry::keyboard_rows(layout_rows);
-                let grid_rows = geometry::grid_rows(self.terminal_size.rows, keyboard_rows);
-                let offset_col =
-                    geometry::keyboard_offset_col(self.terminal_size.cols, layout_cols);
-                self.offset = tuinix::Position {
-                    row: grid_rows,
-                    col: offset_col,
-                };
-                self.grid_size = tuinix::Size {
-                    rows: grid_rows,
-                    cols: self.terminal_size.cols,
-                };
-            }
-        }
-    }
-
-    /// Whether the keyboard floats over the grid rather than taking the rows
-    /// above the grid.
-    ///
-    /// When it floats, the grid keeps the whole terminal and the keyboard is
-    /// drawn on top of it; the renderer paints the grid first and the keyboard
-    /// second.
-    pub fn is_overlay(&self) -> bool {
-        self.keyboard_pos.is_some()
+        let anchor = self.keyboard_pos.to_screen(self.terminal_size);
+        // `anchor.row` is the keyboard's last row, so the origin is
+        // `layout_rows - 1` rows above it. Subtracting the whole `layout_rows`
+        // would put the origin one row too high and the keyboard one row above
+        // the anchor.
+        self.offset = tuinix::Position {
+            row: anchor.row.saturating_add(1).saturating_sub(layout_rows),
+            col: anchor.col,
+        };
+        self.grid_size = self.terminal_size;
     }
 
     /// Applies an event, returning the actions it asks for.
@@ -282,15 +207,6 @@ impl State {
             return self.on_pointer_release(position);
         }
 
-        // When the keyboard docks to the bottom, the rows below the grid are
-        // not part of the child's screen, so a gesture there is a coordinate
-        // the child never painted: it is swallowed rather than clamped onto an
-        // edge. When the keyboard floats, the grid is the whole terminal, so
-        // there is no such dead zone and every gesture has a real position.
-        if !self.is_overlay() && !self.inside_grid(position) {
-            return Vec::new();
-        }
-
         if let Some(kind) = event.mouse_kind() {
             match kind {
                 tuinix::MouseInputKind::LeftPress
@@ -318,11 +234,6 @@ impl State {
             row: position.row.checked_sub(self.offset.row)?,
             col: position.col.checked_sub(self.offset.col)?,
         })
-    }
-
-    /// Whether a screen position lies within the grid area the child painted.
-    fn inside_grid(&self, position: tuinix::Position) -> bool {
-        position.row < self.grid_size.rows && position.col < self.grid_size.cols
     }
 
     fn on_key(&mut self, event: Event) -> Vec<Action> {

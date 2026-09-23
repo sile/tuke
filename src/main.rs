@@ -7,25 +7,6 @@ mod app;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Parses a `COL,ROWS` keyboard position.
-///
-/// The two numbers are separated by a comma; anything else is an error, so a
-/// typo is reported rather than silently read as the origin.
-fn parse_keyboard_pos(text: &str) -> tuke::Result<tuke::KeyboardPos> {
-    let (col, rows) = text
-        .split_once(',')
-        .ok_or_else(|| tuke::Error::message(format!("expected COL,ROWS, got {text:?}")))?;
-    let col = col
-        .trim()
-        .parse()
-        .map_err(|_| tuke::Error::message(format!("invalid column {col:?}")))?;
-    let rows = rows
-        .trim()
-        .parse()
-        .map_err(|_| tuke::Error::message(format!("invalid row {rows:?}")))?;
-    Ok(tuke::KeyboardPos { col, rows })
-}
-
 fn main() -> noargs::Result<()> {
     let mut args = noargs::raw_args();
 
@@ -43,16 +24,6 @@ fn main() -> noargs::Result<()> {
         .ty("PATH")
         .env("TUKE_LAYOUT_FILE")
         .doc("Path of layout JSONC file")
-        .take(&mut args)
-        .present_and_then(|a| a.value().parse())?;
-
-    let keyboard_pos: Option<String> = noargs::opt("keyboard-pos")
-        .ty("COL,ROWS")
-        .doc(
-            "Float the keyboard at COL,ROWS (origin: terminal's bottom-left; ROWS \
-             counts up from the bottom to the keyboard's bottom edge). Omitted, \
-             the keyboard docks to the bottom and the grid takes the rows above it.",
-        )
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
 
@@ -82,15 +53,11 @@ fn main() -> noargs::Result<()> {
         return Ok(());
     }
 
-    let keyboard_pos = keyboard_pos
-        .map(|pos| parse_keyboard_pos(&pos))
-        .transpose()?;
-
     let layouts = layout_file_path
         .map(tuke::LayoutSet::load_from_file)
         .transpose()?
         .unwrap_or_default();
-    let app = app::App::new(layouts, &mut command, keyboard_pos)?;
+    let app = app::App::new(layouts, &mut command)?;
     app.run()?;
     Ok(())
 }
