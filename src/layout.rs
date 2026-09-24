@@ -1,6 +1,8 @@
-//! The software keyboard layout: JSONC parsing and the key model.
+//! The software keyboard layout: JSON Lines parsing and the key model.
 
 use std::path::Path;
+
+use crate::error::Error;
 
 /// Where the layout file asked the floating keyboard to sit.
 ///
@@ -61,10 +63,10 @@ pub struct Layout {
 
 /// The layouts a layout file defines, in the order they are declared.
 ///
-/// A file is one JSONC array: [`Layout`] entries lay out keys, and a
-/// `{"layout": NAME}` entry starts a new named layout. Entries before the
-/// first `{"layout": …}` belong to a layout named `default`, so a file that
-/// never names one is a single layout.
+/// A file is JSON Lines: one entry per line, where [`Layout`] entries lay out
+/// keys and a `{"layout": NAME}` entry starts a new named layout. Entries
+/// before the first `{"layout": …}` belong to a layout named `default`, so a
+/// file that never names one is a single layout.
 ///
 /// A layout's keys carry a `switch_to` code that names another layout in the
 /// same set, which is how one soft key swaps the keyboard for another. A name
@@ -85,9 +87,37 @@ pub struct NamedLayout {
 }
 
 impl LayoutSet {
-    /// Loads a layout set from a JSONC file.
+    /// Loads a layout set from a JSON Lines file.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> crate::Result<Self> {
-        crate::jsonc::load_file(path)
+        let path = path.as_ref();
+        let text = std::fs::read_to_string(path).map_err(|error| {
+            Error::message(format!("failed to read file '{}': {error}", path.display()))
+        })?;
+        Self::from_jsonl(&path.display().to_string(), &text)
+    }
+
+    /// Builds a layout set from the text of a JSON Lines file.
+    ///
+    /// `name` is used in any error message, so calling this on an embedded
+    /// layout can name where the text came from. The entries are read in file
+    /// order and a failure is reported at the line it came from.
+    pub fn from_jsonl(name: &str, text: &str) -> crate::Result<Self> {
+        let entries = crate::jsonl::parse_entries(name, text)?;
+        let mut builder = LayoutSetBuilder::default();
+        for entry in &entries {
+            builder.accept(entry.json.value()).map_err(|error| {
+                Error::json(
+                    name,
+                    line_text(text, Some(entry.line)),
+                    Some(entry.line),
+                    error,
+                )
+            })?;
+        }
+        builder
+            .check_switches()
+            .map_err(|error| Error::json(name, text, None, error))?;
+        Ok(builder.finish())
     }
 
     /// The layouts in declaration order.
@@ -99,7 +129,7 @@ impl LayoutSet {
     /// `switch_to` targets.
     ///
     /// It exists so tests and callers that build layouts in code can make a
-    /// set without going through JSONC. [`LayoutSet::load_from_file`] is the
+    /// set without going through JSON Lines. [`LayoutSet::load_from_file`] is the
     /// way a user's file becomes a set, and it rejects a `switch_to` that
     /// names a layout the file does not define; a set built by this function
     /// has no such check, so a switch to a name it lacks is inert.
@@ -135,13 +165,12 @@ impl LayoutSet {
 
 impl Default for LayoutSet {
     fn default() -> Self {
-        crate::jsonc::load_str("default.json", include_str!("../layouts/default.jsonc"))
-            .expect("bug")
+        Self::from_jsonl("default.jsonl", include_str!("../layouts/default.jsonl")).expect("bug")
     }
 }
 
 impl Layout {
-    /// Loads a single layout from a JSONC file.
+    /// Loads a single layout from a JSON Lines file.
     ///
     /// This is the first layout of the file's [`LayoutSet`]: a file defining
     /// several layouts loads as its first one, the one it shows at startup.
@@ -157,19 +186,6 @@ impl Default for Layout {
     }
 }
 
-impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for LayoutSet {
-    type Error = nojson::JsonParseError;
-
-    fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
-        let mut builder = LayoutSetBuilder::default();
-        for entry in value.to_array()? {
-            builder.accept(entry)?;
-        }
-        builder.check_switches()?;
-        Ok(builder.finish())
-    }
-}
-
 impl LayoutSet {
     /// Consumes the set and returns its first layout.
     fn into_first(self) -> Layout {
@@ -181,6 +197,17 @@ impl LayoutSet {
     }
 }
 
+/// The text of the `line`-numbered line of `text`, for an error report.
+///
+/// A `None` `line` reports the whole file: the error is not tied to one line
+/// (a `switch_to` target is only known once the file has been read to its end).
+fn line_text(text: &str, line: Option<std::num::NonZeroUsize>) -> &str {
+    match line {
+        Some(line) => text.lines().nth(line.get() - 1).unwrap_or(text),
+        None => text,
+    }
+}
+
 /// Builds a [`LayoutSet`] from the entries of one layout file.
 ///
 /// The entries are positional: each key is placed where the cursor sits and
@@ -188,7 +215,7 @@ impl LayoutSet {
 /// being filled rather than here, so a `{"layout": NAME}` entry ends the
 /// current layout and starts the next one with a fresh cursor at the origin.
 #[derive(Debug, Default)]
-struct LayoutSetBuilder<'text, 'raw> {
+pub(crate) struct LayoutSetBuilder<'text, 'raw> {
     layouts: Vec<NamedLayout>,
     names: Vec<String>,
     current_name: Option<String>,

@@ -33,7 +33,7 @@ Features
 
 - Embeds one child process in a PTY and drives it (no tmux required)
 - Software keyboard that turns mouse clicks into key presses
-- Configurable key layout (see: [layouts/default.jsonc](layouts/default.jsonc))
+- Configurable key layout (see: [layouts/default.jsonl](layouts/default.jsonl))
 - Shortcut keys that type a configured string (see the same file)
 - Host keys and pastes are forwarded to the child untouched
 - Mouse events are forwarded to the child, except where the soft keyboard
@@ -71,12 +71,16 @@ Limitations
 Layouts
 -------
 
-A layout is a JSONC file that places keys at absolute coordinates inside the
-keyboard region. One is shipped, and it is the one tuke loads:
+A layout is a [JSON Lines](https://jsonlines.org/) file that places keys at
+absolute coordinates inside the keyboard region: one entry per line, with `#`
+starting a comment line and blank lines skipped. The one-entry-per-line rule is
+the point - an entry cannot be spread over several lines, so a parse error names
+the line the entry is really on, and two files that say the same thing look the
+same. One layout is shipped, and it is the one tuke loads:
 
 | File | Size | Notes |
 | --- | --- | --- |
-| [layouts/default.jsonc](layouts/default.jsonc) | 69 cols | One-handed board; fits in 80 columns, splits over `MAIN`, `SUB`, and `MIN` |
+| [layouts/default.jsonl](layouts/default.jsonl) | 69 cols | One-handed board; fits in 80 columns, splits over `MAIN`, `SUB`, and `MIN` |
 
 The file to load is currently hard-coded, so a layout you write yourself is not
 reachable yet.
@@ -87,13 +91,11 @@ same file. A file can declare more than one layout, with `{"layout": NAME}`
 starting a new one; a file that never does is a single layout named `default`.
 The keyboard shows the first layout it declares.
 
-```jsonc
-[
-  {"key": "a"},
-  {"key": {"switch_to": "minimal"}},
-  {"layout": "minimal"},
-  {"key": {"switch_to": "default"}}
-]
+```jsonl
+{"key": "a"}
+{"key": {"switch_to": "minimal"}}
+{"layout": "minimal"}
+{"key": {"switch_to": "default"}}
 ```
 
 A `switch_to` may name a layout declared later in the file, but it must name
@@ -108,11 +110,9 @@ from its bottom edge. The entry is positional like the others, so it stays in
 force for the layouts declared after it; a layout that names no position gets
 the terminal's bottom-left corner.
 
-```jsonc
-[
-  {"keyboard_pos": {"col": 0, "rows": 1}},
-  {"key": "a"}
-]
+```jsonl
+{"keyboard_pos": {"col": 0, "rows": 1}}
+{"key": "a"}
 ```
 
 A key can also type a whole string, so a long command line is one press rather
@@ -123,9 +123,8 @@ The text is typed the way pressing its keys would type it and carries no Enter,
 so the user reads the line back and decides what happens next - a key that ran a
 command outright could not be taken back when a thumb lands on it by accident.
 
-```jsonc
-{"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
-  "size": {"width": 7, "height": 3}}
+```jsonl
+{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}, "size": {"width": 7, "height": 3}}
 ```
 
 To see what tuke reads out of a layout - every key's code, region, and label,
@@ -133,7 +132,7 @@ plus the keyboard's overall extent - run the [`inspect_layout`](examples/inspect
 example against it:
 
 ```console
-$ cargo run --example inspect_layout layouts/default.jsonc
+$ cargo run --example inspect_layout layouts/default.jsonl
 ```
 
 That is also the worked example of reading a layout from Rust, and the extent

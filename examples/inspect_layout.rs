@@ -1,9 +1,9 @@
-//! Reads a layout JSONC file and prints what tuke sees in it.
+//! Reads a layout JSON Lines file and prints what tuke sees in it.
 //!
 //! Run it against a file you are writing, or against a shipped layout:
 //!
 //! ```console
-//! $ cargo run --example inspect_layout layouts/default.jsonc
+//! $ cargo run --example inspect_layout layouts/default.jsonl
 //! ```
 //!
 //! It prints one line per key (code, region, label) and then the summary a
@@ -19,7 +19,7 @@ use tuke::{Key, KeyAction, Layout};
 fn main() -> ExitCode {
     let mut args = std::env::args_os().skip(1);
     let Some(path) = args.next().map(PathBuf::from) else {
-        eprintln!("usage: inspect_layout <layout.jsonc>");
+        eprintln!("usage: inspect_layout <layout.jsonl>");
         return ExitCode::FAILURE;
     };
 

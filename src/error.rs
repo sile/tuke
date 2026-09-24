@@ -11,13 +11,21 @@ pub enum Error {
     /// An I/O operation failed (terminal device, file, or child process).
     Io(std::io::Error),
 
-    /// A JSONC layout file could not be parsed.
+    /// A JSON Lines layout file could not be parsed.
     Json {
         /// Path of the file that failed to parse.
         path: PathBuf,
-        /// The whole text of the file, kept so the error can quote the
-        /// offending line.
+        /// The text of the offending line, or the whole file for an error
+        /// that is not tied to one line.
         text: String,
+        /// The 1-based line number `text` came from in the file, when the
+        /// error is tied to one line.
+        ///
+        /// A JSONL line is parsed on its own, so the parse error's own line
+        /// number is always the first line of the single line that was
+        /// parsed. This is the file's line, kept here so the report names
+        /// where the line really is.
+        line: Option<std::num::NonZeroUsize>,
         /// The underlying parse error.
         error: nojson::JsonParseError,
     },
@@ -33,10 +41,19 @@ impl Error {
     }
 
     /// Makes a [`Error::Json`], owning the offending text.
-    pub fn json(path: &str, text: &str, error: nojson::JsonParseError) -> Self {
+    ///
+    /// `line` is the 1-based line the text came from, when the error is tied
+    /// to one line; `None` reports the error against the file as a whole.
+    pub fn json(
+        path: &str,
+        text: &str,
+        line: Option<std::num::NonZeroUsize>,
+        error: nojson::JsonParseError,
+    ) -> Self {
         Self::Json {
             path: PathBuf::from(path),
             text: text.to_owned(),
+            line,
             error,
         }
     }
@@ -46,7 +63,12 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(error) => write!(f, "{error}"),
-            Self::Json { path, text, error } => format_json_error(f, path, error, text),
+            Self::Json {
+                path,
+                text,
+                line,
+                error,
+            } => format_json_error(f, path, error, text, *line),
             Self::Message(message) => write!(f, "{message}"),
         }
     }
@@ -79,10 +101,16 @@ fn format_json_error(
     path: &std::path::Path,
     error: &nojson::JsonParseError,
     text: &str,
+    line: Option<std::num::NonZeroUsize>,
 ) -> std::fmt::Result {
-    let (line_num, column_num) = error
+    // The parse error numbers its lines within `text`. For a JSONL entry
+    // `text` is the one line that was parsed, so its line number is always 1
+    // and `line`, the file's own line, is what the user needs to see. An
+    // error against the whole file (`line` is `None`) has no such offset.
+    let (error_line_num, column_num) = error
         .get_line_and_column_numbers(text)
         .unwrap_or((std::num::NonZeroUsize::MIN, std::num::NonZeroUsize::MIN));
+    let line_num = line.unwrap_or(error_line_num);
 
     let line = error.get_line(text).unwrap_or("");
     let (display_line, display_column) = format_line_around_position(line, column_num.get());

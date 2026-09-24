@@ -17,7 +17,7 @@ mod action;
 mod error;
 mod event;
 mod geometry;
-mod jsonc;
+mod jsonl;
 mod layout;
 mod render;
 mod state;

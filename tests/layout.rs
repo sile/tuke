@@ -1,4 +1,4 @@
-//! Tests for the layout model: JSONC parsing and key code mapping.
+//! Tests for the layout model: JSON Lines parsing and key code mapping.
 
 /// Writes `text` to a fresh temporary file and returns its path.
 ///
@@ -8,7 +8,7 @@ fn write_temp(text: &str) -> std::path::PathBuf {
     use std::sync::atomic::{AtomicU32, Ordering};
     static NEXT: AtomicU32 = AtomicU32::new(0);
     let path = std::env::temp_dir().join(format!(
-        "tuke-layout-test-{}-{}.jsonc",
+        "tuke-layout-test-{}-{}.jsonl",
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
@@ -21,7 +21,7 @@ fn write_temp(text: &str) -> std::path::PathBuf {
 /// The layout file writes a key code as a quoted string, so the test parses
 /// `"<code>"` the same way the layout loader does.
 fn parse_code(literal: &str) -> Result<tuke::KeyCode, nojson::JsonParseError> {
-    let (json, _) = nojson::RawJson::parse_jsonc(literal).expect("literal is valid JSONC");
+    let json = nojson::RawJson::parse(literal).expect("literal is a string");
     tuke::KeyCode::try_from(json.value())
 }
 
@@ -173,7 +173,7 @@ fn default_layout_loads_and_declares_its_keys() {
 
 #[test]
 fn layout_from_a_file_matches_the_text() {
-    let path = write_temp(r#"[{"key": "a", "size": {"width": 5, "height": 5}}]"#);
+    let path = write_temp(r#"{"key": "a", "size": {"width": 5, "height": 5}}"#);
 
     let layout = tuke::Layout::load_from_file(&path).expect("parse layout file");
     let _ = std::fs::remove_file(&path);
@@ -192,12 +192,12 @@ fn a_switch_key_parses_its_target() {
     // the same member a send key uses, so one key form covers both. The name
     // has to exist for the file to load, so this declares the target too.
     let set = parse_set(
-        r#"[
-            {"layout": "main"},
-            {"key": {"switch_to": "minimal"}, "size": {"width": 5, "height": 5}},
-            {"layout": "minimal"},
+        r#"
+            {"layout": "main"}
+            {"key": {"switch_to": "minimal"}, "size": {"width": 5, "height": 5}}
+            {"layout": "minimal"}
             {"key": "a"}
-        ]"#,
+        "#,
     );
     let layout = set.get("main").expect("main layout");
 
@@ -215,12 +215,12 @@ fn a_switch_key_ignores_the_shift_member() {
     // A switch key has no code to shift, so a `shift` beside it is not an
     // error but the switch is still the whole action.
     let set = parse_set(
-        r#"[
-            {"layout": "main"},
-            {"key": {"switch_to": "other"}, "shift": "a"},
-            {"layout": "other"},
+        r#"
+            {"layout": "main"}
+            {"key": {"switch_to": "other"}, "shift": "a"}
+            {"layout": "other"}
             {"key": "b"}
-        ]"#,
+        "#,
     );
 
     assert_eq!(
@@ -237,7 +237,10 @@ fn a_switch_to_a_missing_layout_is_rejected() {
     // pressed, so a switch that names a layout the file does not define fails
     // to load: an inert key the user cannot see is a typo, not a feature.
     let result = tuke::LayoutSet::load_from_file(write_temp(
-        r#"[{"layout": "only"}, {"key": {"switch_to": "nowhere"}}]"#,
+        r#"
+            {"layout": "only"}
+            {"key": {"switch_to": "nowhere"}}
+        "#,
     ));
 
     assert!(
@@ -251,12 +254,12 @@ fn a_switch_may_name_a_layout_declared_later() {
     // The entries are read in order, so a switch can point forward: the whole
     // file is read before its references are checked.
     let set = parse_set(
-        r#"[
-            {"layout": "first"},
-            {"key": {"switch_to": "second"}},
-            {"layout": "second"},
+        r#"
+            {"layout": "first"}
+            {"key": {"switch_to": "second"}}
+            {"layout": "second"}
             {"key": {"switch_to": "first"}}
-        ]"#,
+        "#,
     );
 
     assert_eq!(
@@ -277,7 +280,7 @@ fn a_switch_may_name_a_layout_declared_later() {
 fn a_switch_in_an_unnamed_file_may_name_default() {
     // A file with no `{"layout": …}` entry is one layout called `default`,
     // and that implicit name is a target like any other.
-    let set = parse_set(r#"[{"key": {"switch_to": "default"}}]"#);
+    let set = parse_set(r#"{"key": {"switch_to": "default"}}"#);
 
     assert_eq!(set.layouts().len(), 1);
     assert_eq!(
@@ -290,7 +293,7 @@ fn a_switch_in_an_unnamed_file_may_name_default() {
 
 #[test]
 fn a_switch_without_a_target_is_rejected() {
-    let result = tuke::Layout::load_from_file(write_temp(r#"[{"key": {"other": 1}}]"#));
+    let result = tuke::Layout::load_from_file(write_temp(r#"{"key": {"other": 1}}"#));
 
     assert!(result.is_err(), "a switch object needs a switch_to member");
 }
@@ -298,7 +301,7 @@ fn a_switch_without_a_target_is_rejected() {
 #[test]
 fn a_shortcut_key_carries_its_label_and_text() {
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}}]"#,
+        r#"{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}}"#,
     ))
     .expect("a shortcut key loads");
 
@@ -317,7 +320,7 @@ fn a_shortcut_keeps_its_text_verbatim() {
     // written: the spaces inside it are part of it, and a label is not a
     // prefix of it that could stand in.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"shortcut": {"label": "ap", "text": "attini  approve --now"}}}]"#,
+        r#"{"key": {"shortcut": {"label": "ap", "text": "attini  approve --now"}}}"#,
     ))
     .expect("a shortcut key loads");
 
@@ -335,7 +338,7 @@ fn a_shortcut_without_a_label_is_rejected() {
     // The label is what the key draws, and the text is usually too long to
     // draw, so a shortcut that names no label has nothing to show.
     let result = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"shortcut": {"text": "attini tell"}}}]"#,
+        r#"{"key": {"shortcut": {"text": "attini tell"}}}"#,
     ));
 
     assert!(result.is_err(), "a shortcut needs a label");
@@ -344,7 +347,7 @@ fn a_shortcut_without_a_label_is_rejected() {
 #[test]
 fn a_shortcut_without_a_text_is_rejected() {
     let result =
-        tuke::Layout::load_from_file(write_temp(r#"[{"key": {"shortcut": {"label": "tell"}}}]"#));
+        tuke::Layout::load_from_file(write_temp(r#"{"key": {"shortcut": {"label": "tell"}}}"#));
 
     assert!(result.is_err(), "a shortcut needs a text");
 }
@@ -356,7 +359,7 @@ fn a_shortcut_with_a_shift_code_is_rejected() {
     // reported rather than ignored, so a layout cannot claim a behaviour it
     // does not have.
     let result = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}, "shift": "a"}]"#,
+        r#"{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}, "shift": "a"}"#,
     ));
 
     assert!(result.is_err(), "a shortcut cannot carry a shift code");
@@ -365,8 +368,7 @@ fn a_shortcut_with_a_shift_code_is_rejected() {
 #[test]
 fn a_shortcut_keeps_its_size() {
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"key": {"shortcut": {"label": "tell", "text": "attini tell"}},
-            "size": {"width": 7, "height": 3}}]"#,
+        r#"{"key": {"shortcut": {"label": "tell", "text": "attini tell"}}, "size": {"width": 7, "height": 3}}"#,
     ))
     .expect("a shortcut key loads");
 
@@ -379,9 +381,11 @@ fn keys_are_a_padding_apart_by_default() {
     // One column is the long-standing gap, so a layout that says nothing
     // keeps the spacing it always had.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"key": "a"},
-            {"key": "b"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"key": "a"}
+            {"key": "b"}
+        "#,
     ))
     .expect("two keys load");
 
@@ -394,9 +398,11 @@ fn a_padding_of_zero_puts_the_next_key_flush() {
     // The point of the member: the gap is not part of the key, so a layout
     // that wants the columns can have them.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"key": "a", "padding": 0},
-            {"key": "b"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"key": "a", "padding": 0}
+            {"key": "b"}
+        "#,
     ))
     .expect("two keys load");
 
@@ -408,10 +414,12 @@ fn a_padding_of_zero_puts_the_next_key_flush() {
 fn the_padding_member_can_be_set_for_the_whole_layout() {
     // A compact board writes one entry rather than one per key.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"default_padding": 0},
-            {"key": "a"},
-            {"key": "b"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"default_padding": 0}
+            {"key": "a"}
+            {"key": "b"}
+        "#,
     ))
     .expect("two keys load");
 
@@ -423,11 +431,13 @@ fn a_padding_on_one_key_overrides_the_layout_default() {
     // The two members are independent: the default only fills in the keys
     // that say nothing, and a key may widen a row the layout made compact.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"default_padding": 0},
-            {"key": "a"},
-            {"key": "b", "padding": 2},
-            {"key": "c"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"default_padding": 0}
+            {"key": "a"}
+            {"key": "b", "padding": 2}
+            {"key": "c"}
+        "#,
     ))
     .expect("three keys load");
 
@@ -440,9 +450,11 @@ fn a_padding_wider_than_the_screen_is_read_as_written() {
     // The loader does not know the terminal, so it records the gap and lets
     // the keyboard be drawn past the edge and cropped, as a wide layout is.
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"key": "a", "padding": 100},
-            {"key": "b"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"key": "a", "padding": 100}
+            {"key": "b"}
+        "#,
     ))
     .expect("two keys load");
 
@@ -451,7 +463,7 @@ fn a_padding_wider_than_the_screen_is_read_as_written() {
 
 #[test]
 fn a_negative_padding_is_rejected() {
-    let result = tuke::Layout::load_from_file(write_temp(r#"[{"key": "a", "padding": -1}]"#));
+    let result = tuke::Layout::load_from_file(write_temp(r#"{"key": "a", "padding": -1}"#));
 
     assert!(result.is_err(), "a padding below zero is not a count");
 }
@@ -460,9 +472,11 @@ fn a_negative_padding_is_rejected() {
 fn a_padding_on_a_switch_key_is_honoured() {
     // Padding belongs to the key, not to the kind of thing it does.
     let set = parse_set(
-        r#"[{"default_size": {"width": 3, "height": 3}},
-            {"key": {"switch_to": "default"}, "padding": 4},
-            {"key": "a"}]"#,
+        r#"
+            {"default_size": {"width": 3, "height": 3}}
+            {"key": {"switch_to": "default"}, "padding": 4}
+            {"key": "a"}
+        "#,
     );
     let layout = &set.layouts()[0].layout;
 
@@ -480,7 +494,7 @@ fn layout_cols(layout: &tuke::Layout) -> usize {
         .unwrap_or_default()
 }
 
-/// Parses a layout set from an inline JSONC document.
+/// Parses a layout set from inline JSON Lines text.
 fn parse_set(text: &str) -> tuke::LayoutSet {
     tuke::LayoutSet::load_from_file(write_temp(text))
         .unwrap_or_else(|e| panic!("parse {text}: {e}"))
@@ -488,9 +502,9 @@ fn parse_set(text: &str) -> tuke::LayoutSet {
 
 #[test]
 fn a_file_without_a_layout_entry_is_one_default_layout() {
-    // The long-standing form: a bare array of keys. It must still load, as a
-    // single layout named `default`.
-    let set = parse_set(r#"[{"key": "a", "size": {"width": 5, "height": 5}}]"#);
+    // A file with no `{"layout": …}` entry is a single layout named
+    // `default`.
+    let set = parse_set(r#"{"key": "a", "size": {"width": 5, "height": 5}}"#);
 
     assert_eq!(set.layouts().len(), 1);
     assert_eq!(set.layouts()[0].name, "default");
@@ -504,12 +518,12 @@ fn a_file_without_a_layout_entry_is_one_default_layout() {
 #[test]
 fn a_layout_entry_starts_a_named_layout() {
     let set = parse_set(
-        r#"[
-            {"layout": "first"},
-            {"key": "a"},
-            {"layout": "second"},
+        r#"
+            {"layout": "first"}
+            {"key": "a"}
+            {"layout": "second"}
             {"key": "b"}
-        ]"#,
+        "#,
     );
 
     let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
@@ -534,11 +548,11 @@ fn a_layout_entry_starts_a_named_layout() {
 #[test]
 fn entries_before_the_first_layout_entry_belong_to_default() {
     let set = parse_set(
-        r#"[
-            {"key": "a"},
-            {"layout": "second"},
+        r#"
+            {"key": "a"}
+            {"layout": "second"}
             {"key": "b"}
-        ]"#,
+        "#,
     );
 
     let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
@@ -549,12 +563,12 @@ fn entries_before_the_first_layout_entry_belong_to_default() {
 #[test]
 fn the_first_layout_is_the_one_shown_at_startup() {
     let set = parse_set(
-        r#"[
-            {"layout": "shown"},
-            {"key": "x"},
-            {"layout": "hidden"},
+        r#"
+            {"layout": "shown"}
+            {"key": "x"}
+            {"layout": "hidden"}
             {"key": "y"}
-        ]"#,
+        "#,
     );
 
     assert_eq!(code_of(&set.first().keys[0]), tuke::KeyCode::Char('x'));
@@ -563,12 +577,12 @@ fn the_first_layout_is_the_one_shown_at_startup() {
 #[test]
 fn a_duplicate_layout_name_is_rejected() {
     let result = tuke::LayoutSet::load_from_file(write_temp(
-        r#"[
-            {"layout": "dup"},
-            {"key": "a"},
-            {"layout": "dup"},
+        r#"
+            {"layout": "dup"}
+            {"key": "a"}
+            {"layout": "dup"}
             {"key": "b"}
-        ]"#,
+        "#,
     ));
 
     assert!(result.is_err(), "the same layout name twice is ambiguous");
@@ -576,7 +590,12 @@ fn a_duplicate_layout_name_is_rejected() {
 
 #[test]
 fn an_unknown_layout_name_is_not_found() {
-    let set = parse_set(r#"[{"layout": "only"}, {"key": "a"}]"#);
+    let set = parse_set(
+        r#"
+            {"layout": "only"}
+            {"key": "a"}
+        "#,
+    );
 
     assert!(set.get("missing").is_none());
     assert!(set.get("only").is_some());
@@ -618,7 +637,7 @@ fn shipped_layout_set(name: &str) -> tuke::LayoutSet {
 
 #[test]
 fn the_default_layout_fits_in_eighty_columns() {
-    let layout = shipped_layout("default.jsonc");
+    let layout = shipped_layout("default.jsonl");
 
     // The point of the default layout is that it is usable on a narrow screen:
     // an 80-column terminal must be able to show it without cropping.
@@ -635,7 +654,7 @@ fn the_default_layout_carries_the_keys_a_shell_needs() {
     // needs may live on one a switch key reaches rather than on the board
     // shown at startup. What this pins is that a hand can reach them all from
     // the keyboard as it ships, so it collects the codes from every board.
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
     let everywhere: Vec<tuke::KeyCode> = set
         .layouts()
         .iter()
@@ -678,11 +697,11 @@ fn the_default_layout_carries_the_keys_a_shell_needs() {
 
 #[test]
 fn the_default_layout_has_no_overlapping_keys() {
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
 
-    // Overlapping keys would make a hit test ambiguous, and the JSONC cursor
-    // rules already place them, so a collision means the layout moved a key by
-    // hand on top of another. Every board is checked: a hand-edit lands on
+    // Overlapping keys would make a hit test ambiguous, and the cursor rules
+    // already place them, so a collision means the layout moved a key by hand
+    // on top of another. Every board is checked: a hand-edit lands on
     // whichever one it was made in.
     for named in set.layouts() {
         let keys = &named.layout.keys;
@@ -708,7 +727,7 @@ fn the_default_layout_has_no_overlapping_keys() {
 
 #[test]
 fn the_default_layout_labels_fit_their_keys() {
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
 
     // The renderer crops a label that is too long for its key, so a cramped
     // label is not an error - but `BSpace` in a three-column key would read
@@ -735,7 +754,7 @@ fn the_default_layout_labels_fit_their_keys() {
 
 #[test]
 fn a_size_below_the_minimum_is_rejected() {
-    let path = write_temp(r#"[{"key": "a", "size": {"width": 2, "height": 5}}]"#);
+    let path = write_temp(r#"{"key": "a", "size": {"width": 2, "height": 5}}"#);
 
     let result = tuke::Layout::load_from_file(&path);
     let _ = std::fs::remove_file(&path);
@@ -751,7 +770,7 @@ fn mini_left_switches_form_a_closed_set() {
     // `MAIN` back. Every switch must resolve, or the file would not load (an
     // unknown target is rejected), so this pins the shape the file is meant to
     // have.
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
 
     let names: Vec<&str> = set.layouts().iter().map(|l| l.name.as_str()).collect();
     assert_eq!(names, ["MAIN", "SUB", "MIN"]);
@@ -806,7 +825,7 @@ fn mini_left_switches_form_a_closed_set() {
 fn mini_left_main_still_carries_a_letter_board() {
     // Splitting the board must not disturb its core: `MAIN` is the board a
     // hand lives on, so the letters stay on it whatever else moves away.
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
     let main = set.get("MAIN").expect("MAIN layout");
     let has = |code: tuke::KeyCode| main.keys.iter().any(|k| code_of(k) == code);
 
@@ -820,7 +839,7 @@ fn mini_left_sub_carries_the_keys_main_gave_up() {
     // The digits and Esc left `MAIN` to stay small, and the second board is
     // where they must have landed: a split that dropped them would still
     // load, so this is what pins where they went.
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
     let sub = set.get("SUB").expect("SUB layout");
     let has = |code: tuke::KeyCode| sub.keys.iter().any(|k| code_of(k) == code);
 
@@ -834,7 +853,7 @@ fn mini_left_sub_carries_the_keys_main_gave_up() {
 fn mini_left_has_no_arrow_keys() {
     // The arrow cluster was taken off the board. A key that quietly came back
     // would widen the row it sits on, so the absence is what this pins.
-    let set = shipped_layout_set("default.jsonc");
+    let set = shipped_layout_set("default.jsonl");
 
     for name in ["MAIN", "SUB", "MIN"] {
         let layout = set.get(name).expect("layout {name}");
@@ -857,7 +876,7 @@ fn mini_left_has_no_arrow_keys() {
 
 #[test]
 fn a_layout_without_a_keyboard_pos_uses_the_corner() {
-    let layout = tuke::Layout::load_from_file(write_temp(r#"[{"key": "a"}]"#))
+    let layout = tuke::Layout::load_from_file(write_temp(r#"{"key": "a"}"#))
         .expect("load a layout with no keyboard_pos");
 
     assert_eq!(layout.keyboard_pos, tuke::KeyboardPos::ORIGIN);
@@ -868,10 +887,10 @@ fn a_layout_without_a_keyboard_pos_uses_the_corner() {
 #[test]
 fn a_keyboard_pos_sets_where_the_keyboard_floats() {
     let layout = tuke::Layout::load_from_file(write_temp(
-        r#"[
-            {"keyboard_pos": {"col": 12, "rows": 2}},
+        r#"
+            {"keyboard_pos": {"col": 12, "rows": 2}}
             {"key": "a"}
-        ]"#,
+        "#,
     ))
     .expect("load a layout with a keyboard_pos");
 
@@ -884,13 +903,13 @@ fn a_keyboard_pos_carries_over_to_the_layouts_after_it() {
     // stays in force until another `keyboard_pos` replaces it, so one board can
     // pin several layouts to the same corner with a single entry.
     let set = tuke::LayoutSet::load_from_file(write_temp(
-        r#"[
-            {"layout": "first"},
-            {"keyboard_pos": {"col": 5, "rows": 1}},
-            {"key": "a"},
-            {"layout": "second"},
+        r#"
+            {"layout": "first"}
+            {"keyboard_pos": {"col": 5, "rows": 1}}
+            {"key": "a"}
+            {"layout": "second"}
             {"key": "b"}
-        ]"#,
+        "#,
     ))
     .expect("load a set with one keyboard_pos");
 
@@ -908,14 +927,14 @@ fn a_keyboard_pos_carries_over_to_the_layouts_after_it() {
 #[test]
 fn a_later_keyboard_pos_replaces_an_earlier_one() {
     let set = tuke::LayoutSet::load_from_file(write_temp(
-        r#"[
-            {"layout": "first"},
-            {"keyboard_pos": {"col": 5, "rows": 1}},
-            {"key": "a"},
-            {"layout": "second"},
-            {"keyboard_pos": {"col": 0, "rows": 0}},
+        r#"
+            {"layout": "first"}
+            {"keyboard_pos": {"col": 5, "rows": 1}}
+            {"key": "a"}
+            {"layout": "second"}
+            {"keyboard_pos": {"col": 0, "rows": 0}}
             {"key": "b"}
-        ]"#,
+        "#,
     ))
     .expect("load a set with two keyboard_pos entries");
 
@@ -932,10 +951,10 @@ fn a_later_keyboard_pos_replaces_an_earlier_one() {
 #[test]
 fn a_keyboard_pos_missing_a_member_is_rejected() {
     let result = tuke::Layout::load_from_file(write_temp(
-        r#"[
-            {"keyboard_pos": {"col": 1}},
+        r#"
+            {"keyboard_pos": {"col": 1}}
             {"key": "a"}
-        ]"#,
+        "#,
     ));
 
     assert!(result.is_err(), "`rows` is required when `col` is given");

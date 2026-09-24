@@ -23,7 +23,7 @@ fn main() -> noargs::Result<()> {
         .short('l')
         .ty("PATH")
         .env("TUKE_LAYOUT_FILE")
-        .doc("Path of layout JSONC file")
+        .doc("Path of layout JSONL file")
         .take(&mut args)
         .present_and_then(|a| a.value().parse())?;
 
