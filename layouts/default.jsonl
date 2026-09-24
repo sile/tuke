@@ -15,13 +15,17 @@
 # gathers everything else onto its own board, so `MAIN` stays small enough to
 # reach with one hand.
 
-{"keyboard_pos": {"col": 6, "rows": 10}}
-
 # --- MAIN -------------------------------------------------------------
 
 # A file that opens with `{"layout": …}` has no unnamed layout, so this
 # first name is the one that starts up.
 {"layout": "MAIN"}
+# Where this board floats, from the terminal's bottom-left corner: the whole
+# board sits six columns in and ten rows up, so one hand reaches it in the
+# middle-left of the screen. A `keyboard_pos` belongs to this layout alone:
+# the boards that follow each name their own, so reordering the layouts
+# cannot move this one.
+{"keyboard_pos": {"col": 6, "rows": 10}}
 
 # Top row: Tab leads it, flush with the left edge so it lines up under the
 # hand already resting there, and the symbols that stay on the everyday
@@ -131,6 +135,9 @@
 # a hand looks for them: Esc and the digits, then the arrows, then the
 # symbols gathered over their own rows.
 {"layout": "SUB"}
+# The same corner `MAIN` floats at, so switching boards does not make the
+# keyboard jump out from under the hand.
+{"keyboard_pos": {"col": 6, "rows": 10}}
 {"base_position": {"row": 0, "column": 0}}
 {"default_size": {"width": 6, "height": 3}}
 {"default_padding": 0}
@@ -203,5 +210,8 @@
 # `MIN` needs to carry, and the only thing it can carry. Like the key that
 # got here, it is just wide enough for its own label (`MAIN`).
 {"layout": "MIN"}
+# The corner `MAIN` and `SUB` float at, so the one key is where the hand
+# already is.
+{"keyboard_pos": {"col": 6, "rows": 10}}
 {"base_position": {"row": 0, "column": 0}}
 {"key": {"switch_to": "MAIN"}, "size": {"width": 7, "height": 3}}

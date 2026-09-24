@@ -14,7 +14,9 @@ use crate::error::Error;
 /// keeps its offset from the corner it was pinned to.
 ///
 /// A layout that declares no `keyboard_pos` gets the default: the bottom-left
-/// corner, [`KeyboardPos::ORIGIN`].
+/// corner, [`KeyboardPos::ORIGIN`]. A `keyboard_pos` belongs to the layout it
+/// is written in and does not carry over to the layouts after it, so each
+/// layout names its own position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyboardPos {
     /// Columns from the terminal's left edge to the keyboard's left edge.
@@ -57,7 +59,8 @@ impl Default for KeyboardPos {
 pub struct Layout {
     /// The keys, in the order the layout declares them.
     pub keys: Vec<Key>,
-    /// Where the keyboard floats, from the layout's `keyboard_pos` entry.
+    /// Where the keyboard floats, from the layout's own `keyboard_pos` entry,
+    /// or [`KeyboardPos::ORIGIN`] when it declares none.
     pub keyboard_pos: KeyboardPos,
 }
 
@@ -67,6 +70,14 @@ pub struct Layout {
 /// keys and a `{"layout": NAME}` entry starts a new named layout. Entries
 /// before the first `{"layout": …}` belong to a layout named `default`, so a
 /// file that never names one is a single layout.
+///
+/// A `{"layout": NAME}` entry starts a layout from scratch: a board setting
+/// such as `keyboard_pos`, `default_size`, `default_padding` or `base_position`
+/// applies to the layout it is written in and is not inherited by the next
+/// one. Reordering entries within a layout can still change what its keys
+/// mean, because a key is placed at the cursor the entries before it leave;
+/// but reordering whole layouts cannot, because no setting crosses a
+/// `{"layout": …}` boundary.
 ///
 /// A layout's keys carry a `switch_to` code that names another layout in the
 /// same set, which is how one soft key swaps the keyboard for another. A name
@@ -214,6 +225,11 @@ fn line_text(text: &str, line: Option<std::num::NonZeroUsize>) -> &str {
 /// moves the cursor past itself. The cursor lives in the [`LayoutBuilder`]
 /// being filled rather than here, so a `{"layout": NAME}` entry ends the
 /// current layout and starts the next one with a fresh cursor at the origin.
+///
+/// A `{"layout": NAME}` entry resets every board setting, not just the cursor:
+/// a `keyboard_pos`, `default_size`, `default_padding` or `base_position`
+/// belongs to the layout it is written in and does not carry over to the next
+/// one. A layout that wants one says so in its own entries.
 #[derive(Debug, Default)]
 pub(crate) struct LayoutSetBuilder<'text, 'raw> {
     layouts: Vec<NamedLayout>,
@@ -256,12 +272,11 @@ impl<'text, 'raw> LayoutSetBuilder<'text, 'raw> {
         // an empty `default` in front of the named layouts.
         let previous_name = self.current_name.replace(name);
         let previous = std::mem::take(&mut self.current);
-        // A `keyboard_pos` is positional and stays in force for the layouts
-        // declared after it, so the new layout starts with the one the
-        // previous layout ended on rather than the default corner. The cursor
-        // and the other settings reset, because they describe a board rather
-        // than where the board sits.
-        self.current.keyboard_pos = previous.keyboard_pos;
+        // A `keyboard_pos` belongs to the layout it is written in, so the new
+        // layout starts from the default corner rather than the one the
+        // previous layout ended on. A layout that wants its own position says
+        // so in its own entries. The cursor and the other settings reset the
+        // same way, because they too describe a board rather than a file.
         if previous_name.is_some() || !previous.is_empty() {
             self.layouts.push(NamedLayout {
                 name: previous_name.unwrap_or_else(|| "default".to_string()),

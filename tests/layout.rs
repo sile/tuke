@@ -822,6 +822,24 @@ fn mini_left_switches_form_a_closed_set() {
 }
 
 #[test]
+fn the_shipped_layouts_share_a_keyboard_pos() {
+    // All three boards of the default file float at the same corner, so a
+    // switch does not make the keyboard jump out from under the hand. A
+    // `keyboard_pos` belongs to the layout that declares it, so each board
+    // names the corner itself and this is where a drifting value would show.
+    let set = shipped_layout_set("default.jsonl");
+    let pos = tuke::KeyboardPos { col: 6, rows: 10 };
+
+    for name in ["MAIN", "SUB", "MIN"] {
+        assert_eq!(
+            set.get(name).expect("layout {name}").keyboard_pos,
+            pos,
+            "{name} should float at the shared corner"
+        );
+    }
+}
+
+#[test]
 fn mini_left_main_still_carries_a_letter_board() {
     // Splitting the board must not disturb its core: `MAIN` is the board a
     // hand lives on, so the letters stay on it whatever else moves away.
@@ -898,10 +916,10 @@ fn a_keyboard_pos_sets_where_the_keyboard_floats() {
 }
 
 #[test]
-fn a_keyboard_pos_carries_over_to_the_layouts_after_it() {
-    // The entry is positional, like `base_position` and `default_size`: it
-    // stays in force until another `keyboard_pos` replaces it, so one board can
-    // pin several layouts to the same corner with a single entry.
+fn a_keyboard_pos_belongs_to_the_layout_that_declares_it() {
+    // A `keyboard_pos` applies to the layout it is written in and no further:
+    // the layouts after it start from the default corner, so reordering whole
+    // layouts cannot move a board that named its own position.
     let set = tuke::LayoutSet::load_from_file(write_temp(
         r#"
             {"layout": "first"}
@@ -919,32 +937,30 @@ fn a_keyboard_pos_carries_over_to_the_layouts_after_it() {
     );
     assert_eq!(
         set.get("second").expect("second").keyboard_pos,
-        tuke::KeyboardPos { col: 5, rows: 1 },
-        "the second layout inherited the first's position"
+        tuke::KeyboardPos::ORIGIN,
+        "the second layout did not inherit the first's position"
     );
 }
 
 #[test]
-fn a_later_keyboard_pos_replaces_an_earlier_one() {
+fn a_later_keyboard_pos_within_a_layout_replaces_an_earlier_one() {
+    // Two `keyboard_pos` entries in the same layout: the later one wins, the
+    // same way a re-declared `default_size` does. Across a `{"layout": …}` it
+    // would not carry, but inside one layout the last word stands.
     let set = tuke::LayoutSet::load_from_file(write_temp(
         r#"
             {"layout": "first"}
             {"keyboard_pos": {"col": 5, "rows": 1}}
-            {"key": "a"}
-            {"layout": "second"}
             {"keyboard_pos": {"col": 0, "rows": 0}}
-            {"key": "b"}
+            {"key": "a"}
         "#,
     ))
     .expect("load a set with two keyboard_pos entries");
 
     assert_eq!(
         set.get("first").expect("first").keyboard_pos,
-        tuke::KeyboardPos { col: 5, rows: 1 }
-    );
-    assert_eq!(
-        set.get("second").expect("second").keyboard_pos,
-        tuke::KeyboardPos::ORIGIN
+        tuke::KeyboardPos::ORIGIN,
+        "the second keyboard_pos replaced the first"
     );
 }
 

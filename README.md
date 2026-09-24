@@ -106,9 +106,11 @@ than a key.
 The keyboard floats over the whole terminal, and where it sits comes from the
 layout: a `{"keyboard_pos": {"col": C, "rows": R}}` entry pins the keyboard's
 bottom-left corner `C` columns from the terminal's left edge and `R` rows up
-from its bottom edge. The entry is positional like the others, so it stays in
-force for the layouts declared after it; a layout that names no position gets
-the terminal's bottom-left corner.
+from its bottom edge. A `keyboard_pos` belongs to the layout it is written in:
+it applies to that layout alone and is not inherited by the layouts declared
+after it, so reordering whole layouts cannot move a board that named its own
+position. A layout that names no position gets the terminal's bottom-left
+corner.
 
 ```jsonl
 {"keyboard_pos": {"col": 0, "rows": 1}}
