@@ -673,6 +673,37 @@ fn a_left_release_on_a_key_presses_it() {
 }
 
 #[test]
+fn a_left_release_in_the_gap_between_keys_never_reaches_the_child() {
+    // Two keys with a three-column gap between them: keys span cols 0..=2 and
+    // 6..=8, so cols 3..=5 are inside the board's box but on no key.
+    let mut layout = test_layout();
+    layout.keys = vec![
+        key(tuke::KeyCode::Ctrl, 0, 0),
+        key(tuke::KeyCode::Char('b'), 0, 6),
+    ];
+    let mut state = tuke::State::new(layout_set(layout), test_size());
+
+    let offset = state.offset();
+    let gap = tuinix::Position {
+        row: offset.row,
+        col: offset.col + 4,
+    };
+
+    // The whole box is the keyboard: a click in the backing between keys is
+    // swallowed rather than showing through to the child, and it presses no
+    // key either.
+    let actions = state.update(host_mouse(
+        tuinix::MouseInputKind::LeftRelease,
+        gap.row,
+        gap.col,
+    ));
+    assert!(
+        actions.is_empty(),
+        "a release in the keyboard's gap was not swallowed: {actions:?}"
+    );
+}
+
+#[test]
 fn a_drag_reports_the_button_held_by_the_preceding_press() {
     let mut state = tuke::State::new(layout_set(test_layout()), test_size());
 

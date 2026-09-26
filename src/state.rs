@@ -186,9 +186,7 @@ impl State {
         let Some(position) = event.mouse_position() else {
             return Vec::new();
         };
-        let inside_key = self
-            .screen_to_layout(position)
-            .is_some_and(|local| self.keys.iter().any(|ks| ks.key.region.contains(local)));
+        let inside_key = self.within_keyboard(position);
 
         // A left-button release on a key is the one mouse gesture the keyboard
         // claims: it presses the key under the pointer.
@@ -206,12 +204,15 @@ impl State {
         );
 
         // Everything else that lands on the keyboard is the keyboard's, not
-        // the child's, and is swallowed: a press or release on a key must not
-        // reach the child as a click, or a tap on a soft key would arrive as a
-        // click on whatever the child has under that cell as well as as a key.
+        // the child's, and is swallowed: a press or release on the board must
+        // not reach the child as a click, or a tap on a soft key would arrive
+        // as a click on whatever the child has under that cell as well as as a
+        // key. The whole bounding box is the keyboard, not just the keys: the
+        // gaps between keys are the board's own backing, so a click that lands
+        // there is swallowed too rather than showing through to the child.
         // A drag whose button went down outside the keyboard is the exception:
         // it belongs to wherever the gesture started, so it keeps being the
-        // child's even once it crosses onto the keys.
+        // child's even once it crosses onto the board.
         let childs_drag =
             event.mouse_kind() == Some(tuinix::MouseInputKind::Drag) && self.held_button.is_some();
         if inside_key && !wheel && !childs_drag {
@@ -234,6 +235,23 @@ impl State {
         event
             .to_guest_mouse(self.held_button)
             .map_or_else(Vec::new, |mouse| vec![Action::SendMouse(mouse)])
+    }
+
+    /// Whether a screen position lands inside the keyboard's bounding box.
+    ///
+    /// The keyboard is the whole box it paints: its backing and border, not
+    /// just the keys. A click in the gaps between keys is on the board, not on
+    /// the grid showing through, so this is the rectangle the mouse is routed
+    /// by — a hit anywhere in the box is the keyboard's.
+    fn within_keyboard(&self, position: tuinix::Position) -> bool {
+        let Some(local) = self.screen_to_layout(position) else {
+            return false;
+        };
+        tuinix::Region {
+            position: tuinix::Position::ORIGIN,
+            size: self.layout_size(),
+        }
+        .contains(local)
     }
 
     /// Translates a screen position into the layout's coordinate system.
