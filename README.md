@@ -67,6 +67,8 @@ Limitations
 - A single session only (no panes, windows, or sessions)
 - The keyboard reserves the bottom rows of the terminal for itself
 - The layout is chosen once at startup
+- The scrollback is dropped as it is produced: tuke shows only the live grid,
+  so a child's history does not accumulate in memory
 
 Layouts
 -------

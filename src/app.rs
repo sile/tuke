@@ -222,6 +222,12 @@ impl App {
                 break;
             }
         }
+        // tuke never shows scrollback: the keyboard floats over a live grid
+        // and nothing reads the emulator's history. A chatty child would grow
+        // it without bound, so drop it every pump. Trimming after the pump
+        // catches the lines this pump's scrolls just pushed off, so at most one
+        // turn's worth is ever held. Zero for both limits clears it entirely.
+        self.session.trim_scrollback(0, 0);
         if tracing() {
             let after = self.session.counters();
             let written = after.input_bytes_written - before.input_bytes_written;
